@@ -1,0 +1,17 @@
+# Build and IDE artifacts
+tool/bin/
+tool/obj/
+.vs/
+*.user
+*.suo
+
+# Temporary and staging directories
+staging/
+backup/
+*.tmp
+*.bak
+pakchunk*.pak.*
+
+# Node
+node_modules/
+npm-debug.log*
