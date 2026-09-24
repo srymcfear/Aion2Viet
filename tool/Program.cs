@@ -61,8 +61,9 @@ class Program
         }
         else if (mode == "unpack")
         {
-            Console.WriteLine("=== UNPACK MODE: Extracting .pak to JSON/CSV ===");
-            UnpackAll(baseDir);
+            string? target = args.Skip(1).FirstOrDefault(a => a != "--");
+            Console.WriteLine($"=== UNPACK MODE: Extracting .pak to JSON/CSV {(target != null ? $"({target})" : "")} ===");
+            UnpackAll(baseDir, target);
         }
         else
         {
@@ -277,9 +278,11 @@ class Program
         Console.WriteLine($"Table: tableVer={tableVer}, ns='{ns}', mapCount={mapCount}");
     }
 
-    static void UnpackAll(string baseDir)
+    static void UnpackAll(string baseDir, string? targetLocale = null)
     {
-        string[] targets = ["en-US", "ko-KR", "zh-TW", "official_en-US"];
+        string[] targets = string.IsNullOrEmpty(targetLocale) 
+            ? ["en-US", "ko-KR", "zh-TW", "official_en-US"] 
+            : [targetLocale];
 
         foreach (var locale in targets)
         {
