@@ -375,15 +375,54 @@ class Program
             Console.WriteLine($"Built {outDat} ({l10nDat.Length:N0} bytes)");
         }
 
-        // Run repak to create pakchunk502000-Windows_999_P.pak
         string repakExe = Path.Combine(baseDir, "repak_bin", "repak.exe");
-        string finalPak = Path.Combine(baseDir, "pakchunk502000-Windows_999_P.pak");
 
-        Console.WriteLine($"\nPacking into {finalPak} using repak...");
+        // 1. Build and pack en-US for Global (chunk 502000)
+        string stagingEn = Path.Combine(stagingDir, "en-US");
+        Directory.CreateDirectory(stagingEn);
+        string jsonEn = Path.Combine(baseDir, "en-US_strings.json");
+        var entriesEn = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(jsonEn, Encoding.UTF8))!;
+        byte[] datEn = BuildL10NDat(entriesEn, "en-US");
+        File.WriteAllBytes(Path.Combine(stagingEn, "L10NString.dat"), datEn);
+
+        string finalPakEn = Path.Combine(baseDir, "pakchunk502000-Windows_999_P.pak");
+        Console.WriteLine($"\nPacking en-US into {finalPakEn} (Mount: ../../../Aion2/Content/L10N/Text/en-US/, Seed: 0xDEBC0EDF)...");
+        RunRepak(repakExe, $"-a \"{PakAesKey}\" pack --version V11 --mount-point \"../../../Aion2/Content/L10N/Text/en-US/\" -p 3736866527 \"{stagingEn}\" \"{finalPakEn}\"");
+
+        // 2. Build and pack ko-KR for Global (chunk 501000)
+        string stagingKo = Path.Combine(stagingDir, "ko-KR");
+        Directory.CreateDirectory(stagingKo);
+        string jsonKo = File.Exists(Path.Combine(baseDir, "ko-KR_strings.json")) 
+            ? Path.Combine(baseDir, "ko-KR_strings.json") 
+            : jsonEn;
+        var entriesKo = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(jsonKo, Encoding.UTF8))!;
+        byte[] datKo = BuildL10NDat(entriesKo, "ko-KR");
+        File.WriteAllBytes(Path.Combine(stagingKo, "L10NString.dat"), datKo);
+
+        string finalPakKo = Path.Combine(baseDir, "pakchunk501000-Windows_999_P.pak");
+        Console.WriteLine($"\nPacking ko-KR into {finalPakKo} (Mount: ../../../Aion2/Content/L10N/Text/ko-KR/, Seed: 0xFAD4A6E0)...");
+        RunRepak(repakExe, $"-a \"{PakAesKey}\" pack --version V11 --mount-point \"../../../Aion2/Content/L10N/Text/ko-KR/\" -p 4208240352 \"{stagingKo}\" \"{finalPakKo}\"");
+
+        // 3. Build legacy/universal pak with full virtual tree for TW / root mods
+        string stagingTree = Path.Combine(stagingDir, "tree", "Aion2", "Content", "L10N", "Text");
+        Directory.CreateDirectory(Path.Combine(stagingTree, "en-US"));
+        Directory.CreateDirectory(Path.Combine(stagingTree, "ko-KR"));
+        Directory.CreateDirectory(Path.Combine(stagingTree, "zh-TW"));
+        File.Copy(Path.Combine(stagingEn, "L10NString.dat"), Path.Combine(stagingTree, "en-US", "L10NString.dat"), true);
+        File.Copy(Path.Combine(stagingKo, "L10NString.dat"), Path.Combine(stagingTree, "ko-KR", "L10NString.dat"), true);
+        File.Copy(Path.Combine(stagingEn, "L10NString.dat"), Path.Combine(stagingTree, "zh-TW", "L10NString.dat"), true);
+
+        string finalPakUniversal = Path.Combine(baseDir, "pakchunk502000-Windows_999_P_universal.pak");
+        Console.WriteLine($"\nPacking universal tree into {finalPakUniversal}...");
+        RunRepak(repakExe, $"-a \"{PakAesKey}\" pack --version V11 --mount-point \"../../../\" \"{Path.Combine(stagingDir, "tree")}\" \"{finalPakUniversal}\"");
+    }
+
+    static void RunRepak(string repakExe, string arguments)
+    {
         var psi = new ProcessStartInfo
         {
             FileName = repakExe,
-            Arguments = $"-a \"{PakAesKey}\" pack --version V11 --mount-point \"../../../\" \"{stagingDir}\" \"{finalPak}\"",
+            Arguments = arguments,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false
@@ -396,8 +435,7 @@ class Program
 
         if (proc.ExitCode == 0)
         {
-            Console.WriteLine("SUCCESS! Repacked PAK created successfully!");
-            Console.WriteLine($"Output: {finalPak}");
+            Console.WriteLine("SUCCESS! PAK created successfully.");
         }
         else
         {

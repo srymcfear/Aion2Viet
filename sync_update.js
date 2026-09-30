@@ -39,6 +39,11 @@ function incrementalSync(newOfficialPath, currentTranslationPath, outputPath) {
     if (key.startsWith('SkillAbnormalString_') && key.endsWith('_desc_name')) return true;
     if (key.startsWith('GatherSkill_') && key.endsWith('_string_skill')) return true;
     if (key.startsWith('String_STR_ITEM_') && !key.includes('_DESC_')) return true;
+    if (key.startsWith('String_STR_G_ITEM_') && !key.includes('_DESC_')) return true;
+    if (key.startsWith('String_STR_G_Box_') && !key.includes('_DESC_')) return true;
+    if (key.startsWith('String_STR_ITEM_G_') && !key.includes('_DESC_')) return true;
+    if (key.startsWith('String_STR_G_Title_') && !key.includes('_DESC_')) return true;
+    if (key.startsWith('Title_') && key.endsWith('_desc')) return true;
     if (key.startsWith('Skin_') && (key.endsWith('_desc_light') || key.endsWith('_desc_dark'))) return true;
     if (key.startsWith('SkinSet_') && (key.endsWith('_desc_light') || key.endsWith('_desc_dark'))) return true;
     if (key.startsWith('Wing_') && key.endsWith('_desc')) return true;
@@ -54,6 +59,7 @@ function incrementalSync(newOfficialPath, currentTranslationPath, outputPath) {
     if (key.startsWith('QuestString_STR_HQ')) return true;
     if (key.startsWith('QuestString_STR_AQ')) return true;
     if (key.startsWith('QuestString_STR_MQ')) return true;
+    if (key.startsWith('String_str_veh_')) return true;
     return false;
   };
 
