@@ -293,6 +293,22 @@ if (fs.existsSync(globalPaksDir)) {
       console.log(`DISABLED: Base sig disabled to prevent RSA check failure`);
     }
 
+    // Disable utoc & ucas to prevent IoStore hash mismatch on modified pak
+    const baseUtoc = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.utoc');
+    const bakUtoc = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.utoc.bak');
+    const baseUcas = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.ucas');
+    const bakUcas = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.ucas.bak');
+    if (fs.existsSync(baseUtoc)) {
+      if (!fs.existsSync(bakUtoc)) fs.copyFileSync(baseUtoc, bakUtoc);
+      fs.unlinkSync(baseUtoc);
+      console.log(`DISABLED: Base en-US utoc disabled to prevent IoStore TOC failure`);
+    }
+    if (fs.existsSync(baseUcas)) {
+      if (!fs.existsSync(bakUcas)) fs.copyFileSync(baseUcas, bakUcas);
+      fs.unlinkSync(baseUcas);
+      console.log(`DISABLED: Base en-US ucas disabled to prevent IoStore container failure`);
+    }
+
     fs.copyFileSync(srcEnPak, baseEnPak);
     sha1En = crypto.createHash('sha1').update(fs.readFileSync(baseEnPak)).digest('hex');
 
@@ -325,6 +341,21 @@ if (fs.existsSync(globalPaksDir)) {
       if (!fs.existsSync(bakKoSig)) fs.copyFileSync(baseKoSig, bakKoSig);
       fs.unlinkSync(baseKoSig);
       console.log(`DISABLED: Base ko-KR sig disabled to prevent RSA check failure`);
+    }
+
+    const baseKoUtoc = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.utoc');
+    const bakKoUtoc = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.utoc.bak');
+    const baseKoUcas = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.ucas');
+    const bakKoUcas = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.ucas.bak');
+    if (fs.existsSync(baseKoUtoc)) {
+      if (!fs.existsSync(bakKoUtoc)) fs.copyFileSync(baseKoUtoc, bakKoUtoc);
+      fs.unlinkSync(baseKoUtoc);
+      console.log(`DISABLED: Base ko-KR utoc disabled to prevent IoStore TOC failure`);
+    }
+    if (fs.existsSync(baseKoUcas)) {
+      if (!fs.existsSync(bakKoUcas)) fs.copyFileSync(baseKoUcas, bakKoUcas);
+      fs.unlinkSync(baseKoUcas);
+      console.log(`DISABLED: Base ko-KR ucas disabled to prevent IoStore container failure`);
     }
 
     fs.copyFileSync(srcKoPak, baseKoPak);
@@ -361,8 +392,12 @@ if (fs.existsSync(globalPaksDir)) {
   const exclEntries = [
     'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.pak',
     'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.sig',
+    'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.utoc',
+    'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.ucas',
     'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.pak',
-    'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.sig'
+    'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.sig',
+    'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.utoc',
+    'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.ucas'
   ].join('\r\n') + '\r\n';
   fs.writeFileSync(excludedFile, exclEntries, 'utf8');
   console.log('SUCCESS! Updated Purple launcher ExcludedUpdateList.dat.');
