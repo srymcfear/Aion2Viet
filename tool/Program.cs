@@ -69,6 +69,14 @@ class Program
         {
             Inspect(baseDir);
         }
+        else if (mode == "diff-template")
+        {
+            SyncTemplate(baseDir, dryRun: true);
+        }
+        else if (mode == "sync-template")
+        {
+            SyncTemplate(baseDir, dryRun: false);
+        }
         else if (mode == "unpack")
         {
             string? target = args.Skip(1).FirstOrDefault(a => a != "--");
@@ -79,6 +87,222 @@ class Program
         {
             Console.WriteLine($"Unknown mode: {mode}");
         }
+    }
+
+    static (byte[] decompressed, byte[] prefix) DecryptL10NWithPrefix(byte[] dat, string locale)
+    {
+        using var ms = new MemoryStream(dat);
+        using var br = new BinaryReader(ms);
+
+        if (dat.Length < 0x14 || br.ReadInt32() != 2)
+            throw new Exception("AION2 L10N container is invalid or not version 2");
+
+        string blakeLocale = locale.Replace("official_", "");
+        ulong seed = Blake3Hash($"L10NString_{blakeLocale}");
+
+        byte[] headerBytes = br.ReadBytes(0x10);
+        byte[] headerKey = DeriveHeaderKey(seed, 3);
+        XorBytes(headerBytes, headerKey);
+
+        int packedSize = BitConverter.ToInt32(headerBytes, 0);
+        int encType = BitConverter.ToInt32(headerBytes, 4);
+        int alignedSize = BitConverter.ToInt32(headerBytes, 8);
+        int rawSize = BitConverter.ToInt32(headerBytes, 12);
+
+        if (encType != 2)
+            throw new Exception($"Unsupported encryption type {encType}");
+
+        if (!AesKeys.TryGetValue(seed, out var aesKey))
+            throw new Exception($"AES key for seed {seed:X16} (L10NString_{locale}) not found in manifest!");
+
+        byte[] encryptedPayload = br.ReadBytes(alignedSize);
+        byte[] decryptedPayload = AesDecryptEcb(encryptedPayload, aesKey);
+
+        byte[] prefix = decryptedPayload.AsSpan(0, 0x20).ToArray();
+
+        byte[] output = new byte[rawSize];
+        int written = LZ4Codec.Decode(decryptedPayload, 0x20, packedSize, output, 0, rawSize);
+
+        if (written != rawSize)
+            throw new Exception($"LZ4 decode failed ({written}/{rawSize})");
+
+        return (output, prefix);
+    }
+
+    static byte[] BuildL10NDatWithPrefix(Dictionary<string, string> entries, string locale, byte[] prefix)
+    {
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms);
+
+        bw.Write((int)1); // tableVer = 1
+        WriteFString(bw, "AION2");
+        bw.Write((int)entries.Count);
+
+        foreach (var kvp in entries)
+        {
+            WriteFString(bw, kvp.Key);
+            WriteFString(bw, kvp.Value);
+        }
+        bw.Write((int)0); // Required table terminator (4 bytes)
+
+        byte[] rawPayload = ms.ToArray();
+        int rawSize = rawPayload.Length;
+
+        int maxPacked = LZ4Codec.MaximumOutputSize(rawSize);
+        byte[] packedBuf = new byte[maxPacked];
+        int packedSize = LZ4Codec.Encode(rawPayload, 0, rawSize, packedBuf, 0, maxPacked, LZ4Level.L12_MAX);
+
+        int payloadTotal = 0x20 + packedSize;
+        int alignedSize = (payloadTotal + 15) & ~15;
+        byte[] aesBuffer = new byte[alignedSize];
+        Array.Copy(prefix, 0, aesBuffer, 0, 0x20);
+        Array.Copy(packedBuf, 0, aesBuffer, 0x20, packedSize);
+
+        ulong seed = Blake3Hash($"L10NString_{locale}");
+        if (!AesKeys.TryGetValue(seed, out var aesKey))
+            throw new Exception($"AES key for seed {seed:X16} (L10NString_{locale}) not found!");
+
+        byte[] encryptedPayload = AesEncryptEcb(aesBuffer, aesKey);
+
+        byte[] header = new byte[16];
+        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(0, 4), packedSize);
+        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(4, 4), 2); // EEncryptionType.CompressedAES
+        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(8, 4), alignedSize);
+        BinaryPrimitives.WriteInt32LittleEndian(header.AsSpan(12, 4), rawSize);
+
+        byte[] headerKey = DeriveHeaderKey(seed, 3);
+        XorBytes(header, headerKey);
+
+        using var outMs = new MemoryStream();
+        using var outBw = new BinaryWriter(outMs);
+        outBw.Write((int)2);
+        outBw.Write(header);
+        outBw.Write(encryptedPayload);
+
+        return outMs.ToArray();
+    }
+
+    static void SyncTemplate(string baseDir, bool dryRun)
+    {
+        string templateRoot = @"H:\AION2_Code\aion2wwpurple-translate\Aion2\Content\L10N\Text";
+        if (!Directory.Exists(templateRoot))
+        {
+            Console.WriteLine($"Template folder not found: {templateRoot}");
+            return;
+        }
+
+        string scratchDir = Path.Combine(baseDir, "scratch", "template_extracted");
+        Directory.CreateDirectory(scratchDir);
+
+        // 1. Load User's translations
+        string userEnJsonPath = Path.Combine(baseDir, "en-US_strings.json");
+        string userKoJsonPath = Path.Combine(baseDir, "ko-KR_strings.json");
+        var userEnEntries = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(userEnJsonPath, Encoding.UTF8))!;
+        var userKoEntries = File.Exists(userKoJsonPath) 
+            ? JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(userKoJsonPath, Encoding.UTF8))!
+            : userEnEntries;
+
+        Console.WriteLine($"Loaded User translations: en-US ({userEnEntries.Count:N0} keys), ko-KR ({userKoEntries.Count:N0} keys)");
+
+        string[] dirs = Directory.GetDirectories(templateRoot);
+        var allMissingInUser = new Dictionary<string, Dictionary<string, string>>();
+
+        foreach (var dir in dirs)
+        {
+            string locale = Path.GetFileName(dir);
+            var datFiles = Directory.GetFiles(dir, "L10NString.dat*");
+            if (datFiles.Length == 0) continue;
+
+            string oldDatPath = datFiles[0];
+            string oldFileName = Path.GetFileName(oldDatPath);
+            Console.WriteLine($"\n=======================================================");
+            Console.WriteLine($"Processing locale: {locale} (Current file: {oldFileName})");
+
+            byte[] oldRaw = File.ReadAllBytes(oldDatPath);
+            var (decompressed, prefix) = DecryptL10NWithPrefix(oldRaw, locale);
+
+            using var ms = new MemoryStream(decompressed);
+            using var br = new BinaryReader(ms);
+            int tableVer = br.ReadInt32();
+            string ns = ReadFString(br);
+            int count = br.ReadInt32();
+
+            var templateEntries = new Dictionary<string, string>(count, StringComparer.Ordinal);
+            for (int i = 0; i < count; i++)
+            {
+                string k = ReadFString(br);
+                string v = ReadFString(br);
+                templateEntries[k] = v;
+            }
+
+            // Save extracted template to scratch
+            string templateJsonPath = Path.Combine(scratchDir, $"{locale}_template.json");
+            File.WriteAllText(templateJsonPath, JsonSerializer.Serialize(templateEntries, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+
+            // Choose user dict (ko-KR uses userKoEntries, others use userEnEntries)
+            var userDict = locale == "ko-KR" ? userKoEntries : userEnEntries;
+
+            var newEntries = new Dictionary<string, string>(templateEntries.Count, StringComparer.Ordinal);
+            var missingForThisLocale = new Dictionary<string, string>();
+
+            int replacedCount = 0;
+            int missingCount = 0;
+
+            foreach (var kvp in templateEntries)
+            {
+                if (userDict.TryGetValue(kvp.Key, out var userVal))
+                {
+                    newEntries[kvp.Key] = userVal;
+                    replacedCount++;
+                }
+                else
+                {
+                    // Fallback to template's value
+                    newEntries[kvp.Key] = kvp.Value;
+                    missingForThisLocale[kvp.Key] = kvp.Value;
+                    missingCount++;
+                }
+            }
+
+            Console.WriteLine($"Template total keys: {templateEntries.Count:N0}");
+            Console.WriteLine($"Replaced from User Translation: {replacedCount:N0}");
+            Console.WriteLine($"Missing in User Translation: {missingCount:N0}");
+
+            if (missingCount > 0)
+            {
+                allMissingInUser[locale] = missingForThisLocale;
+                Console.WriteLine($"Sample missing keys (first 5):");
+                int shown = 0;
+                foreach (var mk in missingForThisLocale)
+                {
+                    Console.WriteLine($"  {mk.Key} => {mk.Value}");
+                    if (++shown >= 5) break;
+                }
+            }
+
+            if (!dryRun)
+            {
+                byte[] newDat = BuildL10NDatWithPrefix(newEntries, locale, prefix);
+                string newMd5 = Convert.ToHexString(MD5.HashData(newDat)).ToLowerInvariant();
+                string newFileName = $"L10NString.dat.{newMd5}";
+                string newDatPath = Path.Combine(dir, newFileName);
+
+                File.WriteAllBytes(newDatPath, newDat);
+                Console.WriteLine($"CREATED: {newDatPath} (MD5: {newMd5})");
+
+                if (!string.Equals(oldFileName, newFileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Delete(oldDatPath);
+                    Console.WriteLine($"DELETED old file: {oldFileName}");
+                }
+            }
+        }
+
+        // Save report of missing keys
+        string reportPath = Path.Combine(baseDir, "scratch", "missing_keys_report.json");
+        File.WriteAllText(reportPath, JsonSerializer.Serialize(allMissingInUser, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+        Console.WriteLine($"\n=======================================================");
+        Console.WriteLine($"Report of missing keys saved to: {reportPath}");
     }
 
     static void CompareDecomp(string baseDir)
