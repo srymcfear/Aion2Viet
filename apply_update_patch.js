@@ -266,29 +266,23 @@ if (fs.existsSync(globalPaksDir)) {
   if (!fs.existsSync(globalEnDir)) fs.mkdirSync(globalEnDir, { recursive: true });
   if (!fs.existsSync(globalKoDir)) fs.mkdirSync(globalKoDir, { recursive: true });
 
-  const srcPakEn = path.join(__dirname, 'pakchunk502000-Windows_999_P.pak');
-  const destPakEnPatch = path.join(globalEnDir, 'pakchunk502000-Windows_999_P.pak');
-  const destPakEnBase = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.pak');
-  fs.copyFileSync(srcPakEn, destPakEnPatch);
-  fs.copyFileSync(srcPakEn, destPakEnBase);
-  console.log(`SUCCESS! Deployed Global en-US mod to: ${destPakEnPatch} & ${destPakEnBase}`);
-
-  const srcPakKo = path.join(__dirname, 'pakchunk501000-Windows_999_P.pak');
-  const destPakKoPatch = path.join(globalKoDir, 'pakchunk501000-Windows_999_P.pak');
-  const destPakKoBase = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.pak');
-  if (fs.existsSync(srcPakKo)) {
-    fs.copyFileSync(srcPakKo, destPakKoPatch);
-    fs.copyFileSync(srcPakKo, destPakKoBase);
-    console.log(`SUCCESS! Deployed Global ko-KR mod to: ${destPakKoPatch} & ${destPakKoBase}`);
-  }
-
-  // Deploy universal mod to Content\Paks\~mods
+  // 1. Root ~mods folder (Content\Paks\~mods) - Universal Mod Pak (covers en-US, ko-KR, zh-TW)
   const globalModsDir = path.join(globalPaksDir, '~mods');
   if (!fs.existsSync(globalModsDir)) fs.mkdirSync(globalModsDir, { recursive: true });
-  const srcUniversal = path.join(__dirname, 'pakchunk502000-Windows_999_P_universal.pak');
-  if (fs.existsSync(srcUniversal)) {
-    fs.copyFileSync(srcUniversal, path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak'));
-    console.log(`SUCCESS! Deployed to ~mods: ${path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak')}`);
+  const srcUniversalPak = path.join(__dirname, 'pakchunk502000-Windows_999_P_universal.pak');
+  fs.copyFileSync(srcUniversalPak, path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak'));
+  console.log(`SUCCESS! Deployed Universal mod to: ${path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak')}`);
+
+  // 2. Clean up redundant subfolder ~mods inside L10N to avoid conflicts
+  const enModsDir = path.join(globalEnDir, '~mods');
+  if (fs.existsSync(enModsDir)) {
+    fs.rmSync(enModsDir, { recursive: true, force: true });
+    console.log(`CLEANED: Removed redundant directory: ${enModsDir}`);
+  }
+  const koModsDir = path.join(globalKoDir, '~mods');
+  if (fs.existsSync(koModsDir)) {
+    fs.rmSync(koModsDir, { recursive: true, force: true });
+    console.log(`CLEANED: Removed redundant directory: ${koModsDir}`);
   }
 
   // Remove stale mod pak from root Paks folder to prevent conflicts
