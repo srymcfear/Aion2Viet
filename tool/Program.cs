@@ -27,6 +27,16 @@ class Program
 
     public static Dictionary<ulong, byte[]> AesKeys = new();
 
+    private static readonly Dictionary<string, string> LocalePrefixes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["en-US"] = "27F0BB573A5DC198B955B7658A7AC02017DEBA024323CD5FA2E0442CE9479CBE",
+        ["ko-KR"] = "4346B96015E7D357A420B25511E19969C2473E3858BF6842E16DBC674FCFD4A9",
+        ["ja-JP"] = "07A59BB32F6302E3B3DCC1623C69E2E838106441CEA6D596173623EE8BA7AFF4",
+        ["de-DE"] = "23A69AB43437D576D1F7128D66F13D02651E7C363A88BF2680B097EE752D4B8C",
+        ["fr-FR"] = "BB32F79B8A1B7B9354E5E924484F14ACDE464220C50ACA4F1D8DE26BE71CB2C5",
+        ["zh-TW"] = "8761B29135765B211F263EDEF7ACBD70578F5236B0C6268A8320E046D3E3BB86"
+    };
+
     static void Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -161,14 +171,15 @@ class Program
 
     static void Inspect(string baseDir)
     {
-        string[] targets = ["en-US", "ko-KR", "zh-TW", "official_en-US"];
+        string[] targets = ["scratch/test_deployed_en/AION2/Content/L10N/Text/en-US/L10NString.dat", "official_en-US"];
         foreach (var loc in targets)
         {
-            string p = Path.Combine(baseDir, $"{loc}_L10NString.dat");
+            string p = loc.EndsWith(".dat") ? Path.Combine(baseDir, loc) : Path.Combine(baseDir, $"{loc}_L10NString.dat");
+            string locName = loc.Contains("ko-KR") ? "ko-KR" : loc.Contains("ja-JP") ? "ja-JP" : loc.Contains("de-DE") ? "de-DE" : loc.Contains("fr-FR") ? "fr-FR" : "en-US";
             if (File.Exists(p))
             {
-                Console.WriteLine($"\n--- {loc} ---");
-                InspectSingle(p, loc);
+                Console.WriteLine($"\n--- {loc} ({locName}) ---");
+                InspectSingle(p, locName);
             }
         }
     }
@@ -472,7 +483,8 @@ class Program
         int payloadTotal = 0x20 + packedSize;
         int alignedSize = (payloadTotal + 15) & ~15;
         byte[] aesBuffer = new byte[alignedSize];
-        byte[] prefix = Convert.FromHexString("8761B29135765B211F263EDEF7ACBD70578F5236B0C6268A8320E046D3E3BB86");
+        string prefixHex = LocalePrefixes.TryGetValue(locale, out var p) ? p : LocalePrefixes["en-US"];
+        byte[] prefix = Convert.FromHexString(prefixHex);
         Array.Copy(prefix, 0, aesBuffer, 0, 0x20);
         Array.Copy(packedBuf, 0, aesBuffer, 0x20, packedSize);
 
