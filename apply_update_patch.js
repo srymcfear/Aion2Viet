@@ -266,6 +266,8 @@ if (fs.existsSync(globalPaksDir)) {
   if (!fs.existsSync(globalEnDir)) fs.mkdirSync(globalEnDir, { recursive: true });
   if (!fs.existsSync(globalKoDir)) fs.mkdirSync(globalKoDir, { recursive: true });
 
+  const crypto = require('crypto');
+
   // 1. Root ~mods folder (Content\Paks\~mods) - Universal Mod Pak (AION2 tree)
   const globalModsDir = path.join(globalPaksDir, '~mods');
   if (!fs.existsSync(globalModsDir)) fs.mkdirSync(globalModsDir, { recursive: true });
@@ -273,41 +275,101 @@ if (fs.existsSync(globalPaksDir)) {
   fs.copyFileSync(srcUniversalPak, path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak'));
   console.log(`SUCCESS! Deployed Universal mod to: ${path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak')}`);
 
-  // 2. en-US Locale specific mod pak (Chunk 502000)
+  // 2. en-US Locale: deploy to base pak (chunk 502000) and patch pak
   const srcEnPak = path.join(__dirname, 'pakchunk502000-Windows_999_P.pak');
+  let sha1En = '';
   if (fs.existsSync(srcEnPak)) {
-    // Sibling in L10N\Text\en-US
+    const baseEnPak = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.pak');
+    const bakEnPak = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.pak.official_bak');
+    if (!fs.existsSync(bakEnPak) && fs.existsSync(baseEnPak)) {
+      fs.copyFileSync(baseEnPak, bakEnPak);
+      console.log(`BACKED UP: Official en-US base pak to ${bakEnPak}`);
+    }
+    // Overwrite base pak so game always loads translated strings
+    fs.copyFileSync(srcEnPak, baseEnPak);
+    sha1En = crypto.createHash('sha1').update(fs.readFileSync(baseEnPak)).digest('hex');
+
+    // Also deploy as 999_P and in ~mods
     const destEnPak = path.join(globalEnDir, 'pakchunk502000-Windows_999_P.pak');
     fs.copyFileSync(srcEnPak, destEnPak);
 
-    // Clean up any fake .sig file if previously created (fake .sig causes UE signature check to fail)
     const fakeEnSig = path.join(globalEnDir, 'pakchunk502000-Windows_999_P.sig');
     if (fs.existsSync(fakeEnSig)) fs.unlinkSync(fakeEnSig);
 
-    // Subfolder ~mods in L10N\Text\en-US
+    // Disable official .sig file so Unreal Engine does not reject modded base pak
+    const officialEnSig = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.sig');
+    const officialEnSigBak = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.sig.bak');
+    if (fs.existsSync(officialEnSig)) {
+      if (!fs.existsSync(officialEnSigBak)) fs.copyFileSync(officialEnSig, officialEnSigBak);
+      fs.unlinkSync(officialEnSig);
+      console.log(`DISABLED: Removed official en-US signature (backed up to ${officialEnSigBak})`);
+    }
+
     const enModsDir = path.join(globalEnDir, '~mods');
     if (!fs.existsSync(enModsDir)) fs.mkdirSync(enModsDir, { recursive: true });
     fs.copyFileSync(srcEnPak, path.join(enModsDir, 'pakchunk502000-Windows_999_P.pak'));
-    console.log(`SUCCESS! Deployed en-US patch to: ${destEnPak} & ~mods`);
+    console.log(`SUCCESS! Deployed en-US translation to: ${baseEnPak} & ${destEnPak}`);
   }
 
-  // 3. ko-KR Locale specific mod pak (Chunk 501000)
+  // 3. ko-KR Locale: deploy to base pak (chunk 501000) and patch pak
   const srcKoPak = path.join(__dirname, 'pakchunk501000-Windows_999_P.pak');
+  let sha1Ko = '';
   if (fs.existsSync(srcKoPak)) {
-    // Sibling in L10N\Text\ko-KR
+    const baseKoPak = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.pak');
+    const bakKoPak = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.pak.official_bak');
+    if (!fs.existsSync(bakKoPak) && fs.existsSync(baseKoPak)) {
+      fs.copyFileSync(baseKoPak, bakKoPak);
+      console.log(`BACKED UP: Official ko-KR base pak to ${bakKoPak}`);
+    }
+    // Overwrite base pak so game always loads translated strings
+    fs.copyFileSync(srcKoPak, baseKoPak);
+    sha1Ko = crypto.createHash('sha1').update(fs.readFileSync(baseKoPak)).digest('hex');
+
     const destKoPak = path.join(globalKoDir, 'pakchunk501000-Windows_999_P.pak');
     fs.copyFileSync(srcKoPak, destKoPak);
 
-    // Clean up any fake .sig file if previously created
     const fakeKoSig = path.join(globalKoDir, 'pakchunk501000-Windows_999_P.sig');
     if (fs.existsSync(fakeKoSig)) fs.unlinkSync(fakeKoSig);
 
-    // Subfolder ~mods in L10N\Text\ko-KR
+    // Disable official .sig file so Unreal Engine does not reject modded base pak
+    const officialKoSig = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.sig');
+    const officialKoSigBak = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.sig.bak');
+    if (fs.existsSync(officialKoSig)) {
+      if (!fs.existsSync(officialKoSigBak)) fs.copyFileSync(officialKoSig, officialKoSigBak);
+      fs.unlinkSync(officialKoSig);
+      console.log(`DISABLED: Removed official ko-KR signature (backed up to ${officialKoSigBak})`);
+    }
+
     const koModsDir = path.join(globalKoDir, '~mods');
     if (!fs.existsSync(koModsDir)) fs.mkdirSync(koModsDir, { recursive: true });
     fs.copyFileSync(srcKoPak, path.join(koModsDir, 'pakchunk501000-Windows_999_P.pak'));
-    console.log(`SUCCESS! Deployed ko-KR patch to: ${destKoPak} & ~mods`);
+    console.log(`SUCCESS! Deployed ko-KR translation to: ${baseKoPak} & ${destKoPak}`);
   }
+
+  // 4. Update Purple Launcher UpdatedList.dat & ExcludedUpdateList.dat
+  const gameRoot = path.dirname(path.dirname(globalPaksDir)); // F:\NCSoft\AION 2
+  const updatedListFile = path.join(gameRoot, 'UpdatedList.dat');
+  if (fs.existsSync(updatedListFile)) {
+    let content = fs.readFileSync(updatedListFile, 'utf8');
+    if (sha1En) {
+      content = content.replace(/Aion2\/Content\/Paks\/L10N\/Text\/en-US\/pakchunk502000-Windows_0_P\.pak:[a-f0-9]+:/g, 'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.pak:' + sha1En + ':');
+    }
+    if (sha1Ko) {
+      content = content.replace(/Aion2\/Content\/Paks\/L10N\/Text\/ko-KR\/pakchunk501000-Windows_0_P\.pak:[a-f0-9]+:/g, 'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.pak:' + sha1Ko + ':');
+    }
+    fs.writeFileSync(updatedListFile, content, 'utf8');
+    console.log('SUCCESS! Updated Purple launcher UpdatedList.dat manifest.');
+  }
+
+  const excludedFile = path.join(gameRoot, 'ExcludedUpdateList.dat');
+  const exclEntries = [
+    'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.pak',
+    'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.sig',
+    'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.pak',
+    'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.sig'
+  ].join('\r\n') + '\r\n';
+  fs.writeFileSync(excludedFile, exclEntries, 'utf8');
+  console.log('SUCCESS! Updated Purple launcher ExcludedUpdateList.dat.');
 }
 
 // TW Client Directory (if exists)

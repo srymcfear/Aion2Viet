@@ -34,9 +34,12 @@ if (fs.existsSync(gameDir)) {
   const deployedEn = path.join(gameDir, 'L10N', 'Text', 'en-US', 'pakchunk502000-Windows_999_P.pak');
   assert(fs.existsSync(deployedEn), 'Deployed en-US pak must exist in game folder');
 
-  // Verify no fake .sig exists which would fail UE RSA verification
+  // Verify no .sig exists which would fail UE RSA verification
   const fakeSig = path.join(gameDir, 'L10N', 'Text', 'en-US', 'pakchunk502000-Windows_999_P.sig');
   assert(!fs.existsSync(fakeSig), 'Fake .sig must NOT exist in game folder');
+
+  const baseSig = path.join(gameDir, 'L10N', 'Text', 'en-US', 'pakchunk502000-Windows_0_P.sig');
+  assert(!fs.existsSync(baseSig), 'Official _0_P.sig must be disabled/backed up so UE does not reject modded base pak');
 }
 
 console.log('✅ ALL PAK INTEGRITY TESTS PASSED!');
