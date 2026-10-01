@@ -275,19 +275,28 @@ if (fs.existsSync(globalPaksDir)) {
   fs.copyFileSync(srcUniversalPak, path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak'));
   console.log(`SUCCESS! Deployed Universal mod to: ${path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak')}`);
 
-  // 2. en-US Locale: deploy translated mod as patch pak (chunk 502000, patch 999)
+  // 2. en-US Locale: overwrite base pak with newly fixed translation (correct prefix 27F0BB57...)
   const srcEnPak = path.join(__dirname, 'pakchunk502000-Windows_999_P.pak');
+  let sha1En = '';
   if (fs.existsSync(srcEnPak)) {
     const baseEnPak = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.pak');
     const bakEnPak = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.pak.official_bak');
     const baseSig = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.sig');
     const bakSig = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.sig.bak');
 
-    // Restore official base pak and sig if they were backed up
-    if (fs.existsSync(bakEnPak)) fs.copyFileSync(bakEnPak, baseEnPak);
-    if (fs.existsSync(bakSig)) fs.copyFileSync(bakSig, baseSig);
+    if (!fs.existsSync(bakEnPak) && fs.existsSync(baseEnPak)) {
+      fs.copyFileSync(baseEnPak, bakEnPak);
+    }
+    if (fs.existsSync(baseSig)) {
+      if (!fs.existsSync(bakSig)) fs.copyFileSync(baseSig, bakSig);
+      fs.unlinkSync(baseSig);
+      console.log(`DISABLED: Base sig disabled to prevent RSA check failure`);
+    }
 
-    // Deploy translated mod as 999_P patch
+    fs.copyFileSync(srcEnPak, baseEnPak);
+    sha1En = crypto.createHash('sha1').update(fs.readFileSync(baseEnPak)).digest('hex');
+
+    // Also deploy as 999_P and in ~mods
     const destEnPak = path.join(globalEnDir, 'pakchunk502000-Windows_999_P.pak');
     fs.copyFileSync(srcEnPak, destEnPak);
 
@@ -297,20 +306,29 @@ if (fs.existsSync(globalPaksDir)) {
     const enModsDir = path.join(globalEnDir, '~mods');
     if (!fs.existsSync(enModsDir)) fs.mkdirSync(enModsDir, { recursive: true });
     fs.copyFileSync(srcEnPak, path.join(enModsDir, 'pakchunk502000-Windows_999_P.pak'));
-    console.log(`SUCCESS! Deployed en-US translation patch to: ${destEnPak}`);
+    console.log(`SUCCESS! Deployed fixed en-US translation to base pak: ${baseEnPak}`);
   }
 
-  // 3. ko-KR Locale: deploy translated mod as patch pak (chunk 501000, patch 999)
+  // 3. ko-KR Locale: overwrite base pak with newly fixed translation (correct prefix 4346B960...)
   const srcKoPak = path.join(__dirname, 'pakchunk501000-Windows_999_P.pak');
+  let sha1Ko = '';
   if (fs.existsSync(srcKoPak)) {
     const baseKoPak = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.pak');
     const bakKoPak = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.pak.official_bak');
     const baseKoSig = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.sig');
     const bakKoSig = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.sig.bak');
 
-    // Restore official base pak and sig if they were backed up
-    if (fs.existsSync(bakKoPak)) fs.copyFileSync(bakKoPak, baseKoPak);
-    if (fs.existsSync(bakKoSig)) fs.copyFileSync(bakKoSig, baseKoSig);
+    if (!fs.existsSync(bakKoPak) && fs.existsSync(baseKoPak)) {
+      fs.copyFileSync(baseKoPak, bakKoPak);
+    }
+    if (fs.existsSync(baseKoSig)) {
+      if (!fs.existsSync(bakKoSig)) fs.copyFileSync(baseKoSig, bakKoSig);
+      fs.unlinkSync(baseKoSig);
+      console.log(`DISABLED: Base ko-KR sig disabled to prevent RSA check failure`);
+    }
+
+    fs.copyFileSync(srcKoPak, baseKoPak);
+    sha1Ko = crypto.createHash('sha1').update(fs.readFileSync(baseKoPak)).digest('hex');
 
     const destKoPak = path.join(globalKoDir, 'pakchunk501000-Windows_999_P.pak');
     fs.copyFileSync(srcKoPak, destKoPak);
@@ -321,16 +339,30 @@ if (fs.existsSync(globalPaksDir)) {
     const koModsDir = path.join(globalKoDir, '~mods');
     if (!fs.existsSync(koModsDir)) fs.mkdirSync(koModsDir, { recursive: true });
     fs.copyFileSync(srcKoPak, path.join(koModsDir, 'pakchunk501000-Windows_999_P.pak'));
-    console.log(`SUCCESS! Deployed ko-KR translation patch to: ${destKoPak}`);
+    console.log(`SUCCESS! Deployed fixed ko-KR translation to base pak: ${baseKoPak}`);
   }
 
   // 4. Update Purple Launcher UpdatedList.dat & ExcludedUpdateList.dat
   const gameRoot = path.dirname(path.dirname(globalPaksDir)); // F:\NCSoft\AION 2
+  const updatedListFile = path.join(gameRoot, 'UpdatedList.dat');
+  if (fs.existsSync(updatedListFile)) {
+    let content = fs.readFileSync(updatedListFile, 'utf8');
+    if (sha1En) {
+      content = content.replace(/Aion2\/Content\/Paks\/L10N\/Text\/en-US\/pakchunk502000-Windows_0_P\.pak:[a-f0-9]+:/g, 'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.pak:' + sha1En + ':');
+    }
+    if (sha1Ko) {
+      content = content.replace(/Aion2\/Content\/Paks\/L10N\/Text\/ko-KR\/pakchunk501000-Windows_0_P\.pak:[a-f0-9]+:/g, 'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.pak:' + sha1Ko + ':');
+    }
+    fs.writeFileSync(updatedListFile, content, 'utf8');
+    console.log('SUCCESS! Updated Purple launcher UpdatedList.dat manifest.');
+  }
+
   const excludedFile = path.join(gameRoot, 'ExcludedUpdateList.dat');
   const exclEntries = [
-    'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_999_P.pak',
-    'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_999_P.pak',
-    'Aion2/Content/Paks/~mods/pakchunk502000-Windows_999_P.pak'
+    'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.pak',
+    'Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.sig',
+    'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.pak',
+    'Aion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.sig'
   ].join('\r\n') + '\r\n';
   fs.writeFileSync(excludedFile, exclEntries, 'utf8');
   console.log('SUCCESS! Updated Purple launcher ExcludedUpdateList.dat.');

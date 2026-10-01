@@ -39,10 +39,10 @@ if (fs.existsSync(gameDir)) {
   assert(!fs.existsSync(fakeSig), 'Fake .sig must NOT exist in game folder');
 
   const basePak = path.join(gameDir, 'L10N', 'Text', 'en-US', 'pakchunk502000-Windows_0_P.pak');
-  assert(fs.existsSync(basePak), 'Official _0_P.pak base must exist');
+  assert(fs.existsSync(basePak), 'Deployed _0_P.pak base must exist');
 
   const baseSig = path.join(gameDir, 'L10N', 'Text', 'en-US', 'pakchunk502000-Windows_0_P.sig');
-  assert(fs.existsSync(baseSig), 'Official _0_P.sig must exist for official base pak');
+  assert(!fs.existsSync(baseSig), 'Official _0_P.sig must be disabled so UE does not fail RSA check');
 }
 
 console.log('✅ ALL PAK INTEGRITY TESTS PASSED!');
