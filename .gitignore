@@ -15,3 +15,8 @@ pakchunk*.pak.*
 # Node
 node_modules/
 npm-debug.log*
+
+# Release and Scratch
+release/
+scratch/
+*.zip
