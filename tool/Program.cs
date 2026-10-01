@@ -386,8 +386,8 @@ class Program
         File.WriteAllBytes(Path.Combine(stagingEn, "L10NString.dat"), datEn);
 
         string finalPakEn = Path.Combine(baseDir, "pakchunk502000-Windows_999_P.pak");
-        Console.WriteLine($"\nPacking en-US into {finalPakEn} (Mount: ../../../Aion2/Content/L10N/Text/en-US/, Seed: 0xDEBC0EDF)...");
-        RunRepak(repakExe, $"-a \"{PakAesKey}\" pack --version V11 --mount-point \"../../../Aion2/Content/L10N/Text/en-US/\" -p 3736866527 \"{stagingEn}\" \"{finalPakEn}\"");
+        Console.WriteLine($"\nPacking en-US into {finalPakEn} (Mount: ../../../AION2/Content/L10N/Text/en-US/, Seed: 0x6E1C6CD8)...");
+        RunRepak(repakExe, $"-a \"{PakAesKey}\" pack --version V11 --mount-point \"../../../AION2/Content/L10N/Text/en-US/\" -p 1847356632 \"{stagingEn}\" \"{finalPakEn}\"");
 
         // 2. Build and pack ko-KR for Global (chunk 501000)
         string stagingKo = Path.Combine(stagingDir, "ko-KR");
@@ -400,8 +400,8 @@ class Program
         File.WriteAllBytes(Path.Combine(stagingKo, "L10NString.dat"), datKo);
 
         string finalPakKo = Path.Combine(baseDir, "pakchunk501000-Windows_999_P.pak");
-        Console.WriteLine($"\nPacking ko-KR into {finalPakKo} (Mount: ../../../Aion2/Content/L10N/Text/ko-KR/, Seed: 0xFAD4A6E0)...");
-        RunRepak(repakExe, $"-a \"{PakAesKey}\" pack --version V11 --mount-point \"../../../Aion2/Content/L10N/Text/ko-KR/\" -p 4208240352 \"{stagingKo}\" \"{finalPakKo}\"");
+        Console.WriteLine($"\nPacking ko-KR into {finalPakKo} (Mount: ../../../AION2/Content/L10N/Text/ko-KR/, Seed: 0x4A74C4E7)...");
+        RunRepak(repakExe, $"-a \"{PakAesKey}\" pack --version V11 --mount-point \"../../../AION2/Content/L10N/Text/ko-KR/\" -p 1249166567 \"{stagingKo}\" \"{finalPakKo}\"");
 
         // 3. Build legacy/universal pak with full virtual tree for TW / root mods (AION2 all caps)
         string stagingTree = Path.Combine(stagingDir, "tree", "AION2", "Content", "L10N", "Text");

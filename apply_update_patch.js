@@ -279,11 +279,11 @@ if (fs.existsSync(globalPaksDir)) {
     // Sibling in L10N\Text\en-US
     const destEnPak = path.join(globalEnDir, 'pakchunk502000-Windows_999_P.pak');
     fs.copyFileSync(srcEnPak, destEnPak);
-    // Provide .sig for signature presence check
-    const officialEnSig = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.sig');
-    if (fs.existsSync(officialEnSig)) {
-      fs.copyFileSync(officialEnSig, path.join(globalEnDir, 'pakchunk502000-Windows_999_P.sig'));
-    }
+
+    // Clean up any fake .sig file if previously created (fake .sig causes UE signature check to fail)
+    const fakeEnSig = path.join(globalEnDir, 'pakchunk502000-Windows_999_P.sig');
+    if (fs.existsSync(fakeEnSig)) fs.unlinkSync(fakeEnSig);
+
     // Subfolder ~mods in L10N\Text\en-US
     const enModsDir = path.join(globalEnDir, '~mods');
     if (!fs.existsSync(enModsDir)) fs.mkdirSync(enModsDir, { recursive: true });
@@ -297,11 +297,11 @@ if (fs.existsSync(globalPaksDir)) {
     // Sibling in L10N\Text\ko-KR
     const destKoPak = path.join(globalKoDir, 'pakchunk501000-Windows_999_P.pak');
     fs.copyFileSync(srcKoPak, destKoPak);
-    // Provide .sig for signature presence check
-    const officialKoSig = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.sig');
-    if (fs.existsSync(officialKoSig)) {
-      fs.copyFileSync(officialKoSig, path.join(globalKoDir, 'pakchunk501000-Windows_999_P.sig'));
-    }
+
+    // Clean up any fake .sig file if previously created
+    const fakeKoSig = path.join(globalKoDir, 'pakchunk501000-Windows_999_P.sig');
+    if (fs.existsSync(fakeKoSig)) fs.unlinkSync(fakeKoSig);
+
     // Subfolder ~mods in L10N\Text\ko-KR
     const koModsDir = path.join(globalKoDir, '~mods');
     if (!fs.existsSync(koModsDir)) fs.mkdirSync(koModsDir, { recursive: true });
