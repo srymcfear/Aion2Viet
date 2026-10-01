@@ -403,8 +403,8 @@ class Program
         Console.WriteLine($"\nPacking ko-KR into {finalPakKo} (Mount: ../../../Aion2/Content/L10N/Text/ko-KR/, Seed: 0xFAD4A6E0)...");
         RunRepak(repakExe, $"-a \"{PakAesKey}\" pack --version V11 --mount-point \"../../../Aion2/Content/L10N/Text/ko-KR/\" -p 4208240352 \"{stagingKo}\" \"{finalPakKo}\"");
 
-        // 3. Build legacy/universal pak with full virtual tree for TW / root mods
-        string stagingTree = Path.Combine(stagingDir, "tree", "Aion2", "Content", "L10N", "Text");
+        // 3. Build legacy/universal pak with full virtual tree for TW / root mods (AION2 all caps)
+        string stagingTree = Path.Combine(stagingDir, "tree", "AION2", "Content", "L10N", "Text");
         Directory.CreateDirectory(Path.Combine(stagingTree, "en-US"));
         Directory.CreateDirectory(Path.Combine(stagingTree, "ko-KR"));
         Directory.CreateDirectory(Path.Combine(stagingTree, "zh-TW"));

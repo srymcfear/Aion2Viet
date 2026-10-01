@@ -266,30 +266,47 @@ if (fs.existsSync(globalPaksDir)) {
   if (!fs.existsSync(globalEnDir)) fs.mkdirSync(globalEnDir, { recursive: true });
   if (!fs.existsSync(globalKoDir)) fs.mkdirSync(globalKoDir, { recursive: true });
 
-  // 1. Root ~mods folder (Content\Paks\~mods) - Universal Mod Pak (covers en-US, ko-KR, zh-TW)
+  // 1. Root ~mods folder (Content\Paks\~mods) - Universal Mod Pak (AION2 tree)
   const globalModsDir = path.join(globalPaksDir, '~mods');
   if (!fs.existsSync(globalModsDir)) fs.mkdirSync(globalModsDir, { recursive: true });
   const srcUniversalPak = path.join(__dirname, 'pakchunk502000-Windows_999_P_universal.pak');
   fs.copyFileSync(srcUniversalPak, path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak'));
   console.log(`SUCCESS! Deployed Universal mod to: ${path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak')}`);
 
-  // 2. Clean up redundant subfolder ~mods inside L10N to avoid conflicts
-  const enModsDir = path.join(globalEnDir, '~mods');
-  if (fs.existsSync(enModsDir)) {
-    fs.rmSync(enModsDir, { recursive: true, force: true });
-    console.log(`CLEANED: Removed redundant directory: ${enModsDir}`);
-  }
-  const koModsDir = path.join(globalKoDir, '~mods');
-  if (fs.existsSync(koModsDir)) {
-    fs.rmSync(koModsDir, { recursive: true, force: true });
-    console.log(`CLEANED: Removed redundant directory: ${koModsDir}`);
+  // 2. en-US Locale specific mod pak (Chunk 502000)
+  const srcEnPak = path.join(__dirname, 'pakchunk502000-Windows_999_P.pak');
+  if (fs.existsSync(srcEnPak)) {
+    // Sibling in L10N\Text\en-US
+    const destEnPak = path.join(globalEnDir, 'pakchunk502000-Windows_999_P.pak');
+    fs.copyFileSync(srcEnPak, destEnPak);
+    // Provide .sig for signature presence check
+    const officialEnSig = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.sig');
+    if (fs.existsSync(officialEnSig)) {
+      fs.copyFileSync(officialEnSig, path.join(globalEnDir, 'pakchunk502000-Windows_999_P.sig'));
+    }
+    // Subfolder ~mods in L10N\Text\en-US
+    const enModsDir = path.join(globalEnDir, '~mods');
+    if (!fs.existsSync(enModsDir)) fs.mkdirSync(enModsDir, { recursive: true });
+    fs.copyFileSync(srcEnPak, path.join(enModsDir, 'pakchunk502000-Windows_999_P.pak'));
+    console.log(`SUCCESS! Deployed en-US patch to: ${destEnPak} & ~mods`);
   }
 
-  // Remove stale mod pak from root Paks folder to prevent conflicts
-  const stalePak = path.join(globalPaksDir, 'pakchunk502000-Windows_999_P.pak');
-  if (fs.existsSync(stalePak)) {
-    fs.unlinkSync(stalePak);
-    console.log(`CLEANED: Removed stale mod pak from root Paks folder: ${stalePak}`);
+  // 3. ko-KR Locale specific mod pak (Chunk 501000)
+  const srcKoPak = path.join(__dirname, 'pakchunk501000-Windows_999_P.pak');
+  if (fs.existsSync(srcKoPak)) {
+    // Sibling in L10N\Text\ko-KR
+    const destKoPak = path.join(globalKoDir, 'pakchunk501000-Windows_999_P.pak');
+    fs.copyFileSync(srcKoPak, destKoPak);
+    // Provide .sig for signature presence check
+    const officialKoSig = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.sig');
+    if (fs.existsSync(officialKoSig)) {
+      fs.copyFileSync(officialKoSig, path.join(globalKoDir, 'pakchunk501000-Windows_999_P.sig'));
+    }
+    // Subfolder ~mods in L10N\Text\ko-KR
+    const koModsDir = path.join(globalKoDir, '~mods');
+    if (!fs.existsSync(koModsDir)) fs.mkdirSync(koModsDir, { recursive: true });
+    fs.copyFileSync(srcKoPak, path.join(koModsDir, 'pakchunk501000-Windows_999_P.pak'));
+    console.log(`SUCCESS! Deployed ko-KR patch to: ${destKoPak} & ~mods`);
   }
 }
 
