@@ -267,15 +267,28 @@ if (fs.existsSync(globalPaksDir)) {
   if (!fs.existsSync(globalKoDir)) fs.mkdirSync(globalKoDir, { recursive: true });
 
   const srcPakEn = path.join(__dirname, 'pakchunk502000-Windows_999_P.pak');
-  const destPakEn = path.join(globalEnDir, 'pakchunk502000-Windows_999_P.pak');
-  fs.copyFileSync(srcPakEn, destPakEn);
-  console.log(`SUCCESS! Deployed Global en-US mod to: ${destPakEn}`);
+  const destPakEnPatch = path.join(globalEnDir, 'pakchunk502000-Windows_999_P.pak');
+  const destPakEnBase = path.join(globalEnDir, 'pakchunk502000-Windows_0_P.pak');
+  fs.copyFileSync(srcPakEn, destPakEnPatch);
+  fs.copyFileSync(srcPakEn, destPakEnBase);
+  console.log(`SUCCESS! Deployed Global en-US mod to: ${destPakEnPatch} & ${destPakEnBase}`);
 
   const srcPakKo = path.join(__dirname, 'pakchunk501000-Windows_999_P.pak');
-  const destPakKo = path.join(globalKoDir, 'pakchunk501000-Windows_999_P.pak');
+  const destPakKoPatch = path.join(globalKoDir, 'pakchunk501000-Windows_999_P.pak');
+  const destPakKoBase = path.join(globalKoDir, 'pakchunk501000-Windows_0_P.pak');
   if (fs.existsSync(srcPakKo)) {
-    fs.copyFileSync(srcPakKo, destPakKo);
-    console.log(`SUCCESS! Deployed Global ko-KR mod to: ${destPakKo}`);
+    fs.copyFileSync(srcPakKo, destPakKoPatch);
+    fs.copyFileSync(srcPakKo, destPakKoBase);
+    console.log(`SUCCESS! Deployed Global ko-KR mod to: ${destPakKoPatch} & ${destPakKoBase}`);
+  }
+
+  // Deploy universal mod to Content\Paks\~mods
+  const globalModsDir = path.join(globalPaksDir, '~mods');
+  if (!fs.existsSync(globalModsDir)) fs.mkdirSync(globalModsDir, { recursive: true });
+  const srcUniversal = path.join(__dirname, 'pakchunk502000-Windows_999_P_universal.pak');
+  if (fs.existsSync(srcUniversal)) {
+    fs.copyFileSync(srcUniversal, path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak'));
+    console.log(`SUCCESS! Deployed to ~mods: ${path.join(globalModsDir, 'pakchunk502000-Windows_999_P.pak')}`);
   }
 
   // Remove stale mod pak from root Paks folder to prevent conflicts
