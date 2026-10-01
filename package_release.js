@@ -24,108 +24,140 @@ console.log('[1/4] Copying template files...');
 const destAion2 = path.join(releaseDir, 'Aion2');
 fs.cpSync(templateDir, destAion2, { recursive: true });
 
-// 3. Create 1-click automatic installer batch script (CAI_DAT_TU_DONG.bat)
+// 3. Create 1-click automatic installer scripts
 console.log('[2/4] Generating 1-click installer...');
-const batScript = `@echo off
-chcp 65001 >nul
-title AION 2 - CÀI ĐẶT BẢN VIỆT HÓA (PURPLE MOD)
-color 0b
 
-echo ================================================================
-echo        AION 2 - CÀI ĐẶT BẢN DỊCH VIỆT HÓA (PURPLE MOD)
-echo                  Thực hiện bởi: Team FEΔR / SrymC
-echo ================================================================
-echo.
+// 3a. Robust PowerShell script (full UTF-8, color HUD, safe Registry & Copy)
+const psScript = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$Host.UI.RawUI.WindowTitle = "AION 2 - CÀI ĐẶT BẢN VIỆT HÓA (PURPLE MOD)"
 
-setlocal enabledelayedexpansion
-set "FOUND=0"
-set "SRC_DIR=%~dp0Aion2"
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "       AION 2 - CÀI ĐẶT BẢN DỊCH VIỆT HÓA (PURPLE MOD)         " -ForegroundColor Cyan
+Write-Host "                 Thực hiện bởi: Team FEΔR / SrymC               " -ForegroundColor DarkCyan
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host ""
 
-if not exist "!SRC_DIR!" (
-    color 0c
-    echo [LỖI] Không tìm thấy thư mục "Aion2" trong bộ cài đặt!
-    echo Vui lòng giải nén toàn bộ file zip trước khi chạy file này.
-    goto :FAIL
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$srcAion2 = Join-Path $scriptDir "Aion2"
+
+if (-not (Test-Path $srcAion2)) {
+    Write-Host "[LỖI] Không tìm thấy thư mục 'Aion2' trong bộ cài đặt!" -ForegroundColor Red
+    Write-Host "Vui lòng giải nén toàn bộ file ZIP trước khi chạy." -ForegroundColor Red
+    Write-Host ""
+    Read-Host "Nhấn phím Enter để thoát..."
+    exit 1
+}
+
+$found = $false
+$regKeys = @(
+    "HKLM:\\SOFTWARE\\WOW6432Node\\plaync\\A2_WW_L_GA_PURPLE",
+    "HKLM:\\SOFTWARE\\WOW6432Node\\plaync\\A2_TW_L_GA_PURPLE"
 )
 
-:: 1. Kiểm tra Global Client (A2_WW)
-for /f "tokens=2* skip=2" %%a in ('reg query "HKLM\\SOFTWARE\\WOW6432Node\\plaync\\A2_WW_L_GA_PURPLE" /v "BaseDir" 2^>nul') do (
-    set "GAME_GLOBAL=%%b"
-)
+foreach ($key in $regKeys) {
+    if (Test-Path $key) {
+        $baseDir = Get-ItemPropertyValue -Path $key -Name "BaseDir" -ErrorAction SilentlyContinue
+        if ($baseDir -and (Test-Path $baseDir)) {
+            $clientName = if ($key -like "*A2_WW*") { "AION 2 Global" } else { "AION 2 TW" }
+            Write-Host "[+] Tìm thấy $clientName tại: $baseDir" -ForegroundColor Green
+            Write-Host "    Đang sao chép file Việt hóa..." -ForegroundColor Yellow
+            
+            $destDir = Join-Path $baseDir "Aion2"
+            Copy-Item -Path "$srcAion2\\*" -Destination $destDir -Recurse -Force
+            
+            Write-Host "[✓] Cài đặt thành công cho $clientName!" -ForegroundColor Green
+            Write-Host ""
+            $found = $true
+        }
+    }
+}
 
-:: 2. Kiểm tra TW Client (A2_TW)
-for /f "tokens=2* skip=2" %%a in ('reg query "HKLM\\SOFTWARE\\WOW6432Node\\plaync\\A2_TW_L_GA_PURPLE" /v "BaseDir" 2^>nul') do (
-    set "GAME_TW=%%b"
-)
+if (-not $found) {
+    Write-Host "[!] Không tìm thấy đường dẫn trong Registry. Đang quét các ổ đĩa..." -ForegroundColor Yellow
+    $drives = Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root
+    $candidates = @()
+    foreach ($d in $drives) {
+        $candidates += Join-Path $d "NCSoft\\AION 2"
+        $candidates += Join-Path $d "NCSoft\\AION2_TW"
+        $candidates += Join-Path $d "Games\\AION 2"
+        $candidates += Join-Path $d "Program Files\\NCSoft\\AION 2"
+    }
 
-:: Cài đặt cho Global Client nếu tìm thấy
-if defined GAME_GLOBAL (
-    if exist "!GAME_GLOBAL!" (
-        echo [OK] Tìm thấy AION 2 Global tại: !GAME_GLOBAL!
-        echo Đang sao chép file Việt hóa vào game...
-        xcopy /E /I /Y /Q "!SRC_DIR!" "!GAME_GLOBAL!\\Aion2" >nul
-        echo [THÀNH CÔNG] Đã cài đặt Việt hóa cho AION 2 Global!
-        echo.
-        set "FOUND=1"
-    )
-)
+    foreach ($cand in $candidates) {
+        if (Test-Path "$cand\\Aion2") {
+            Write-Host "[+] Tìm thấy game tại: $cand" -ForegroundColor Green
+            Write-Host "    Đang sao chép file Việt hóa..." -ForegroundColor Yellow
+            $destDir = Join-Path $cand "Aion2"
+            Copy-Item -Path "$srcAion2\\*" -Destination $destDir -Recurse -Force
+            Write-Host "[✓] Cài đặt thành công!" -ForegroundColor Green
+            Write-Host ""
+            $found = $true
+            break
+        }
+    }
+}
 
-:: Cài đặt cho TW Client nếu tìm thấy
-if defined GAME_TW (
-    if exist "!GAME_TW!" (
-        echo [OK] Tìm thấy AION 2 Đài Loan (TW) tại: !GAME_TW!
-        echo Đang sao chép file Việt hóa vào game...
-        xcopy /E /I /Y /Q "!SRC_DIR!" "!GAME_TW!\\Aion2" >nul
-        echo [THÀNH CÔNG] Đã cài đặt Việt hóa cho AION 2 TW!
-        echo.
-        set "FOUND=1"
-    )
-)
+if ($found) {
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host "  HOÀN TẤT CÀI ĐẶT VIỆT HÓA! BẠN CÓ THỂ MỞ PURPLE VÀ VÀO GAME.  " -ForegroundColor Green
+    Write-Host "================================================================" -ForegroundColor Cyan
+} else {
+    Write-Host "[LƯU Ý] Không tự động phát hiện được thư mục game." -ForegroundColor Yellow
+    Write-Host "Bạn chỉ cần COPY thư mục 'Aion2' này và DÁN ĐÈ vào thư mục cài game." -ForegroundColor Yellow
+    Write-Host "(Ví dụ: F:\\NCSoft\\AION 2\\)" -ForegroundColor DarkGray
+}
 
-:: Nếu không tìm thấy qua Registry, tìm qua các ổ đĩa mặc định
-if "!FOUND!"=="0" (
-    echo [THÔNG BÁO] Không tự động quét được đường dẫn qua Registry.
-    echo Đang kiểm tra các thư mục mặc định thông dụng...
-
-    set "FALLBACK_DIRS=C:\\NCSoft\\AION 2;D:\\NCSoft\\AION 2;E:\\NCSoft\\AION 2;F:\\NCSoft\\AION 2;G:\\NCSoft\\AION 2;H:\\NCSoft\\AION 2;C:\\Program Files\\NCSoft\\AION 2;D:\\Games\\AION 2;E:\\Games\\AION 2;F:\\Games\\AION 2"
-    
-    for %%d in (!FALLBACK_DIRS!) do (
-        if exist "%%~d\\Aion2" (
-            echo [OK] Tìm thấy game tại: %%~d
-            echo Đang sao chép file Việt hóa...
-            xcopy /E /I /Y /Q "!SRC_DIR!" "%%~d\\Aion2" >nul
-            echo [THÀNH CÔNG] Đã cài đặt Việt hóa thành công!
-            echo.
-            set "FOUND=1"
-        )
-    )
-)
-
-if "!FOUND!"=="0" (
-    color 0e
-    echo [LƯU Ý] Không tìm thấy thư mục cài đặt AION 2 tự động.
-    echo Bạn chỉ cần COPY thư mục "Aion2" trong này và PASTE (GHI ĐÈ) vào thư mục cài đặt game của bạn.
-    echo (Ví dụ: F:\\NCSoft\\AION 2\\)
-    echo.
-) else (
-    color 0a
-    echo ================================================================
-    echo    HOÀN TẤT CÀI ĐẶT VIỆT HÓA! BẠN CÓ THỂ MỞ PURPLE VÀ VÀO GAME.
-    echo ================================================================
-)
-
-goto :END
-
-:FAIL
-pause
-exit /b 1
-
-:END
-echo.
-pause
-exit /b 0
+Write-Host ""
+Write-Host "Nhấn phím Enter để hoàn tất..." -ForegroundColor Gray
+Read-Host | Out-Null
 `;
-fs.writeFileSync(path.join(releaseDir, 'CAI_DAT_TU_DONG.bat'), batScript, 'utf8');
+// Write with UTF-8 BOM so Windows PowerShell 5.1 parses UTF-8 correctly
+fs.writeFileSync(path.join(releaseDir, 'install.ps1'), '\uFEFF' + psScript, 'utf8');
+
+// 3b. Bulletproof ANSI launcher batch script (no unicode corruption, 1-click execution)
+const batScript = `@echo off
+setlocal
+cd /d "%~dp0"
+title AION 2 - CAI DAT VIET HOA (PURPLE MOD)
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1"
+if %errorlevel% equ 0 goto :DONE
+
+echo.
+echo [!] PowerShell gap su co, chuyen sang che do cai dat truc tiep...
+set "SRC=%~dp0Aion2"
+set "FOUND=0"
+
+for /f "tokens=2* skip=2" %%a in ('reg query "HKLM\\SOFTWARE\\WOW6432Node\\plaync\\A2_WW_L_GA_PURPLE" /v "BaseDir" 2^>nul') do (
+    if exist "%%b" (
+        echo [*] Tim thay AION 2 Global tai: %%b
+        xcopy /E /I /Y /Q "%SRC%" "%%b\\Aion2" >nul
+        set "FOUND=1"
+    )
+)
+
+for /f "tokens=2* skip=2" %%a in ('reg query "HKLM\\SOFTWARE\\WOW6432Node\\plaync\\A2_TW_L_GA_PURPLE" /v "BaseDir" 2^>nul') do (
+    if exist "%%b" (
+        echo [*] Tim thay AION 2 TW tai: %%b
+        xcopy /E /I /Y /Q "%SRC%" "%%b\\Aion2" >nul
+        set "FOUND=1"
+    )
+)
+
+if "%FOUND%"=="1" (
+    echo.
+    echo [OK] Cai dat Viet hoa thanh cong!
+) else (
+    echo.
+    echo [!] Khong the tu dong tim duong dan game.
+    echo Vui long copy thu muc "Aion2" vao thu muc game cua ban.
+)
+
+:DONE
+echo.
+pause
+`;
+fs.writeFileSync(path.join(releaseDir, 'CAI_DAT_TU_DONG.bat'), batScript, 'ascii');
 
 // 4. Create README / Instructions (HUONG_DAN_SU_DUNG.txt)
 console.log('[3/4] Generating user documentation...');
@@ -170,9 +202,6 @@ console.log('[4/4] Creating ZIP package...');
 if (fs.existsSync(zipFile)) {
   fs.unlinkSync(zipFile);
 }
-
-const parentDir = path.dirname(releaseDir);
-const folderName = path.basename(releaseDir);
 
 // Use PowerShell Compress-Archive
 const psCommand = `powershell -NoProfile -Command "Compress-Archive -Path '${releaseDir}\\*' -DestinationPath '${zipFile}' -CompressionLevel Optimal"`;
