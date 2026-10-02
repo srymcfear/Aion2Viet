@@ -18,11 +18,21 @@ class TestModApi(unittest.TestCase):
         print(f"[PASS] Is installed state: {installed}")
         self.assertIsInstance(installed, bool)
 
-    def test_get_initial_state(self):
-        state = self.api.get_initial_state()
-        self.assertIn("gameDir", state)
-        self.assertIn("isInstalled", state)
-        print(f"[PASS] Initial state: {state}")
+    def test_get_status(self):
+        status = self.api.get_status()
+        self.assertIn("gameDir", status)
+        self.assertIn("isInstalled", status)
+        self.assertIn("isBusy", status)
+        self.assertIn("progressPct", status)
+        self.assertIn("progressStep", status)
+        self.assertIn("logs", status)
+        print(f"[PASS] Status retrieved successfully: {status['gameDir']}, installed={status['isInstalled']}")
+
+    def test_scan_game(self):
+        res = self.api.scan_game()
+        self.assertIn("gameDir", res)
+        self.assertIn("isInstalled", res)
+        print(f"[PASS] Scan game result: {res}")
 
 if __name__ == "__main__":
     unittest.main()

@@ -213,8 +213,7 @@ const progressStep = ref('Sẵn sàng');
 const logContainer = ref<HTMLDivElement | null>(null);
 
 const logs = ref<LogItem[]>([
-  { time: new Date().toLocaleTimeString(), text: 'Hệ thống đã nhận diện thư mục game AION 2.', type: 'blue' },
-  { time: new Date().toLocaleTimeString(), text: 'Sẵn sàng thực thi.', type: 'success' }
+  { time: new Date().toLocaleTimeString(), text: 'Khởi tạo hệ thống quản lý AION 2.', type: 'blue' }
 ]);
 
 const toolsList = [
@@ -253,130 +252,116 @@ function addLog(text: string, type: string = '') {
   });
 }
 
-function setProgress(pct: number, step: string) {
-  progressPct.value = pct;
-  if (step) progressStep.value = step;
+let pollTimer: any = null;
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    const pyApi = (window as any).pywebview?.api;
+    if (!pyApi || !pyApi.get_status) return;
+    try {
+      const status = await pyApi.get_status();
+      if (status) {
+        isInstalled.value = status.isInstalled;
+        progressPct.value = status.progressPct;
+        progressStep.value = status.progressStep;
+        if (status.logs && status.logs.length > 0) {
+          for (const item of status.logs) {
+            addLog(item.text, item.type);
+          }
+        }
+        if (!status.isBusy) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+          isBusy.value = false;
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, 120);
 }
 
-function handleBrowse() {
+async function handleBrowse() {
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.browse_folder) {
-    pyApi.browse_folder().then((res: any) => {
+    try {
+      const res = await pyApi.browse_folder();
       if (res && res.gameDir) {
         gameDir.value = res.gameDir;
         isInstalled.value = res.isInstalled;
       }
-    });
-  } else {
-    const res = prompt('Nhập đường dẫn cài đặt game AION 2:', gameDir.value);
-    if (res) {
-      gameDir.value = res;
-      addLog(`Đã đặt đường dẫn game: ${res}`, 'blue');
+    } catch (e) {
+      console.error(e);
     }
   }
 }
 
-function handleScan() {
+async function handleScan() {
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.scan_game) {
-    pyApi.scan_game();
-  } else {
-    setProgress(35, 'Đang quét Registry hệ thống...');
-    addLog('Bắt đầu quét Registry tự động...', 'blue');
-    setTimeout(() => {
-      setProgress(80, 'Kiểm tra cấu trúc thư mục Aion2...');
-      setTimeout(() => {
-        setProgress(100, 'Hoàn tất quét!');
-        gameDir.value = 'F:\\NCSoft\\AION 2';
-        addLog('Đã tìm thấy game AION 2 tại F:\\NCSoft\\AION 2', 'success');
-        setTimeout(() => setProgress(0, 'Sẵn sàng'), 800);
-      }, 300);
-    }, 300);
+    try {
+      const res = await pyApi.scan_game();
+      if (res && res.gameDir) {
+        gameDir.value = res.gameDir;
+        isInstalled.value = res.isInstalled;
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
 }
 
-function handleInstall() {
+async function handleInstall() {
   if (isInstalled.value || isBusy.value) return;
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.install_mod) {
     isBusy.value = true;
-    pyApi.install_mod(gameDir.value);
-  } else {
-    isBusy.value = true;
-    addLog('Bắt đầu quy trình cài đặt Việt Hóa...', 'blue');
-    setProgress(20, '[1/4] Tạo sao lưu file pak gốc...');
-    setTimeout(() => {
-      setProgress(45, '[2/4] Tạo mồi Fallback UE5 (15-byte container)...');
-      setTimeout(() => {
-        setProgress(75, '[3/4] Chép 152,667 chuỗi Việt Hóa vào L10NString.dat...');
-        setTimeout(() => {
-          setProgress(90, '[4/4] Khóa cập nhật Purple Launcher...');
-          setTimeout(() => {
-            setProgress(100, 'CÀI ĐẶT HOÀN TẤT!');
-            addLog('✔ ĐÃ BẬT TIẾNG VIỆT THÀNH CÔNG! Hãy vào game bằng Purple.', 'success');
-            isInstalled.value = true;
-            isBusy.value = false;
-          }, 300);
-        }, 350);
-      }, 350);
-    }, 300);
+    try {
+      await pyApi.install_mod(gameDir.value);
+      startPolling();
+    } catch (e) {
+      console.error(e);
+      isBusy.value = false;
+    }
   }
 }
 
-function handleUninstall() {
+async function handleUninstall() {
   if (!isInstalled.value || isBusy.value) return;
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.uninstall_mod) {
     isBusy.value = true;
-    pyApi.uninstall_mod(gameDir.value);
-  } else {
-    isBusy.value = true;
-    addLog('Bắt đầu khôi phục bản gốc NCSoft...', 'blue');
-    setProgress(30, '[1/3] Khôi phục file pak gốc từ bản sao lưu...');
-    setTimeout(() => {
-      setProgress(65, '[2/3] Xóa các file rời L10N...');
-      setTimeout(() => {
-        setProgress(90, '[3/3] Xóa cấu hình ExcludedUpdateList...');
-        setTimeout(() => {
-          setProgress(100, 'ĐÃ KHÔI PHỤC BẢN GỐC!');
-          addLog('✔ Khôi phục 100% nguyên bản nhà phát hành hoàn tất.', 'success');
-          isInstalled.value = false;
-          isBusy.value = false;
-        }, 300);
-      }, 300);
-    }, 300);
+    try {
+      await pyApi.uninstall_mod(gameDir.value);
+      startPolling();
+    } catch (e) {
+      console.error(e);
+      isBusy.value = false;
+    }
   }
 }
 
 onMounted(() => {
-  // Bind pywebview callbacks
-  (window as any).frontendApp = {
-    log: (msg: string, type: string) => addLog(msg, type),
-    setProgress: (pct: number, step: string) => {
-      setProgress(pct, step);
-      if (pct === 100) isBusy.value = false;
-    },
-    setState: (val: boolean) => {
-      isInstalled.value = val;
-      isBusy.value = false;
-    },
-    applyScanResult: (dir: string, installed: boolean) => {
-      if (dir) gameDir.value = dir;
-      isInstalled.value = installed;
-      isBusy.value = false;
-    }
-  };
-
-  window.addEventListener('pywebviewready', () => {
+  const initFromPy = () => {
     const pyApi = (window as any).pywebview?.api;
-    if (pyApi && pyApi.get_initial_state) {
-      pyApi.get_initial_state().then((res: any) => {
-        if (res) {
-          if (res.gameDir) gameDir.value = res.gameDir;
-          isInstalled.value = res.isInstalled;
+    if (pyApi && pyApi.get_status) {
+      pyApi.get_status().then((status: any) => {
+        if (status) {
+          if (status.gameDir) gameDir.value = status.gameDir;
+          isInstalled.value = status.isInstalled;
+          if (status.logs && status.logs.length > 0) {
+            logs.value = status.logs;
+          }
         }
       });
     }
-  });
+  };
+
+  if ((window as any).pywebview) {
+    initFromPy();
+  } else {
+    window.addEventListener('pywebviewready', initFromPy);
+  }
 });
 </script>

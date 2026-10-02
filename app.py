@@ -1,7 +1,8 @@
 """
 AION 2 STANDALONE MOD MANAGER GUI
 Developed by Team FEΔR / SrymC
-Python Backend + Modern TypeScript/HTML/CSS Frontend (pywebview + WebView2)
+Python Backend + Modern Vue 3 / Naive UI Frontend (pywebview + WebView2)
+Thread-safe Architecture: Zero COM cross-thread calls to prevent WebView2 freezes.
 """
 import os
 import sys
@@ -19,22 +20,41 @@ DUMMY_PAK_BYTES = bytes([0x47, 0x55, 0x20, 0x32, 0x30, 0x32, 0x36, 0x30, 0x39, 0
 
 class ModApi:
     def __init__(self):
-        self.window = None
-
-    def set_window(self, window):
-        self.window = window
+        self._lock = threading.Lock()
+        self.state = {
+            "gameDir": "",
+            "isInstalled": False,
+            "isBusy": False,
+            "progressPct": 0,
+            "progressStep": "Sẵn sàng",
+            "newLogs": []
+        }
+        # Initial detection
+        detected = self.detect_game_dir()
+        installed = self.check_is_installed(detected)
+        self.state["gameDir"] = detected
+        self.state["isInstalled"] = installed
+        if detected:
+            self.log(f"Đã nhận diện thư mục AION 2: {detected}", "blue")
+        self.log("Hệ thống sẵn sàng.", "success")
 
     def log(self, message, msg_type=""):
-        if self.window:
-            self.window.evaluate_js(f"window.frontendApp && window.frontendApp.log({json.dumps(message)}, {json.dumps(msg_type)});")
+        with self._lock:
+            self.state["newLogs"].append({
+                "time": time.strftime("%H:%M:%S"),
+                "text": str(message),
+                "type": msg_type
+            })
 
     def update_progress(self, percent, step_text):
-        if self.window:
-            self.window.evaluate_js(f"window.frontendApp && window.frontendApp.setProgress({percent}, {json.dumps(step_text)});")
+        with self._lock:
+            self.state["progressPct"] = percent
+            self.state["progressStep"] = step_text
 
     def update_state(self, is_installed):
-        if self.window:
-            self.window.evaluate_js(f"window.frontendApp && window.frontendApp.setState({json.dumps(is_installed)});")
+        with self._lock:
+            self.state["isInstalled"] = is_installed
+            self.state["isBusy"] = False
 
     def detect_game_dir(self):
         # 1. Check Registry
@@ -49,7 +69,7 @@ class ModApi:
                 with winreg.OpenKey(root_key, subkey) as key:
                     val, _ = winreg.QueryValueEx(key, "BaseDir")
                     if val and os.path.isdir(val) and os.path.isdir(os.path.join(val, "Aion2")):
-                        return val
+                        return os.path.normpath(val)
             except Exception:
                 pass
 
@@ -59,7 +79,7 @@ class ModApi:
             for sub in ["NCSoft\\AION 2", "NCSoft\\AION2_TW", "Games\\AION 2", "Program Files\\NCSoft\\AION 2"]:
                 full = os.path.join(drive, sub)
                 if os.path.isdir(full) and os.path.isdir(os.path.join(full, "Aion2")):
-                    return full
+                    return os.path.normpath(full)
 
         return "F:\\NCSoft\\AION 2" if os.path.isdir("F:\\NCSoft\\AION 2") else ""
 
@@ -67,90 +87,102 @@ class ModApi:
         if not game_dir or not os.path.isdir(game_dir):
             return False
 
-        # Check en-US
         loose_dat = os.path.join(game_dir, "Aion2", "Content", "L10N", "Text", "en-US", "L10NString.dat")
         pak_file = os.path.join(game_dir, "Aion2", "Content", "Paks", "L10N", "Text", "en-US", "pakchunk502000-Windows_0_P.pak")
 
         if os.path.isfile(loose_dat) and os.path.isfile(pak_file):
             try:
-                # If pak is 15 bytes dummy, it is installed!
                 if os.path.getsize(pak_file) == 15 and os.path.getsize(loose_dat) > 1024 * 1024:
                     return True
             except Exception:
                 pass
         return False
 
-    def get_initial_state(self):
-        detected = self.detect_game_dir()
-        installed = self.check_is_installed(detected)
-        return {
-            "gameDir": detected,
-            "isInstalled": installed
-        }
+    def get_status(self):
+        with self._lock:
+            logs = list(self.state["newLogs"])
+            self.state["newLogs"].clear()
+            return {
+                "gameDir": self.state["gameDir"],
+                "isInstalled": self.state["isInstalled"],
+                "isBusy": self.state["isBusy"],
+                "progressPct": self.state["progressPct"],
+                "progressStep": self.state["progressStep"],
+                "logs": logs
+            }
 
     def browse_folder(self):
-        result = self.window.create_file_dialog(webview.FOLDER_DIALOG)
-        if result and len(result) > 0:
-            chosen = result[0]
-            if os.path.isdir(chosen):
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True)
+            initial = self.state["gameDir"] if os.path.isdir(self.state["gameDir"]) else "C:\\"
+            chosen = filedialog.askdirectory(title="Chọn thư mục cài đặt game AION 2", initialdir=initial)
+            root.destroy()
+            if chosen and os.path.isdir(chosen):
+                chosen = os.path.normpath(chosen)
                 installed = self.check_is_installed(chosen)
-                self.log(f"Đã chọn đường dẫn: {chosen}", "cyan")
+                with self._lock:
+                    self.state["gameDir"] = chosen
+                    self.state["isInstalled"] = installed
+                self.log(f"Đã chọn đường dẫn: {chosen}", "blue")
                 return {"gameDir": chosen, "isInstalled": installed}
-        return None
+        except Exception as e:
+            self.log(f"Lỗi chọn thư mục: {e}", "red")
+        return {"gameDir": self.state["gameDir"], "isInstalled": self.state["isInstalled"]}
 
     def scan_game(self):
-        def _scan_thread():
-            self.log("Bắt đầu quét sâu Registry và các ổ đĩa...", "cyan")
-            self.update_progress(30, "Đang quét HKLM Registry...")
-            time.sleep(0.3)
-            self.update_progress(70, "Kiểm tra cấu trúc thư mục game...")
-            detected = self.detect_game_dir()
-            time.sleep(0.3)
-            self.update_progress(100, "Quét hoàn tất!")
-            installed = self.check_is_installed(detected)
-
-            if detected:
-                self.log(f"Tìm thấy AION 2 tại: {detected}", "white")
-            else:
-                self.log("Không tự động phát hiện được thư mục game. Vui lòng bấm 'CHỌN THƯ MỤC'.", "magenta")
-
-            self.window.evaluate_js(f"window.frontendApp && window.frontendApp.applyScanResult({json.dumps(detected)}, {json.dumps(installed)});")
-            time.sleep(0.6)
-            self.update_progress(0, "Sẵn sàng thực thi")
-
-        threading.Thread(target=_scan_thread, daemon=True).start()
-        return True
+        self.log("Bắt đầu quét tự động Registry và ổ đĩa...", "blue")
+        detected = self.detect_game_dir()
+        installed = self.check_is_installed(detected)
+        with self._lock:
+            self.state["gameDir"] = detected
+            self.state["isInstalled"] = installed
+        if detected:
+            self.log(f"Đã tìm thấy game AION 2 tại: {detected}", "success")
+        else:
+            self.log("Không tìm thấy game AION 2. Vui lòng bấm 'Chọn thư mục'.", "red")
+        return {"gameDir": detected, "isInstalled": installed}
 
     def install_mod(self, game_dir):
+        with self._lock:
+            if self.state["isBusy"]:
+                return False
+            self.state["isBusy"] = True
+
         def _install_thread():
-            if not game_dir or not os.path.isdir(game_dir):
-                self.log("LỖI: Đường dẫn game không tồn tại!", "magenta")
+            target_dir = game_dir or self.state["gameDir"]
+            if not target_dir or not os.path.isdir(target_dir):
+                self.log("LỖI: Đường dẫn game không tồn tại!", "red")
                 self.update_progress(0, "Lỗi đường dẫn")
+                with self._lock: self.state["isBusy"] = False
                 return
 
-            self.log(f">>> BẮT ĐẦU CÀI ĐẶT VIỆT HÓA TẠI: {game_dir}", "cyan")
+            self.log(f">>> BẮT ĐẦU CÀI ĐẶT VIỆT HÓA TẠI: {target_dir}", "blue")
             self.update_progress(15, "[1/4] Sao lưu file pak gốc (.official_clean_bak)...")
 
-            # Dọn dẹp mod cũ
-            old_mod_pak = os.path.join(game_dir, "Aion2", "Content", "Paks", "pakchunk502000-Windows_999_P.pak")
+            # Clean old mods
+            old_mod_pak = os.path.join(target_dir, "Aion2", "Content", "Paks", "pakchunk502000-Windows_999_P.pak")
             if os.path.isfile(old_mod_pak):
                 try: os.remove(old_mod_pak)
                 except Exception: pass
 
-            mods_folder = os.path.join(game_dir, "Aion2", "Content", "Paks", "~mods")
+            mods_folder = os.path.join(target_dir, "Aion2", "Content", "Paks", "~mods")
             if os.path.isdir(mods_folder):
                 try: shutil.rmtree(mods_folder, ignore_errors=True)
                 except Exception: pass
 
             # 1. en-US
-            en_pak_dir = os.path.join(game_dir, "Aion2", "Content", "Paks", "L10N", "Text", "en-US")
-            en_loose_dir = os.path.join(game_dir, "Aion2", "Content", "L10N", "Text", "en-US")
+            en_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "en-US")
+            en_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "en-US")
             if os.path.isdir(en_pak_dir):
                 base_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak")
                 bak_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak.official_clean_bak")
                 if os.path.isfile(base_pak) and not os.path.isfile(bak_pak) and os.path.getsize(base_pak) > 1024 * 1024:
                     shutil.copy2(base_pak, bak_pak)
-                    self.log("Sao lưu file pak gốc en-US thành công", "white")
+                    self.log("Sao lưu file pak gốc en-US thành công.", "success")
 
                 time.sleep(0.3)
                 self.update_progress(45, "[2/4] Tạo dummy pak 15 byte mồi fallback...")
@@ -161,12 +193,13 @@ class ModApi:
                 self.update_progress(75, "[3/4] Triển khai 152,667 dòng tiếng Việt vào Loose File...")
                 os.makedirs(en_loose_dir, exist_ok=True)
                 src_dat = os.path.join(DATA_DIR, "en-US", "L10NString.dat")
-                shutil.copy2(src_dat, os.path.join(en_loose_dir, "L10NString.dat"))
-                self.log("✔ Đã nạp bảng dịch en-US (152,667 keys)", "cyan")
+                if os.path.isfile(src_dat):
+                    shutil.copy2(src_dat, os.path.join(en_loose_dir, "L10NString.dat"))
+                    self.log("✔ Đã nạp bảng dịch tiếng Việt en-US", "success")
 
             # 2. ko-KR
-            ko_pak_dir = os.path.join(game_dir, "Aion2", "Content", "Paks", "L10N", "Text", "ko-KR")
-            ko_loose_dir = os.path.join(game_dir, "Aion2", "Content", "L10N", "Text", "ko-KR")
+            ko_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "ko-KR")
+            ko_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "ko-KR")
             if os.path.isdir(ko_pak_dir):
                 base_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak")
                 bak_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak.official_clean_bak")
@@ -178,36 +211,44 @@ class ModApi:
 
                 os.makedirs(ko_loose_dir, exist_ok=True)
                 src_ko_dat = os.path.join(DATA_DIR, "ko-KR", "L10NString.dat")
-                shutil.copy2(src_ko_dat, os.path.join(ko_loose_dir, "L10NString.dat"))
-                self.log("✔ Đã nạp bảng dịch ko-KR", "cyan")
+                if os.path.isfile(src_ko_dat):
+                    shutil.copy2(src_ko_dat, os.path.join(ko_loose_dir, "L10NString.dat"))
+                    self.log("✔ Đã nạp bảng dịch tiếng Việt ko-KR", "success")
 
             # 3. ExcludedUpdateList.dat
             time.sleep(0.3)
             self.update_progress(90, "[4/4] Khóa cập nhật đè của Purple Launcher...")
-            excl_file = os.path.join(game_dir, "Aion2", "ExcludedUpdateList.dat")
+            excl_file = os.path.join(target_dir, "Aion2", "ExcludedUpdateList.dat")
             excl_content = "Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.pak\nAion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.pak\n"
             with open(excl_file, "w", encoding="utf-8") as f:
                 f.write(excl_content)
 
             time.sleep(0.4)
             self.update_progress(100, "CÀI ĐẶT HOÀN TẤT!")
-            self.log("🎉 KÍCH HOẠT VIỆT HÓA THÀNH CÔNG! Hãy khởi động game qua Purple.", "cyan")
+            self.log("🎉 KÍCH HOẠT VIỆT HÓA THÀNH CÔNG! Hãy khởi động game qua Purple.", "success")
             self.update_state(True)
 
         threading.Thread(target=_install_thread, daemon=True).start()
         return True
 
     def uninstall_mod(self, game_dir):
+        with self._lock:
+            if self.state["isBusy"]:
+                return False
+            self.state["isBusy"] = True
+
         def _uninstall_thread():
-            if not game_dir or not os.path.isdir(game_dir):
+            target_dir = game_dir or self.state["gameDir"]
+            if not target_dir or not os.path.isdir(target_dir):
+                with self._lock: self.state["isBusy"] = False
                 return
 
-            self.log(f">>> BẮT ĐẦU KHÔI PHỤC BẢN GỐC TẠI: {game_dir}", "magenta")
+            self.log(f">>> BẮT ĐẦU KHÔI PHỤC BẢN GỐC TẠI: {target_dir}", "blue")
             self.update_progress(30, "[1/3] Khôi phục file pak gốc từ bản sao lưu...")
 
             # Restore en-US
-            en_pak_dir = os.path.join(game_dir, "Aion2", "Content", "Paks", "L10N", "Text", "en-US")
-            en_loose_dir = os.path.join(game_dir, "Aion2", "Content", "L10N", "Text", "en-US")
+            en_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "en-US")
+            en_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "en-US")
             if os.path.isdir(en_pak_dir):
                 base_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak")
                 bak_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak.official_clean_bak")
@@ -215,7 +256,7 @@ class ModApi:
                     shutil.copy2(bak_pak, base_pak)
                     try: os.remove(bak_pak)
                     except Exception: pass
-                    self.log("Đã khôi phục file pak gốc en-US", "white")
+                    self.log("Đã khôi phục file pak gốc en-US.", "success")
 
             if os.path.isdir(en_loose_dir):
                 shutil.rmtree(en_loose_dir, ignore_errors=True)
@@ -223,8 +264,8 @@ class ModApi:
             # Restore ko-KR
             time.sleep(0.3)
             self.update_progress(65, "[2/3] Dọn dẹp loose file L10N...")
-            ko_pak_dir = os.path.join(game_dir, "Aion2", "Content", "Paks", "L10N", "Text", "ko-KR")
-            ko_loose_dir = os.path.join(game_dir, "Aion2", "Content", "L10N", "Text", "ko-KR")
+            ko_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "ko-KR")
+            ko_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "ko-KR")
             if os.path.isdir(ko_pak_dir):
                 base_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak")
                 bak_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak.official_clean_bak")
@@ -239,14 +280,14 @@ class ModApi:
             # Remove ExcludedUpdateList.dat
             time.sleep(0.3)
             self.update_progress(90, "[3/3] Xóa cấu hình ExcludedUpdateList...")
-            excl_file = os.path.join(game_dir, "Aion2", "ExcludedUpdateList.dat")
+            excl_file = os.path.join(target_dir, "Aion2", "ExcludedUpdateList.dat")
             if os.path.isfile(excl_file):
                 try: os.remove(excl_file)
                 except Exception: pass
 
             time.sleep(0.4)
             self.update_progress(100, "ĐÃ VỀ BẢN GỐC!")
-            self.log("✔ Đã trả về 100% nguyên bản của nhà phát hành NCSoft.", "white")
+            self.log("✔ Đã trả về 100% nguyên bản của nhà phát hành NCSoft.", "success")
             self.update_state(False)
 
         threading.Thread(target=_uninstall_thread, daemon=True).start()
@@ -255,71 +296,19 @@ class ModApi:
 
 def main():
     api = ModApi()
-    # Preferred: Vue 3 + Naive UI + Tailwind CSS 4 Production Bundle
     gui_dist_path = os.path.join(ROOT_DIR, "gui", "dist", "index.html")
     proto_path = os.path.join(ROOT_DIR, "prototypes", "demo2_modern_obsidian.html")
 
     if os.path.exists(gui_dist_path):
         html_path = gui_dist_path
-        is_vue_bundle = True
     elif os.path.exists(proto_path):
         html_path = proto_path
-        is_vue_bundle = False
     else:
         print(f"Error: GUI bundle not found!")
         return
 
     with open(html_path, "r", encoding="utf-8") as f:
         html_content = f.read()
-
-    # If using prototype, inject compatibility bridge glue
-    if not is_vue_bundle:
-        bridge_script = """
-        <script>
-          window.frontendApp = {
-            log: function(msg, type) { if (typeof addLog === 'function') addLog(msg, type === 'cyan' ? 'blue' : type === 'magenta' ? 'red' : 'success'); },
-            setProgress: function(pct, text) { if (typeof setBar === 'function') setBar(pct, text); },
-            setState: function(val) { if (typeof setState === 'function') setState(val); },
-            applyScanResult: function(dir, installed) {
-              if (dir) document.getElementById('gameDirInput').value = dir;
-              if (typeof setState === 'function') setState(installed);
-            }
-          };
-
-          window.addEventListener('pywebviewready', function() {
-            window.pywebview.api.get_initial_state().then(function(res) {
-              if (res) {
-                if (res.gameDir) document.getElementById('gameDirInput').value = res.gameDir;
-                if (typeof setState === 'function') setState(res.isInstalled);
-              }
-            });
-          });
-
-          window.browseFolder = function() {
-            window.pywebview.api.browse_folder().then(function(res) {
-              if (res && res.gameDir) {
-                document.getElementById('gameDirInput').value = res.gameDir;
-                setState(res.isInstalled);
-              }
-            });
-          };
-
-          window.scanGame = function() {
-            window.pywebview.api.scan_game();
-          };
-
-          window.applyMod = function() {
-            var dir = document.getElementById('gameDirInput').value;
-            window.pywebview.api.install_mod(dir);
-          };
-
-          window.restoreOriginal = function() {
-            var dir = document.getElementById('gameDirInput').value;
-            window.pywebview.api.uninstall_mod(dir);
-          };
-        </script>
-        """
-        html_content = html_content.replace("</body>", bridge_script + "\n</body>")
 
     window = webview.create_window(
         title="FEΔR • AION 2 LOCALE MANAGER",
@@ -330,7 +319,6 @@ def main():
         resizable=True,
         background_color="#090d16"
     )
-    api.set_window(window)
     webview.start(debug=False)
 
 if __name__ == "__main__":
