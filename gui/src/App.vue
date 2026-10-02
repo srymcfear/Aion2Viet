@@ -3,7 +3,7 @@
     <div class="w-screen h-screen flex flex-col bg-[#090d16] text-[var(--text-main)] select-none overflow-hidden border border-[var(--border-subtle)] rounded-xl shadow-2xl">
       
       <!-- Compact Header with Integrated Status Pill & Window Controls -->
-      <div class="h-11 px-3.5 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/95 shrink-0 drag-region">
+      <div class="h-11 px-3.5 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/95 shrink-0 pywebview-drag-region">
         <div class="flex items-center gap-2.5">
           <div class="w-6 h-6 rounded-md bg-gradient-to-br from-[#0284c7] to-[#6366f1] flex items-center justify-center font-extrabold text-white text-[11px] shadow-sm shadow-sky-500/20">
             Δ
@@ -383,26 +383,36 @@ async function handleUninstall() {
   }
 }
 
-onMounted(() => {
-  const initFromPy = () => {
-    const pyApi = (window as any).pywebview?.api;
-    if (pyApi && pyApi.get_status) {
-      pyApi.get_status().then((status: any) => {
-        if (status) {
-          if (status.gameDir) gameDir.value = status.gameDir;
-          isInstalled.value = status.isInstalled;
-          if (status.logs && status.logs.length > 0) {
-            logs.value = status.logs;
-          }
+function initFromPy() {
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.get_status) {
+    pyApi.get_status().then((status: any) => {
+      if (status) {
+        if (status.gameDir) gameDir.value = status.gameDir;
+        isInstalled.value = status.isInstalled;
+        if (status.logs && status.logs.length > 0) {
+          logs.value = status.logs;
         }
-      });
-    }
-  };
+      }
+    }).catch((err: any) => {
+      console.warn("get_status error:", err);
+    });
+    return true;
+  }
+  return false;
+}
 
-  if ((window as any).pywebview) {
-    initFromPy();
-  } else {
-    window.addEventListener('pywebviewready', initFromPy);
+onMounted(() => {
+  if (!initFromPy()) {
+    window.addEventListener('pywebviewready', () => {
+      initFromPy();
+    });
+    const interval = setInterval(() => {
+      if (initFromPy()) {
+        clearInterval(interval);
+      }
+    }, 150);
+    setTimeout(() => clearInterval(interval), 4000);
   }
 });
 </script>

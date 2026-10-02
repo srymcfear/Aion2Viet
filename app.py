@@ -2,7 +2,7 @@
 AION 2 STANDALONE MOD MANAGER GUI
 Developed by Team FEΔR / SrymC
 Python Backend + Modern Vue 3 / Naive UI Frontend (pywebview + WebView2)
-Thread-safe Architecture: Zero COM cross-thread calls to prevent WebView2 freezes.
+Robust, High-Performance, Zero-Hang Architecture.
 """
 import os
 import sys
@@ -12,6 +12,14 @@ import shutil
 import threading
 import winreg
 import webview
+
+# Force UTF-8 encoding on Windows to prevent Unicode charmap encoding freezes
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 RELEASE_DIR = os.path.join(ROOT_DIR, "release", "AION2_VietHoa_Standalone")
@@ -43,19 +51,27 @@ class ModApi:
         self.window = window
 
     def minimize_window(self):
-        if self.window:
-            try:
-                self.window.minimize()
-            except Exception as e:
-                print("Lỗi minimize:", e)
+        def _min():
+            time.sleep(0.05)
+            if self.window:
+                try:
+                    self.window.minimize()
+                except Exception:
+                    pass
+        threading.Thread(target=_min, daemon=True).start()
+        return True
 
     def close_window(self):
-        if self.window:
-            try:
-                self.window.destroy()
-            except Exception:
-                pass
-        os._exit(0)
+        def _close():
+            time.sleep(0.05)
+            if self.window:
+                try:
+                    self.window.destroy()
+                except Exception:
+                    pass
+            os._exit(0)
+        threading.Thread(target=_close, daemon=True).start()
+        return True
 
     def log(self, message, msg_type=""):
         with self._lock:
@@ -76,7 +92,11 @@ class ModApi:
             self.state["isBusy"] = False
 
     def detect_game_dir(self):
-        # 1. Check Registry
+        # 1. Fast check known path
+        if os.path.isdir(r"F:\NCSoft\AION 2\Aion2"):
+            return r"F:\NCSoft\AION 2"
+
+        # 2. Check Registry
         reg_keys = [
             (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\plaync\A2_WW_L_GA_PURPLE"),
             (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\plaync\A2_TW_L_GA_PURPLE"),
@@ -92,15 +112,15 @@ class ModApi:
             except Exception:
                 pass
 
-        # 2. Check drives
-        candidate_drives = [f"{d}:\\" for d in "CDEFGHIJKLMNOPQRSTUVWXYZ" if os.path.exists(f"{d}:\\")]
-        for drive in candidate_drives:
-            for sub in ["NCSoft\\AION 2", "NCSoft\\AION2_TW", "Games\\AION 2", "Program Files\\NCSoft\\AION 2"]:
-                full = os.path.join(drive, sub)
-                if os.path.isdir(full) and os.path.isdir(os.path.join(full, "Aion2")):
-                    return os.path.normpath(full)
+        # 3. Check popular local paths only (avoid scanning offline network drives)
+        for drive in ["C:\\", "D:\\", "E:\\", "F:\\", "G:\\"]:
+            if os.path.exists(drive):
+                for sub in ["NCSoft\\AION 2", "NCSoft\\AION2_TW", "Games\\AION 2", "Program Files\\NCSoft\\AION 2"]:
+                    full = os.path.join(drive, sub)
+                    if os.path.isdir(full) and os.path.isdir(os.path.join(full, "Aion2")):
+                        return os.path.normpath(full)
 
-        return "F:\\NCSoft\\AION 2" if os.path.isdir("F:\\NCSoft\\AION 2") else ""
+        return ""
 
     def check_is_installed(self, game_dir):
         if not game_dir or not os.path.isdir(game_dir):
@@ -137,7 +157,7 @@ class ModApi:
             root = tk.Tk()
             root.withdraw()
             root.attributes('-topmost', True)
-            initial = self.state["gameDir"] if os.path.isdir(self.state["gameDir"]) else "C:\\"
+            initial = self.state["gameDir"] if (self.state["gameDir"] and os.path.isdir(self.state["gameDir"])) else "C:\\"
             chosen = filedialog.askdirectory(title="Chọn thư mục cài đặt game AION 2", initialdir=initial)
             root.destroy()
             if chosen and os.path.isdir(chosen):
@@ -319,25 +339,25 @@ def main():
     proto_path = os.path.join(ROOT_DIR, "prototypes", "demo2_modern_obsidian.html")
 
     if os.path.exists(gui_dist_path):
-        html_path = gui_dist_path
+        target_path = os.path.abspath(gui_dist_path)
     elif os.path.exists(proto_path):
-        html_path = proto_path
+        target_path = os.path.abspath(proto_path)
     else:
         print(f"Error: GUI bundle not found!")
         return
 
-    with open(html_path, "r", encoding="utf-8") as f:
-        html_content = f.read()
+    # Use file:// URL protocol directly - prevents large string IPC memory blocks
+    target_url = f"file:///{target_path.replace(os.sep, '/')}"
 
     window = webview.create_window(
         title="FEΔR • AION 2 LOCALE MANAGER",
-        html=html_content,
+        url=target_url,
         js_api=api,
         width=680,
         height=450,
         resizable=False,
         frameless=True,
-        easy_drag=True,
+        easy_drag=False,  # CRITICAL: easy_drag=False prevents Win32 mouse hook deadlock
         shadow=True,
         background_color="#090d16"
     )
