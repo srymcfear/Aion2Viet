@@ -21,7 +21,12 @@ node_modules/
 gui/node_modules/
 npm-debug.log*
 
+# PyInstaller
+build/
+dist/
+
 # Release and Scratch
 release/
 scratch/
 *.zip
+

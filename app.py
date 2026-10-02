@@ -22,9 +22,35 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+def get_bundle_dir():
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        return sys._MEIPASS
+    return ROOT_DIR
+
+def get_data_dir():
+    b_dir = get_bundle_dir()
+    d1 = os.path.join(b_dir, "Data")
+    if os.path.isdir(d1):
+        return d1
+    d2 = os.path.join(ROOT_DIR, "release", "AION2_VietHoa_Standalone", "Data")
+    if os.path.isdir(d2):
+        return d2
+    return os.path.join(ROOT_DIR, "Data")
+
+def get_gui_html_path():
+    b_dir = get_bundle_dir()
+    p1 = os.path.join(b_dir, "gui", "dist", "index.html")
+    if os.path.isfile(p1):
+        return p1
+    p2 = os.path.join(ROOT_DIR, "gui", "dist", "index.html")
+    if os.path.isfile(p2):
+        return p2
+    p3 = os.path.join(ROOT_DIR, "prototypes", "demo2_modern_obsidian.html")
+    if os.path.isfile(p3):
+        return p3
+    return None
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-RELEASE_DIR = os.path.join(ROOT_DIR, "release", "AION2_VietHoa_Standalone")
-DATA_DIR = os.path.join(RELEASE_DIR, "Data")
 DUMMY_PAK_BYTES = bytes([0x47, 0x55, 0x20, 0x32, 0x30, 0x32, 0x36, 0x30, 0x39, 0x32, 0x39, 0x31, 0x37, 0x35, 0x37])
 
 class ModApi:
@@ -221,6 +247,8 @@ class ModApi:
                 try: shutil.rmtree(mods_folder, ignore_errors=True)
                 except Exception: pass
 
+            data_dir = get_data_dir()
+
             # 1. en-US
             en_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "en-US")
             en_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "en-US")
@@ -239,7 +267,7 @@ class ModApi:
                 time.sleep(0.3)
                 self.update_progress(75, "[3/4] Triển khai 152,667 dòng tiếng Việt vào Loose File...")
                 os.makedirs(en_loose_dir, exist_ok=True)
-                src_dat = os.path.join(DATA_DIR, "en-US", "L10NString.dat")
+                src_dat = os.path.join(data_dir, "en-US", "L10NString.dat")
                 if os.path.isfile(src_dat):
                     shutil.copy2(src_dat, os.path.join(en_loose_dir, "L10NString.dat"))
                     self.log("✔ Đã nạp bảng dịch tiếng Việt en-US", "success")
@@ -257,16 +285,34 @@ class ModApi:
                     f.write(DUMMY_PAK_BYTES)
 
                 os.makedirs(ko_loose_dir, exist_ok=True)
-                src_ko_dat = os.path.join(DATA_DIR, "ko-KR", "L10NString.dat")
+                src_ko_dat = os.path.join(data_dir, "ko-KR", "L10NString.dat")
                 if os.path.isfile(src_ko_dat):
                     shutil.copy2(src_ko_dat, os.path.join(ko_loose_dir, "L10NString.dat"))
                     self.log("✔ Đã nạp bảng dịch tiếng Việt ko-KR", "success")
 
-            # 3. ExcludedUpdateList.dat
+            # 3. zh-TW
+            zh_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "zh-TW")
+            zh_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "zh-TW")
+            if os.path.isdir(zh_pak_dir):
+                base_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak")
+                bak_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak.official_clean_bak")
+                if os.path.isfile(base_zh_pak) and not os.path.isfile(bak_zh_pak) and os.path.getsize(base_zh_pak) > 1024 * 1024:
+                    shutil.copy2(base_zh_pak, bak_zh_pak)
+
+                with open(base_zh_pak, "wb") as f:
+                    f.write(DUMMY_PAK_BYTES)
+
+                os.makedirs(zh_loose_dir, exist_ok=True)
+                src_zh_dat = os.path.join(data_dir, "zh-TW", "L10NString.dat")
+                if os.path.isfile(src_zh_dat):
+                    shutil.copy2(src_zh_dat, os.path.join(zh_loose_dir, "L10NString.dat"))
+                    self.log("✔ Đã nạp bảng dịch tiếng Việt zh-TW", "success")
+
+            # 4. ExcludedUpdateList.dat
             time.sleep(0.3)
             self.update_progress(90, "[4/4] Khóa cập nhật đè của Purple Launcher...")
             excl_file = os.path.join(target_dir, "Aion2", "ExcludedUpdateList.dat")
-            excl_content = "Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.pak\nAion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.pak\n"
+            excl_content = "Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.pak\nAion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.pak\nAion2/Content/Paks/L10N/Text/zh-TW/pakchunk500000-Windows_0_P.pak\n"
             with open(excl_file, "w", encoding="utf-8") as f:
                 f.write(excl_content)
 
@@ -324,6 +370,20 @@ class ModApi:
             if os.path.isdir(ko_loose_dir):
                 shutil.rmtree(ko_loose_dir, ignore_errors=True)
 
+            # Restore zh-TW
+            zh_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "zh-TW")
+            zh_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "zh-TW")
+            if os.path.isdir(zh_pak_dir):
+                base_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak")
+                bak_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak.official_clean_bak")
+                if os.path.isfile(bak_zh_pak):
+                    shutil.copy2(bak_zh_pak, base_zh_pak)
+                    try: os.remove(bak_zh_pak)
+                    except Exception: pass
+
+            if os.path.isdir(zh_loose_dir):
+                shutil.rmtree(zh_loose_dir, ignore_errors=True)
+
             # Remove ExcludedUpdateList.dat
             time.sleep(0.3)
             self.update_progress(90, "[3/3] Xóa cấu hình ExcludedUpdateList...")
@@ -343,19 +403,13 @@ class ModApi:
 
 def main():
     api = ModApi()
-    gui_dist_path = os.path.join(ROOT_DIR, "gui", "dist", "index.html")
-    proto_path = os.path.join(ROOT_DIR, "prototypes", "demo2_modern_obsidian.html")
+    gui_path = get_gui_html_path()
 
-    if os.path.exists(gui_dist_path):
-        target_path = os.path.abspath(gui_dist_path)
-    elif os.path.exists(proto_path):
-        target_path = os.path.abspath(proto_path)
-    else:
+    if not gui_path or not os.path.isfile(gui_path):
         print(f"Error: GUI bundle not found!")
         return
 
-    # Use file:// URL protocol directly - prevents large string IPC memory blocks
-    target_url = f"file:///{target_path.replace(os.sep, '/')}"
+    target_url = f"file:///{os.path.abspath(gui_path).replace(os.sep, '/')}"
 
     window = webview.create_window(
         title="F-Aion 2 Tools",
@@ -365,7 +419,7 @@ def main():
         height=475,
         resizable=False,
         frameless=True,
-        easy_drag=False,  # CRITICAL: easy_drag=False prevents Win32 mouse hook deadlock
+        easy_drag=False,
         shadow=True,
         background_color="#090d16"
     )
