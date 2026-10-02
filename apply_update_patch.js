@@ -118,14 +118,11 @@ function translateContent(key, text) {
 
   // Event & general tags
   vn = vn.replace(/^\[Event\]/g, '[Sự kiện]');
-  vn = vn.replace(/Ascension Trial/g, 'Thử Thách Thăng Hoa');
-  vn = vn.replace(/Abyss/g, 'Vực Sâu');
-  vn = vn.replace(/Transcendence/g, 'Siêu Việt');
   vn = vn.replace(/Through the Fire and Flames: Fire Temple/g, 'Băng Qua Lửa và Khói: Đền Lửa');
   vn = vn.replace(/Clear Fire Temple Ordeal/g, 'Vượt qua Thử Thách Đền Lửa');
   vn = vn.replace(/Clear Vakron Sky Island Ordeal/g, 'Vượt qua Thử Thách Đảo Bầu Trời Vakron');
-  vn = vn.replace(/Clear Ascension Trial/g, 'Vượt qua Thử Thách Thăng Hoa');
-  vn = vn.replace(/Clear Transcendence Dungeon/g, 'Vượt qua Hầm Ngục Siêu Việt');
+  vn = vn.replace(/Clear Ascension Trial/g, 'Vượt qua Ascension Trial');
+  vn = vn.replace(/Clear Transcendence Dungeon/g, 'Vượt qua Hầm Ngục Transcendence');
 
   // Item description templates
   vn = vn.replace(/It contains items that will greatly assist you on your adventure\./gi, 'Chứa các vật phẩm hỗ trợ đắc lực cho chuyến phiêu lưu của bạn.');
