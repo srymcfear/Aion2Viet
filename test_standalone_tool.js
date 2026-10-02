@@ -42,6 +42,7 @@ console.log('[PASS] All mod paks and scripts verified successfully!');
 const repakExe = path.join(__dirname, 'repak_bin', 'repak.exe');
 const aesKey = '0x06038EF544B6007614F8574F1B7C2A3F0D565F74CDCC1B366B4EA1A17B97CBFF';
 const infoEn = execSync(`"${repakExe}" -a "${aesKey}" info "${pakEn}"`).toString();
-assert(infoEn.includes('mount point: ../../../Aion2/Content/L10N/Text/en-US/'), 'pak mount point verified');
+assert(infoEn.includes('mount point: ../../../AION2/Content/L10N/Text/en-US/'), 'pak mount point verified');
+assert(infoEn.includes('path hash seed: Some(6E1C6CD8)'), 'pak hash seed verified');
 
 console.log('✅ ALL STANDALONE TOOL TESTS PASSED!');
