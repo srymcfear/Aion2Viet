@@ -5,9 +5,7 @@
       <!-- Compact Header with Integrated Status Pill & Window Controls -->
       <div class="h-11 px-3.5 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/95 shrink-0 pywebview-drag-region">
         <div class="flex items-center gap-2.5">
-          <div class="w-6 h-6 rounded-md bg-gradient-to-br from-[#0284c7] to-[#6366f1] flex items-center justify-center font-extrabold text-white text-[11px] shadow-sm shadow-sky-500/20">
-            F
-          </div>
+          <img src="./assets/logo.png" alt="FEAR" class="h-6 w-6 object-contain rounded-md border border-white/10 shadow-sm" />
           <div class="text-xs font-bold tracking-wider text-slate-200">
             F-Aion 2 Tools
           </div>

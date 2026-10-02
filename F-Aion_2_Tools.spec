@@ -9,7 +9,9 @@ a = Analysis(
     binaries=[],
     datas=[
         ('release/AION2_VietHoa_Standalone/Data', 'Data'),
-        ('gui/dist/index.html', 'gui/dist')
+        ('gui/dist/index.html', 'gui/dist'),
+        ('fear_logo.ico', '.'),
+        ('fear_logo.png', '.')
     ],
     hiddenimports=[
         'webview',
@@ -17,7 +19,8 @@ a = Analysis(
         'tkinter',
         'tkinter.filedialog',
         'winreg',
-        'webbrowser'
+        'webbrowser',
+        'PIL'
     ],
     hookspath=[],
     hooksconfig={},
@@ -39,6 +42,7 @@ exe = EXE(
     a.datas,
     [],
     name='F-Aion 2 Tools',
+    icon='fear_logo.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
