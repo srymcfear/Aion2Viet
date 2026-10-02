@@ -1,10 +1,16 @@
 import os
 import unittest
-from app import ModApi
+from app import ModApi, is_admin
 
 class TestModApi(unittest.TestCase):
     def setUp(self):
         self.api = ModApi()
+
+    def test_is_admin_check(self):
+        res = is_admin()
+        self.assertIsInstance(res, bool)
+        print(f"[PASS] is_admin check returns boolean: {res}")
+
 
     def test_detect_game_dir(self):
         d = self.api.detect_game_dir()

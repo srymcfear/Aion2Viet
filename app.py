@@ -22,6 +22,33 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+def is_admin():
+    if sys.platform != "win32":
+        return True
+    try:
+        import ctypes
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except Exception:
+        return False
+
+def ensure_admin():
+    if sys.platform != "win32" or is_admin():
+        return True
+    import ctypes
+    try:
+        if getattr(sys, 'frozen', False):
+            executable = sys.executable
+            params = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
+        else:
+            executable = sys.executable
+            params = " ".join([f'"{arg}"' for arg in sys.argv])
+        ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+        if int(ret) > 32:
+            sys.exit(0)
+    except Exception as e:
+        print(f"Failed to elevate privileges: {e}")
+    return False
+
 def get_bundle_dir():
     if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
         return sys._MEIPASS
@@ -402,6 +429,10 @@ class ModApi:
 
 
 def main():
+    if sys.platform == "win32" and not is_admin():
+        ensure_admin()
+        return
+
     api = ModApi()
     gui_path = get_gui_html_path()
 
