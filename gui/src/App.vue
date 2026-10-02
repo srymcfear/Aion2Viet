@@ -1,155 +1,153 @@
 <template>
   <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
-    <div class="min-h-screen flex items-center justify-center p-6">
-      <div class="w-[840px] bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-2xl shadow-2xl backdrop-blur-xl overflow-hidden flex flex-col">
-        
-        <!-- Header -->
-        <div class="px-7 py-5 flex justify-between items-center border-b border-[var(--border-subtle)] bg-[#0d121f]/60">
-          <div class="flex items-center gap-3.5">
-            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#0284c7] to-[#6366f1] flex items-center justify-center font-extrabold text-white text-base shadow-lg shadow-sky-500/20">
-              Δ
-            </div>
-            <div>
-              <div class="text-[17px] font-extrabold tracking-tight text-white">FEΔR • AION 2 LOCALE MANAGER</div>
-            </div>
+    <div class="w-screen h-screen flex flex-col bg-[#090d16] text-[var(--text-main)] select-none overflow-hidden">
+      
+      <!-- Compact Header with Integrated Status Pill -->
+      <div class="h-12 px-4 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/90 shrink-0">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#0284c7] to-[#6366f1] flex items-center justify-center font-extrabold text-white text-xs shadow-md shadow-sky-500/20">
+            Δ
+          </div>
+          <div class="text-[13px] font-bold tracking-tight text-white uppercase">
+            FEΔR • AION 2 LOCALE MANAGER
           </div>
         </div>
 
-        <!-- Tab Bar -->
-        <n-tabs v-model:value="activeTab" type="line" class="px-7 pt-2 border-b border-[var(--border-subtle)] bg-[#080b13]/70">
+        <!-- Integrated Status Pill -->
+        <div 
+          class="flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold border transition-all duration-300"
+          :class="isInstalled 
+            ? 'bg-sky-500/10 border-sky-400/40 text-[#38bdf8] shadow-[0_0_12px_rgba(56,189,248,0.2)]' 
+            : 'bg-slate-800/80 border-slate-700/60 text-slate-400'"
+        >
+          <span 
+            class="w-2 h-2 rounded-full transition-all duration-300"
+            :class="isInstalled ? 'bg-[#38bdf8] animate-pulse shadow-[0_0_8px_#38bdf8]' : 'bg-slate-500'"
+          ></span>
+          <span>{{ isInstalled ? 'ĐÃ BẬT VIỆT HÓA' : 'BẢN GỐC (CHƯA BẬT)' }}</span>
+        </div>
+      </div>
+
+      <!-- Tab Bar -->
+      <div class="px-4 border-b border-[var(--border-subtle)] bg-[#080b13]/80 shrink-0">
+        <n-tabs v-model:value="activeTab" type="line" size="small">
           <n-tab name="locale" tab="Quản lý Việt Hóa" />
           <n-tab name="tools">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5">
               <span>Tools Mở Rộng</span>
-              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300">Đang phát triển</span>
+              <span class="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-300">Đang phát triển</span>
             </div>
           </n-tab>
         </n-tabs>
+      </div>
 
-        <!-- Tab 1: Locale Manager -->
-        <div v-show="activeTab === 'locale'" class="p-7 space-y-6">
-          
-          <!-- Hero Status -->
-          <div class="p-5 rounded-xl border border-[var(--border-subtle)] bg-gradient-to-b from-[#1a2337]/50 to-[#121826]/70 flex justify-between items-center">
-            <div class="flex items-center gap-3">
-              <div 
-                class="w-3 h-3 rounded-full transition-all duration-300"
-                :class="isInstalled ? 'bg-[#38bdf8] shadow-[0_0_16px_#38bdf8]' : 'bg-slate-600 shadow-[0_0_8px_rgba(71,85,105,0.5)]'"
-              ></div>
-              <div>
-                <div class="text-xs uppercase tracking-wider text-[var(--text-muted)] font-semibold">Trạng thái</div>
-                <div 
-                  class="text-lg font-bold tracking-tight"
-                  :class="isInstalled ? 'text-[#38bdf8]' : 'text-slate-100'"
-                >
-                  {{ isInstalled ? 'Đã bật Việt Hóa' : 'Bản gốc (Chưa bật Việt Hóa)' }}
-                </div>
-              </div>
-            </div>
+      <!-- Tab 1: Locale Manager -->
+      <div v-show="activeTab === 'locale'" class="flex-1 p-4 flex flex-col justify-between gap-3 overflow-hidden">
+        
+        <!-- Game Directory Section -->
+        <div class="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-2">
+          <div class="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+            Thư mục cài đặt game AION 2
           </div>
-
-          <!-- Directory Card -->
-          <div class="p-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-3">
-            <div class="text-xs font-semibold text-[var(--text-muted)]">
-              Thư mục cài đặt game AION 2
-            </div>
-            <div class="flex gap-2.5">
-              <n-input
-                v-model:value="gameDir"
-                placeholder="Chọn đường dẫn cài đặt game AION 2..."
-                size="large"
-                class="flex-1 font-mono text-[13px]"
-              />
-              <n-button secondary size="large" @click="handleBrowse" class="!px-5 font-semibold">
-                Chọn thư mục
-              </n-button>
-              <n-button secondary size="large" @click="handleScan" class="!px-5 font-semibold">
-                Quét lại
-              </n-button>
-            </div>
-          </div>
-
-          <!-- Progress -->
-          <div class="space-y-2">
-            <div class="flex justify-between text-xs font-medium text-[var(--text-muted)]">
-              <span>{{ progressStep }}</span>
-              <span class="font-mono text-white font-semibold">{{ progressPct }}%</span>
-            </div>
-            <n-progress
-              type="line"
-              :percentage="progressPct"
-              :show-indicator="false"
-              color="#38bdf8"
-              rail-color="rgba(255, 255, 255, 0.06)"
-              class="!h-2"
+          <div class="flex gap-2">
+            <n-input
+              v-model:value="gameDir"
+              placeholder="Đường dẫn cài đặt game AION 2..."
+              size="medium"
+              class="flex-1 font-mono text-xs"
             />
+            <n-button secondary size="medium" @click="handleBrowse" class="!px-3.5 font-semibold text-xs">
+              Chọn thư mục
+            </n-button>
+            <n-button secondary size="medium" @click="handleScan" class="!px-3.5 font-semibold text-xs">
+              Quét lại
+            </n-button>
           </div>
-
-          <!-- Action Buttons -->
-          <div class="grid grid-cols-2 gap-4">
-            <button
-              :disabled="isInstalled || isBusy"
-              @click="handleInstall"
-              class="p-4 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 flex flex-col items-center justify-center cursor-pointer shadow-lg"
-              :class="isInstalled || isBusy 
-                ? 'opacity-35 cursor-not-allowed bg-slate-800 text-slate-500 border border-transparent shadow-none' 
-                : 'bg-gradient-to-br from-[#0284c7] to-[#0369a1] text-white border border-sky-400/40 shadow-sky-500/25 hover:from-[#0ea5e9] hover:to-[#0284c7] hover:shadow-sky-400/40 active:scale-[0.99]'"
-            >
-              CÀI ĐẶT VIỆT HÓA
-            </button>
-
-            <button
-              :disabled="!isInstalled || isBusy"
-              @click="handleUninstall"
-              class="p-4 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 flex flex-col items-center justify-center cursor-pointer"
-              :class="!isInstalled || isBusy 
-                ? 'opacity-35 cursor-not-allowed bg-slate-800 text-slate-500 border border-transparent shadow-none' 
-                : 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 hover:text-white active:scale-[0.99]'"
-            >
-              GỠ VIỆT HÓA
-            </button>
-          </div>
-
-          <!-- Log Console -->
-          <div ref="logContainer" class="h-28 bg-[#05070c] border border-[var(--border-subtle)] rounded-xl p-3.5 overflow-y-auto font-mono text-xs leading-relaxed space-y-1">
-            <div 
-              v-for="(item, idx) in logs" 
-              :key="idx"
-              :class="{
-                'text-[#38bdf8] font-medium': item.type === 'blue',
-                'text-red-400': item.type === 'red',
-                'text-slate-200 font-semibold': item.type === 'success',
-                'text-slate-400': !item.type
-              }"
-            >
-              [{{ item.time }}] {{ item.text }}
-            </div>
-          </div>
-
         </div>
 
-        <!-- Tab 2: Tools (Extended) -->
-        <div v-show="activeTab === 'tools'" class="p-7">
-          <div class="grid grid-cols-2 gap-4">
-            <div 
-              v-for="tool in toolsList" 
-              :key="tool.title"
-              class="p-5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[#1a2337]/80 hover:border-sky-400/30 transition-all duration-200 space-y-2"
-            >
-              <div class="flex justify-between items-center">
-                <span class="font-bold text-white text-sm">{{ tool.title }}</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                  {{ tool.badge }}
-                </span>
-              </div>
-              <div class="text-xs text-[var(--text-muted)] leading-relaxed">
-                {{ tool.desc }}
-              </div>
-            </div>
+        <!-- Progress Bar -->
+        <div class="space-y-1.5 px-0.5">
+          <div class="flex justify-between text-[11px] font-medium text-[var(--text-muted)]">
+            <span class="truncate max-w-[85%]">{{ progressStep }}</span>
+            <span class="font-mono text-white font-semibold">{{ progressPct }}%</span>
+          </div>
+          <n-progress
+            type="line"
+            :percentage="progressPct"
+            :show-indicator="false"
+            color="#38bdf8"
+            rail-color="rgba(255, 255, 255, 0.06)"
+            class="!h-1.5"
+          />
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            :disabled="isInstalled || isBusy"
+            @click="handleInstall"
+            class="h-11 rounded-xl font-bold text-xs tracking-wider transition-all duration-200 flex items-center justify-center cursor-pointer shadow-md"
+            :class="isInstalled || isBusy 
+              ? 'opacity-35 cursor-not-allowed bg-slate-800 text-slate-500 border border-transparent shadow-none' 
+              : 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white border border-sky-400/40 shadow-sky-500/20 hover:from-[#0ea5e9] hover:to-[#0284c7] hover:shadow-sky-400/40 active:scale-[0.99]'"
+          >
+            CÀI ĐẶT VIỆT HÓA
+          </button>
+
+          <button
+            :disabled="!isInstalled || isBusy"
+            @click="handleUninstall"
+            class="h-11 rounded-xl font-bold text-xs tracking-wider transition-all duration-200 flex items-center justify-center cursor-pointer"
+            :class="!isInstalled || isBusy 
+              ? 'opacity-35 cursor-not-allowed bg-slate-800 text-slate-500 border border-transparent shadow-none' 
+              : 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 hover:text-white active:scale-[0.99]'"
+          >
+            GỠ VIỆT HÓA
+          </button>
+        </div>
+
+        <!-- Compact Log Console -->
+        <div 
+          ref="logContainer" 
+          class="h-24 bg-[#05070c] border border-[var(--border-subtle)] rounded-xl p-2.5 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-1"
+        >
+          <div 
+            v-for="(item, idx) in logs" 
+            :key="idx"
+            :class="{
+              'text-[#38bdf8] font-medium': item.type === 'blue',
+              'text-red-400': item.type === 'red',
+              'text-slate-200 font-semibold': item.type === 'success',
+              'text-slate-400': !item.type
+            }"
+          >
+            [{{ item.time }}] {{ item.text }}
           </div>
         </div>
 
       </div>
+
+      <!-- Tab 2: Tools (Extended) -->
+      <div v-show="activeTab === 'tools'" class="flex-1 p-4 overflow-y-auto">
+        <div class="grid grid-cols-2 gap-3">
+          <div 
+            v-for="tool in toolsList" 
+            :key="tool.title"
+            class="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[#1a2337]/80 hover:border-sky-400/30 transition-all duration-200 space-y-1.5"
+          >
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-white text-xs">{{ tool.title }}</span>
+              <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                {{ tool.badge }}
+              </span>
+            </div>
+            <div class="text-[11px] text-[var(--text-muted)] leading-relaxed">
+              {{ tool.desc }}
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </n-config-provider>
 </template>
@@ -194,10 +192,10 @@ const themeOverrides: GlobalThemeOverrides = {
     colorHoverPrimary: '#0ea5e9',
     colorPressedPrimary: '#0369a1',
     colorFocusPrimary: '#0ea5e9',
-    borderRadiusMedium: '10px'
+    borderRadiusMedium: '8px'
   },
   Input: {
-    borderRadius: '10px',
+    borderRadius: '8px',
     color: 'rgba(8, 11, 19, 0.8)',
     border: '1px solid rgba(255, 255, 255, 0.1)',
     borderHover: '1px solid #38bdf8',
@@ -215,7 +213,7 @@ const progressStep = ref('Sẵn sàng');
 const logContainer = ref<HTMLDivElement | null>(null);
 
 const logs = ref<LogItem[]>([
-  { time: new Date().toLocaleTimeString(), text: 'Hệ thống đã nhận diện thư mục AION 2 tại F:\\NCSoft\\AION 2.', type: 'blue' },
+  { time: new Date().toLocaleTimeString(), text: 'Hệ thống đã nhận diện thư mục game AION 2.', type: 'blue' },
   { time: new Date().toLocaleTimeString(), text: 'Sẵn sàng thực thi.', type: 'success' }
 ]);
 
@@ -223,22 +221,22 @@ const toolsList = [
   {
     title: 'AION 2 DPS Meter',
     badge: 'PHÁT TRIỂN',
-    desc: 'Bảng thống kê sát thương thời gian thực, đo lường DPS Party, Skill Breakdown và ghi log combat không làm giảm FPS.'
+    desc: 'Bảng thống kê sát thương thời gian thực, đo lường DPS Party, Skill Breakdown không giảm FPS.'
   },
   {
     title: 'TCP/UDP Optimizer',
     badge: 'PHÁT TRIỂN',
-    desc: 'Tự động cấu hình Reg TCPNoDelay và MTU Packet Size tối ưu cho máy chủ AION 2 Global & TW, hạn chế gián đoạn kết nối.'
+    desc: 'Cấu hình Reg TCPNoDelay và MTU Packet Size tối ưu cho máy chủ AION 2 Global & TW.'
   },
   {
     title: 'Góc nhìn FOV Extender',
     badge: 'PHÁT TRIỂN',
-    desc: 'Tăng góc nhìn toàn cảnh chiến trường cho Daeva, tùy biến tầm xa của camera khi đi Boss và PvP quy mô lớn.'
+    desc: 'Tăng góc nhìn toàn cảnh chiến trường, tùy biến tầm xa của camera khi đi Boss và PvP.'
   },
   {
     title: 'Quick Macro Controller',
     badge: 'PHÁT TRIỂN',
-    desc: 'Tự động xâu chuỗi kỹ năng theo luồng bất đồng bộ (non-blocking) chuẩn FEΔR, có phím dừng khẩn cấp Emergency Stop.'
+    desc: 'Xâu chuỗi kỹ năng luồng bất đồng bộ chuẩn FEΔR, hỗ trợ phím dừng khẩn cấp.'
   }
 ];
 

@@ -325,10 +325,10 @@ def main():
         title="FEΔR • AION 2 LOCALE MANAGER",
         html=html_content,
         js_api=api,
-        width=880,
-        height=660,
+        width=680,
+        height=450,
         resizable=True,
-        background_color="#07090e"
+        background_color="#090d16"
     )
     api.set_window(window)
     webview.start(debug=False)
