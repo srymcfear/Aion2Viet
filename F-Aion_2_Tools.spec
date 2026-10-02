@@ -20,7 +20,10 @@ a = Analysis(
         'tkinter.filedialog',
         'winreg',
         'webbrowser',
-        'PIL'
+        'PIL',
+        'urllib.request',
+        'urllib.error',
+        'hashlib'
     ],
     hookspath=[],
     hooksconfig={},

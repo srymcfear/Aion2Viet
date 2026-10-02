@@ -51,7 +51,7 @@
         </div>
       </div>
 
-      <!-- Tab Bar -->
+      <!-- Tab Bar with About & Update -->
       <div class="px-3.5 border-b border-[var(--border-subtle)] bg-[#080b13]/80 shrink-0">
         <n-tabs v-model:value="activeTab" type="line" size="small">
           <n-tab name="locale" tab="Quản lý Việt Hóa" />
@@ -61,12 +61,40 @@
               <span class="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-300">Đang phát triển</span>
             </div>
           </n-tab>
+          <n-tab name="about">
+            <div class="flex items-center gap-1.5">
+              <span>About & Update</span>
+              <span v-if="hasUpdate" class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse shadow-[0_0_6px_#38bdf8]"></span>
+            </div>
+          </n-tab>
         </n-tabs>
       </div>
 
       <!-- Tab 1: Locale Manager -->
       <div v-show="activeTab === 'locale'" class="flex-1 p-3.5 flex flex-col justify-between gap-2.5 overflow-hidden">
         
+        <!-- Security Alert Banner (Lock or Maintenance) -->
+        <div v-if="securityStatus === 'lock'" class="p-2.5 rounded-xl border border-red-500/40 bg-red-500/10 text-red-400 flex items-center gap-2.5 text-xs animate-pulse">
+          <svg class="w-4 h-4 text-red-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <div class="leading-tight">
+            <strong class="font-bold">HỆ THỐNG ĐÃ BỊ KHÓA:</strong> {{ securityMessage }}
+          </div>
+        </div>
+
+        <div v-else-if="securityStatus === 'baotri'" class="p-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-300 flex items-center gap-2.5 text-xs">
+          <svg class="w-4 h-4 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <div class="leading-tight">
+            <strong class="font-bold">HỆ THỐNG ĐANG BẢO TRÌ:</strong> {{ securityMessage }}
+          </div>
+        </div>
+
         <!-- Game Directory Section -->
         <div class="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-1.5">
           <div class="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
@@ -107,10 +135,10 @@
         <!-- Action Buttons -->
         <div class="grid grid-cols-2 gap-2.5">
           <button
-            :disabled="isInstalled || isBusy"
+            :disabled="isInstalled || isBusy || securityStatus !== 'active'"
             @click="handleInstall"
             class="h-10 rounded-xl font-bold text-xs tracking-wider transition-all duration-200 flex items-center justify-center cursor-pointer shadow-md"
-            :class="isInstalled || isBusy 
+            :class="isInstalled || isBusy || securityStatus !== 'active'
               ? 'opacity-35 cursor-not-allowed bg-slate-800 text-slate-500 border border-transparent shadow-none' 
               : 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white border border-sky-400/40 shadow-sky-500/20 hover:from-[#0ea5e9] hover:to-[#0284c7] hover:shadow-sky-400/40 active:scale-[0.99]'"
           >
@@ -118,10 +146,10 @@
           </button>
 
           <button
-            :disabled="!isInstalled || isBusy"
+            :disabled="!isInstalled || isBusy || securityStatus !== 'active'"
             @click="handleUninstall"
             class="h-10 rounded-xl font-bold text-xs tracking-wider transition-all duration-200 flex items-center justify-center cursor-pointer"
-            :class="!isInstalled || isBusy 
+            :class="!isInstalled || isBusy || securityStatus !== 'active'
               ? 'opacity-35 cursor-not-allowed bg-slate-800 text-slate-500 border border-transparent shadow-none' 
               : 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 hover:text-white active:scale-[0.99]'"
           >
@@ -169,6 +197,134 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Tab 3: About & Update -->
+      <div v-show="activeTab === 'about'" class="flex-1 p-3.5 flex flex-col gap-2.5 overflow-y-auto">
+        <!-- Top Row: App Brand & Security Card -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <!-- App Info Card -->
+          <div class="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] flex flex-col justify-between space-y-2">
+            <div class="flex items-center gap-2.5">
+              <img src="./assets/logo.png" alt="FEAR" class="h-9 w-9 object-contain rounded-lg border border-white/10 p-0.5 bg-black/40 shadow" />
+              <div>
+                <div class="text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
+                  <span>F-Aion 2 Tools</span>
+                  <span class="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono font-bold">v{{ currentVersion }}</span>
+                </div>
+                <div class="text-[10px] text-[var(--text-muted)]">Quản lý & Tối ưu Việt Hóa AION 2</div>
+              </div>
+            </div>
+            <div class="pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
+              <span class="text-slate-400">Tác giả:</span>
+              <span class="font-semibold text-slate-200">SrymC (FEΔR Team)</span>
+            </div>
+          </div>
+
+          <!-- Security Status Card (fearAion2Tran-key) -->
+          <div class="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] flex flex-col justify-between space-y-2">
+            <div class="flex justify-between items-center">
+              <div class="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                Khóa bảo mật (Key)
+              </div>
+              <!-- Status Pill Badge -->
+              <div 
+                class="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all"
+                :class="{
+                  'bg-sky-500/10 border-sky-400/40 text-[#38bdf8]': securityStatus === 'active',
+                  'bg-amber-500/10 border-amber-400/40 text-amber-400': securityStatus === 'baotri',
+                  'bg-red-500/10 border-red-400/40 text-red-400': securityStatus === 'lock'
+                }"
+              >
+                <span 
+                  class="w-1.5 h-1.5 rounded-full"
+                  :class="{
+                    'bg-[#38bdf8] animate-pulse shadow-[0_0_6px_#38bdf8]': securityStatus === 'active',
+                    'bg-amber-400 animate-pulse': securityStatus === 'baotri',
+                    'bg-red-500': securityStatus === 'lock'
+                  }"
+                ></span>
+                <span class="uppercase font-mono">{{ securityStatus === 'active' ? 'Active' : (securityStatus === 'baotri' ? 'Bảo trì' : 'Đã khóa') }}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between bg-[#06080e] px-2.5 py-1.5 rounded-lg border border-white/5 font-mono text-xs text-sky-400">
+              <span class="font-bold tracking-wider">{{ securityKey }}</span>
+              <span class="text-[9px] text-slate-500 uppercase">SHA-256</span>
+            </div>
+
+            <div class="text-[10px] text-slate-400 truncate" :title="securityMessage">
+              {{ securityMessage }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Software Update Card -->
+        <div class="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] flex flex-col justify-between space-y-2.5 flex-1">
+          <div class="flex justify-between items-center">
+            <div class="space-y-0.5">
+              <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>Cập nhật phần mềm</span>
+                <span class="text-[10px] text-slate-400 font-normal">(GitHub Releases)</span>
+              </div>
+              <div class="text-[11px] text-slate-400">
+                Phiên bản hiện tại: <span class="font-mono text-white font-semibold">v{{ currentVersion }}</span>
+                <span v-if="latestVersion" class="ml-2">| Mới nhất: <span class="font-mono font-semibold" :class="hasUpdate ? 'text-sky-400' : 'text-slate-300'">v{{ latestVersion }}</span></span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <n-button 
+                secondary 
+                size="small" 
+                :loading="isCheckingUpdate" 
+                @click="handleCheckUpdate"
+                class="!px-3 font-semibold text-xs"
+              >
+                Kiểm tra cập nhật
+              </n-button>
+            </div>
+          </div>
+
+          <!-- Update details if update available -->
+          <div v-if="hasUpdate" class="p-2.5 rounded-lg border border-sky-500/30 bg-sky-500/10 space-y-2">
+            <div class="flex justify-between items-center text-xs">
+              <div class="font-bold text-sky-300 flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Đã có phiên bản mới: v{{ latestVersion }}</span>
+              </div>
+              <div class="flex gap-2">
+                <button 
+                  @click="handleDownloadUpdate"
+                  class="px-2.5 py-1 rounded-md bg-sky-500 hover:bg-sky-400 text-black font-bold text-[11px] transition-colors cursor-pointer shadow-sm"
+                >
+                  Tự động tải cập nhật
+                </button>
+                <button 
+                  @click="handleOpenRelease"
+                  class="px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-[11px] transition-colors cursor-pointer border border-white/10"
+                >
+                  Xem GitHub
+                </button>
+              </div>
+            </div>
+            <!-- Changelog snippet -->
+            <div v-if="changelog" class="text-[11px] text-slate-300 max-h-16 overflow-y-auto font-mono bg-black/30 p-2 rounded border border-white/5 whitespace-pre-wrap leading-relaxed">
+              {{ changelog }}
+            </div>
+          </div>
+
+          <!-- Up to date message -->
+          <div v-else class="text-[11px] text-slate-400 flex items-center justify-between pt-1">
+            <span>{{ lastChecked ? '✔ Bạn đang sử dụng phiên bản mới nhất.' : 'Nhấn nút để kiểm tra bản phát hành mới.' }}</span>
+            <span v-if="lastChecked" class="text-[10px] text-slate-500 font-mono">Đã kiểm tra: {{ lastChecked }}</span>
+          </div>
+        </div>
+
       </div>
 
       <!-- Footer with @FEAR Github Link -->
@@ -252,6 +408,17 @@ const progressPct = ref(0);
 const progressStep = ref('Sẵn sàng');
 const logContainer = ref<HTMLDivElement | null>(null);
 
+// Security & Update State
+const currentVersion = ref('1.0.0');
+const latestVersion = ref('1.0.0');
+const hasUpdate = ref(false);
+const securityKey = ref('fearAion2Tran-key');
+const securityStatus = ref('active');
+const securityMessage = ref('Đã xác thực bản quyền FEAR (Active)');
+const changelog = ref('');
+const lastChecked = ref('');
+const isCheckingUpdate = ref(false);
+
 const logs = ref<LogItem[]>([
   { time: new Date().toLocaleTimeString(), text: 'Khởi tạo hệ thống quản lý AION 2.', type: 'blue' }
 ]);
@@ -292,6 +459,18 @@ function addLog(text: string, type: string = '') {
   });
 }
 
+function applySecurityInfo(sec: any) {
+  if (!sec) return;
+  if (sec.currentVersion) currentVersion.value = sec.currentVersion;
+  if (sec.latestVersion) latestVersion.value = sec.latestVersion;
+  if (sec.key) securityKey.value = sec.key;
+  if (sec.status) securityStatus.value = sec.status;
+  if (sec.message) securityMessage.value = sec.message;
+  if (typeof sec.hasUpdate === 'boolean') hasUpdate.value = sec.hasUpdate;
+  if (sec.changelog !== undefined) changelog.value = sec.changelog;
+  if (sec.lastChecked) lastChecked.value = sec.lastChecked;
+}
+
 let pollTimer: any = null;
 
 function startPolling() {
@@ -305,6 +484,9 @@ function startPolling() {
         isInstalled.value = status.isInstalled;
         progressPct.value = status.progressPct;
         progressStep.value = status.progressStep;
+        if (status.securityInfo) {
+          applySecurityInfo(status.securityInfo);
+        }
         if (status.logs && status.logs.length > 0) {
           for (const item of status.logs) {
             addLog(item.text, item.type);
@@ -347,6 +529,50 @@ function openGithub() {
   }
 }
 
+async function handleCheckUpdate() {
+  const pyApi = (window as any).pywebview?.api;
+  if (!pyApi || !pyApi.check_update) return;
+  isCheckingUpdate.value = true;
+  try {
+    const sec = await pyApi.check_update();
+    applySecurityInfo(sec);
+    setTimeout(async () => {
+      if (pyApi.get_security_info) {
+        const updated = await pyApi.get_security_info();
+        applySecurityInfo(updated);
+      }
+      isCheckingUpdate.value = false;
+    }, 1500);
+  } catch (e) {
+    console.error(e);
+    isCheckingUpdate.value = false;
+  }
+}
+
+function handleOpenRelease() {
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.open_release_url) {
+    pyApi.open_release_url();
+  } else {
+    window.open('https://github.com/srymcfear/F-Aion-2-Tools/releases', '_blank');
+  }
+}
+
+async function handleDownloadUpdate() {
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.download_update) {
+    try {
+      activeTab.value = 'locale';
+      await pyApi.download_update();
+      startPolling();
+    } catch (e) {
+      console.error(e);
+    }
+  } else {
+    handleOpenRelease();
+  }
+}
+
 async function handleBrowse() {
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.browse_folder) {
@@ -378,7 +604,7 @@ async function handleScan() {
 }
 
 async function handleInstall() {
-  if (isInstalled.value || isBusy.value) return;
+  if (isInstalled.value || isBusy.value || securityStatus.value !== 'active') return;
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.install_mod) {
     isBusy.value = true;
@@ -393,7 +619,7 @@ async function handleInstall() {
 }
 
 async function handleUninstall() {
-  if (!isInstalled.value || isBusy.value) return;
+  if (!isInstalled.value || isBusy.value || securityStatus.value !== 'active') return;
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.uninstall_mod) {
     isBusy.value = true;
@@ -414,6 +640,9 @@ function initFromPy() {
       if (status) {
         if (status.gameDir) gameDir.value = status.gameDir;
         isInstalled.value = status.isInstalled;
+        if (status.securityInfo) {
+          applySecurityInfo(status.securityInfo);
+        }
         if (status.logs && status.logs.length > 0) {
           logs.value = status.logs;
         }

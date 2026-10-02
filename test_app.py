@@ -1,6 +1,6 @@
 import os
 import unittest
-from app import ModApi, is_admin
+from app import ModApi, is_admin, parse_release_security, is_newer_version, SECURITY_KEY
 
 class TestModApi(unittest.TestCase):
     def setUp(self):
@@ -10,6 +10,34 @@ class TestModApi(unittest.TestCase):
         res = is_admin()
         self.assertIsInstance(res, bool)
         print(f"[PASS] is_admin check returns boolean: {res}")
+
+    def test_security_key_and_integrity(self):
+        sec = self.api.get_security_info()
+        self.assertEqual(sec["key"], "fearAion2Tran-key")
+        self.assertIn(sec["status"], ["active", "baotri", "lock"])
+        self.assertTrue(self.api.verify_code_integrity())
+        print(f"[PASS] Security key '{sec['key']}' is verified, status: {sec['status']}")
+
+    def test_parse_release_security(self):
+        st1, msg1 = parse_release_security("Default release notes")
+        self.assertEqual(st1, "active")
+
+        st2, msg2 = parse_release_security("Notice\nfearAion2Tran-key:baotri:May chu dang bao tri")
+        self.assertEqual(st2, "baotri")
+        self.assertEqual(msg2, "May chu dang bao tri")
+
+        st3, msg3 = parse_release_security("fearAion2Tran-key:lock:Ban bi khoa")
+        self.assertEqual(st3, "lock")
+        self.assertEqual(msg3, "Ban bi khoa")
+        print("[PASS] Security key parsing for active/baotri/lock works as expected")
+
+    def test_semver_compare(self):
+        self.assertTrue(is_newer_version("1.0.1", "1.0.0"))
+        self.assertTrue(is_newer_version("v2.0.0", "1.0.0"))
+        self.assertFalse(is_newer_version("1.0.0", "1.0.0"))
+        self.assertFalse(is_newer_version("0.9.9", "1.0.0"))
+        print("[PASS] Semver version comparison works as expected")
+
 
 
     def test_detect_game_dir(self):

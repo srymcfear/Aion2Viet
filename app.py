@@ -10,9 +10,60 @@ import json
 import time
 import shutil
 import threading
+import re
+import hashlib
+import tempfile
+import urllib.request
+import urllib.error
 import winreg
 import webbrowser
 import webview
+
+# Security & Update Configuration
+CURRENT_VERSION = "1.0.0"
+SECURITY_KEY = "fearAion2Tran-key"
+SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
+GITHUB_REPO = "srymcfear/F-Aion-2-Tools"
+RELEASE_URL = f"https://github.com/{GITHUB_REPO}/releases"
+API_RELEASE_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+
+def parse_semver(s):
+    nums = [int(x) for x in re.findall(r'\d+', str(s))]
+    while len(nums) < 3:
+        nums.append(0)
+    return tuple(nums[:3])
+
+def is_newer_version(remote_v, local_v):
+    return parse_semver(remote_v) > parse_semver(local_v)
+
+def parse_release_security(body_text):
+    status = "active"
+    message = "Hệ thống hoạt động bình thường"
+    if not body_text:
+        return status, message
+    
+    # 1. JSON block check
+    json_match = re.search(r'\{[^{}]*"key"\s*:\s*"fearAion2Tran-key"[^{}]*\}', body_text)
+    if json_match:
+        try:
+            d = json.loads(json_match.group(0))
+            if d.get("status") in ["active", "baotri", "lock"]:
+                return d["status"], d.get("message", message)
+        except Exception:
+            pass
+
+    # 2. Tag check: fearAion2Tran-key:(active|baotri|lock)
+    m = re.search(r'fearAion2Tran-key\s*:\s*(active|baotri|lock)(?::([^\r\n]+))?', body_text, re.IGNORECASE)
+    if m:
+        st = m.group(1).lower()
+        msg = m.group(2).strip() if m.group(2) else ""
+        if st == "baotri":
+            msg = msg or "Hệ thống đang bảo trì, vui lòng quay lại sau."
+        elif st == "lock":
+            msg = msg or "Công cụ đã bị khóa bởi tác giả."
+        return st, msg
+
+    return status, message
 
 # Force UTF-8 encoding on Windows to prevent Unicode charmap encoding freezes
 if sys.platform == "win32":
@@ -92,6 +143,21 @@ class ModApi:
             "progressStep": "Sẵn sàng",
             "newLogs": []
         }
+        self.security_info = {
+            "key": SECURITY_KEY,
+            "status": "active",
+            "message": "Đã xác thực bản quyền FEAR (Active)",
+            "currentVersion": CURRENT_VERSION,
+            "latestVersion": CURRENT_VERSION,
+            "hasUpdate": False,
+            "releaseUrl": RELEASE_URL,
+            "downloadUrl": None,
+            "changelog": "",
+            "lastChecked": None,
+            "isChecking": False
+        }
+        self.verify_code_integrity()
+
         # Initial detection
         detected = self.detect_game_dir()
         installed = self.check_is_installed(detected)
@@ -100,6 +166,147 @@ class ModApi:
         if detected:
             self.log(f"Đã nhận diện thư mục AION 2: {detected}", "blue")
         self.log("Hệ thống sẵn sàng.", "success")
+
+        # Initial background update check
+        threading.Thread(target=self._check_update_task, daemon=True).start()
+
+    def verify_code_integrity(self):
+        calculated_hash = hashlib.sha256(SECURITY_KEY.encode()).hexdigest()
+        if calculated_hash != SECURITY_KEY_HASH:
+            self.security_info["status"] = "lock"
+            self.security_info["message"] = "CẢNH BÁO: Chữ ký bảo mật mã nguồn không hợp lệ!"
+            self.log("❌ LỖI BẢO MẬT: Chữ ký phần mềm bị can thiệp trái phép.", "red")
+            return False
+        return True
+
+    def _check_update_task(self):
+        with self._lock:
+            if self.security_info["isChecking"]:
+                return
+            self.security_info["isChecking"] = True
+
+        try:
+            req = urllib.request.Request(
+                API_RELEASE_URL,
+                headers={"User-Agent": f"F-Aion-2-Tools/{CURRENT_VERSION}"}
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    tag = str(data.get("tag_name", "")).strip()
+                    body = str(data.get("body", ""))
+                    html_url = data.get("html_url", RELEASE_URL)
+                    
+                    sec_status, sec_msg = parse_release_security(body)
+                    
+                    download_url = None
+                    for asset in data.get("assets", []):
+                        if asset.get("name", "").lower().endswith(".exe"):
+                            download_url = asset.get("browser_download_url")
+                            break
+                    
+                    remote_ver = tag.lstrip("v")
+                    has_upd = is_newer_version(remote_ver, CURRENT_VERSION)
+                    
+                    with self._lock:
+                        self.security_info["status"] = sec_status
+                        self.security_info["message"] = sec_msg
+                        self.security_info["latestVersion"] = remote_ver or CURRENT_VERSION
+                        self.security_info["hasUpdate"] = has_upd
+                        self.security_info["releaseUrl"] = html_url
+                        self.security_info["downloadUrl"] = download_url
+                        self.security_info["changelog"] = body
+                        self.security_info["lastChecked"] = time.strftime("%H:%M:%S")
+                        self.security_info["isChecking"] = False
+
+                    if has_upd:
+                        self.log(f"🔔 Đã có phiên bản mới: v{remote_ver}!", "blue")
+                    else:
+                        self.log("✔ Đang sử dụng phiên bản mới nhất.", "success")
+                    return
+        except urllib.error.HTTPError as e:
+            with self._lock:
+                if e.code == 404:
+                    self.security_info["message"] = "Trạng thái: Hoạt động (Chưa phát hành bản mới trên GitHub)"
+                else:
+                    self.security_info["message"] = f"Phản hồi từ máy chủ: HTTP {e.code}"
+                self.security_info["lastChecked"] = time.strftime("%H:%M:%S")
+                self.security_info["isChecking"] = False
+        except Exception:
+            with self._lock:
+                self.security_info["message"] = "Trạng thái: Hoạt động (Chế độ ngoại tuyến)"
+                self.security_info["lastChecked"] = time.strftime("%H:%M:%S")
+                self.security_info["isChecking"] = False
+
+    def check_update(self):
+        threading.Thread(target=self._check_update_task, daemon=True).start()
+        with self._lock:
+            return dict(self.security_info)
+
+    def get_security_info(self):
+        with self._lock:
+            return dict(self.security_info)
+
+    def open_release_url(self, url=None):
+        target = url or self.security_info.get("releaseUrl") or RELEASE_URL
+        try:
+            webbrowser.open(target)
+        except Exception as e:
+            self.log(f"Lỗi mở link: {e}", "red")
+        return True
+
+    def download_update(self):
+        download_url = self.security_info.get("downloadUrl")
+        if not download_url:
+            return self.open_release_url()
+
+        with self._lock:
+            if self.state["isBusy"]:
+                return False
+            self.state["isBusy"] = True
+
+        def _down():
+            try:
+                self.log("Bắt đầu tải bản cập nhật...", "blue")
+                self.update_progress(5, "Đang kết nối máy chủ tải về...")
+                req = urllib.request.Request(
+                    download_url,
+                    headers={"User-Agent": f"F-Aion-2-Tools/{CURRENT_VERSION}"}
+                )
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    total_size = int(resp.headers.get("content-length", 0))
+                    downloaded = 0
+                    temp_dir = tempfile.gettempdir()
+                    new_file_name = f"F-Aion_2_Tools_v{self.security_info['latestVersion']}.exe"
+                    dest_path = os.path.join(temp_dir, new_file_name)
+
+                    with open(dest_path, "wb") as f:
+                        while True:
+                            chunk = resp.read(64 * 1024)
+                            if not chunk:
+                                break
+                            f.write(chunk)
+                            downloaded += len(chunk)
+                            if total_size > 0:
+                                pct = int((downloaded / total_size) * 90) + 5
+                                self.update_progress(pct, f"Đang tải: {downloaded // 1024} KB / {total_size // 1024} KB ({pct}%)")
+
+                self.update_progress(100, "Tải bản mới thành công!")
+                self.log(f"✔ Đã tải bản mới: {dest_path}", "success")
+                self.log("Khởi chạy bản cập nhật...", "blue")
+                time.sleep(1)
+                os.startfile(dest_path)
+                with self._lock:
+                    self.state["isBusy"] = False
+                self.close_window()
+            except Exception as e:
+                self.log(f"Lỗi tải cập nhật: {e}", "red")
+                self.update_progress(0, "Lỗi tải cập nhật")
+                with self._lock:
+                    self.state["isBusy"] = False
+
+        threading.Thread(target=_down, daemon=True).start()
+        return True
 
     def set_window(self, window):
         self.window = window
@@ -208,7 +415,8 @@ class ModApi:
                 "isBusy": self.state["isBusy"],
                 "progressPct": self.state["progressPct"],
                 "progressStep": self.state["progressStep"],
-                "logs": logs
+                "logs": logs,
+                "securityInfo": dict(self.security_info)
             }
 
     def browse_folder(self):
@@ -247,6 +455,13 @@ class ModApi:
         return {"gameDir": detected, "isInstalled": installed}
 
     def install_mod(self, game_dir):
+        if self.security_info.get("status") == "lock":
+            self.log("❌ LỖI BẢO MẬT: Công cụ đã bị KHÓA bởi nhà phát triển!", "red")
+            return False
+        if self.security_info.get("status") == "baotri":
+            self.log("⚠ BẢO TRÌ: Hệ thống đang tạm dừng để bảo trì!", "red")
+            return False
+
         with self._lock:
             if self.state["isBusy"]:
                 return False
@@ -352,6 +567,13 @@ class ModApi:
         return True
 
     def uninstall_mod(self, game_dir):
+        if self.security_info.get("status") == "lock":
+            self.log("❌ LỖI BẢO MẬT: Công cụ đã bị KHÓA bởi nhà phát triển!", "red")
+            return False
+        if self.security_info.get("status") == "baotri":
+            self.log("⚠ BẢO TRÌ: Hệ thống đang tạm dừng để bảo trì!", "red")
+            return False
+
         with self._lock:
             if self.state["isBusy"]:
                 return False
