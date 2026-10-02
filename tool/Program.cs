@@ -83,6 +83,28 @@ class Program
             Console.WriteLine($"=== UNPACK MODE: Extracting .pak to JSON/CSV {(target != null ? $"({target})" : "")} ===");
             UnpackAll(baseDir, target);
         }
+        else if (mode == "dump-dat")
+        {
+            string file = args.Skip(1).FirstOrDefault(a => a != "--") ?? "";
+            string loc = args.Skip(2).FirstOrDefault(a => a != "--") ?? "en-US";
+            if (File.Exists(file))
+            {
+                byte[] raw = File.ReadAllBytes(file);
+                byte[] decomp = DecryptL10N(raw, loc);
+                using var ms = new MemoryStream(decomp);
+                using var br = new BinaryReader(ms);
+                int tableVer = br.ReadInt32();
+                string ns = ReadFString(br);
+                int count = br.ReadInt32();
+                Console.WriteLine($"[dump-dat] File: {file}, TableVer: {tableVer}, NS: '{ns}', Count: {count}");
+                for (int i = 0; i < 20; i++)
+                {
+                    string k = ReadFString(br);
+                    string v = ReadFString(br);
+                    Console.WriteLine($"  [{k}] = \"{v}\"");
+                }
+            }
+        }
         else
         {
             Console.WriteLine($"Unknown mode: {mode}");
