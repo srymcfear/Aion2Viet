@@ -255,64 +255,71 @@ class ModApi:
 
 def main():
     api = ModApi()
-    # Use User Selected: Demo 2 (Modern Obsidian)
-    html_path = os.path.join(ROOT_DIR, "prototypes", "demo2_modern_obsidian.html")
-    if not os.path.exists(html_path):
-        print(f"Error: {html_path} not found!")
+    # Preferred: Vue 3 + Naive UI + Tailwind CSS 4 Production Bundle
+    gui_dist_path = os.path.join(ROOT_DIR, "gui", "dist", "index.html")
+    proto_path = os.path.join(ROOT_DIR, "prototypes", "demo2_modern_obsidian.html")
+
+    if os.path.exists(gui_dist_path):
+        html_path = gui_dist_path
+        is_vue_bundle = True
+    elif os.path.exists(proto_path):
+        html_path = proto_path
+        is_vue_bundle = False
+    else:
+        print(f"Error: GUI bundle not found!")
         return
 
-    # Read and inject the JS binding connector
     with open(html_path, "r", encoding="utf-8") as f:
         html_content = f.read()
 
-    # Inject pywebview bridge glue specifically tailored for Demo 2
-    bridge_script = """
-    <script>
-      window.frontendApp = {
-        log: function(msg, type) { if (typeof addLog === 'function') addLog(msg, type === 'cyan' ? 'blue' : type === 'magenta' ? 'red' : 'success'); },
-        setProgress: function(pct, text) { if (typeof setBar === 'function') setBar(pct, text); },
-        setState: function(val) { if (typeof setState === 'function') setState(val); },
-        applyScanResult: function(dir, installed) {
-          if (dir) document.getElementById('gameDirInput').value = dir;
-          if (typeof setState === 'function') setState(installed);
-        }
-      };
+    # If using prototype, inject compatibility bridge glue
+    if not is_vue_bundle:
+        bridge_script = """
+        <script>
+          window.frontendApp = {
+            log: function(msg, type) { if (typeof addLog === 'function') addLog(msg, type === 'cyan' ? 'blue' : type === 'magenta' ? 'red' : 'success'); },
+            setProgress: function(pct, text) { if (typeof setBar === 'function') setBar(pct, text); },
+            setState: function(val) { if (typeof setState === 'function') setState(val); },
+            applyScanResult: function(dir, installed) {
+              if (dir) document.getElementById('gameDirInput').value = dir;
+              if (typeof setState === 'function') setState(installed);
+            }
+          };
 
-      window.addEventListener('pywebviewready', function() {
-        window.pywebview.api.get_initial_state().then(function(res) {
-          if (res) {
-            if (res.gameDir) document.getElementById('gameDirInput').value = res.gameDir;
-            if (typeof setState === 'function') setState(res.isInstalled);
-          }
-        });
-      });
+          window.addEventListener('pywebviewready', function() {
+            window.pywebview.api.get_initial_state().then(function(res) {
+              if (res) {
+                if (res.gameDir) document.getElementById('gameDirInput').value = res.gameDir;
+                if (typeof setState === 'function') setState(res.isInstalled);
+              }
+            });
+          });
 
-      // Override frontend functions to route through Python API
-      window.browseFolder = function() {
-        window.pywebview.api.browse_folder().then(function(res) {
-          if (res && res.gameDir) {
-            document.getElementById('gameDirInput').value = res.gameDir;
-            setState(res.isInstalled);
-          }
-        });
-      };
+          window.browseFolder = function() {
+            window.pywebview.api.browse_folder().then(function(res) {
+              if (res && res.gameDir) {
+                document.getElementById('gameDirInput').value = res.gameDir;
+                setState(res.isInstalled);
+              }
+            });
+          };
 
-      window.scanGame = function() {
-        window.pywebview.api.scan_game();
-      };
+          window.scanGame = function() {
+            window.pywebview.api.scan_game();
+          };
 
-      window.applyMod = function() {
-        var dir = document.getElementById('gameDirInput').value;
-        window.pywebview.api.install_mod(dir);
-      };
+          window.applyMod = function() {
+            var dir = document.getElementById('gameDirInput').value;
+            window.pywebview.api.install_mod(dir);
+          };
 
-      window.restoreOriginal = function() {
-        var dir = document.getElementById('gameDirInput').value;
-        window.pywebview.api.uninstall_mod(dir);
-      };
-    </script>
-    """
-    html_content = html_content.replace("</body>", bridge_script + "\n</body>")
+          window.restoreOriginal = function() {
+            var dir = document.getElementById('gameDirInput').value;
+            window.pywebview.api.uninstall_mod(dir);
+          };
+        </script>
+        """
+        html_content = html_content.replace("</body>", bridge_script + "\n</body>")
 
     window = webview.create_window(
         title="FEΔR • AION 2 LOCALE MANAGER",

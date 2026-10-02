@@ -12,8 +12,13 @@ backup/
 *.bak
 pakchunk*.pak.*
 
+# Python
+__pycache__/
+*.pyc
+
 # Node
 node_modules/
+gui/node_modules/
 npm-debug.log*
 
 # Release and Scratch
