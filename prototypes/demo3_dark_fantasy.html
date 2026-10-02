@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEΔR - AION 2 LOCALE ENGINE [DARK FANTASY DAEVA HUD]</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-abyss: #07070c;
+      --bg-chamber: #0e0d17;
+      --bg-rune: rgba(22, 20, 36, 0.7);
+      --amethyst-core: #8b5cf6;
+      --amethyst-glow: rgba(139, 92, 246, 0.4);
+      --amethyst-light: #c084fc;
+      --blood-crimson: #f43f5e;
+      --blood-glow: rgba(244, 63, 94, 0.4);
+      --border-ancient: rgba(139, 92, 246, 0.25);
+      --border-gilded: rgba(226, 232, 240, 0.15);
+      --silver-text: #e2e8f0;
+      --muted-ash: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-abyss);
+      color: var(--silver-text);
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 10% 90%, rgba(244, 63, 94, 0.08) 0%, transparent 40%),
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 24px 24px;
+    }
+
+    .daeva-altar {
+      width: 860px;
+      background: var(--bg-chamber);
+      border: 1px solid var(--border-ancient);
+      border-radius: 14px;
+      position: relative;
+      box-shadow: 0 0 60px rgba(139, 92, 246, 0.18), 0 30px 60px rgba(0, 0, 0, 0.9);
+      overflow: hidden;
+    }
+
+    /* Runic Engraved Corners */
+    .corner-rune {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .cr-tl { top: 6px; left: 6px; border-top: 2px solid var(--amethyst-light); border-left: 2px solid var(--amethyst-light); }
+    .cr-tr { top: 6px; right: 6px; border-top: 2px solid var(--amethyst-light); border-right: 2px solid var(--amethyst-light); }
+    .cr-bl { bottom: 6px; left: 6px; border-bottom: 2px solid var(--amethyst-light); border-left: 2px solid var(--amethyst-light); }
+    .cr-br { bottom: 6px; right: 6px; border-bottom: 2px solid var(--amethyst-light); border-right: 2px solid var(--amethyst-light); }
+
+    /* Shrine Header */
+    .altar-header {
+      padding: 20px 28px;
+      background: linear-gradient(180deg, rgba(22, 20, 36, 0.9) 0%, rgba(14, 13, 23, 0.95) 100%);
+      border-bottom: 1px solid var(--border-ancient);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .daeva-sigil-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .sigil-crest {
+      width: 42px;
+      height: 42px;
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid var(--amethyst-core);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Cinzel', serif;
+      font-weight: 900;
+      font-size: 18px;
+      color: var(--amethyst-light);
+      box-shadow: 0 0 15px var(--amethyst-glow);
+    }
+    .shrine-title {
+      font-family: 'Cinzel', serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 0 0 12px rgba(192, 132, 252, 0.4);
+    }
+    .shrine-subtitle {
+      font-size: 12px;
+      color: var(--muted-ash);
+      letter-spacing: 1px;
+    }
+
+    /* Runic Navigation Tabs */
+    .rune-tabs {
+      display: flex;
+      padding: 0 24px;
+      background: #090912;
+      border-bottom: 1px solid var(--border-gilded);
+      gap: 12px;
+    }
+    .rune-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted-ash);
+      font-family: 'Cinzel', serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      padding: 14px 20px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .rune-tab-btn:hover {
+      color: var(--amethyst-light);
+    }
+    .rune-tab-btn.active {
+      color: #fff;
+    }
+    .rune-tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--amethyst-core), transparent);
+      box-shadow: 0 0 10px var(--amethyst-core);
+    }
+
+    /* Tab Panes */
+    .altar-body {
+      padding: 26px;
+      display: none;
+    }
+    .altar-body.active {
+      display: block;
+    }
+
+    /* Status Monolith */
+    .status-monolith {
+      background: var(--bg-rune);
+      border: 1px solid var(--border-ancient);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .status-monolith::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--amethyst-light), transparent);
+    }
+    .monolith-label {
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: var(--muted-ash);
+      margin-bottom: 4px;
+    }
+    .monolith-state {
+      font-family: 'Cinzel', serif;
+      font-size: 17px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 1px;
+    }
+    .rune-orb {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #475569;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+      transition: all 0.3s;
+    }
+    .rune-orb.active {
+      background: var(--amethyst-light);
+      box-shadow: 0 0 16px var(--amethyst-core);
+      animation: rune-pulse 2.2s infinite;
+    }
+    @keyframes rune-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    /* Shrine Box (Path) */
+    .chamber-box {
+      background: var(--bg-rune);
+      border: 1px solid var(--border-gilded);
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin-bottom: 22px;
+    }
+    .chamber-label {
+      font-family: 'Cinzel', serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--amethyst-light);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .chamber-row {
+      display: flex;
+      gap: 10px;
+    }
+    .chamber-input {
+      flex: 1;
+      background: rgba(7, 7, 12, 0.85);
+      border: 1px solid var(--border-ancient);
+      border-radius: 8px;
+      padding: 11px 16px;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.25s;
+    }
+    .chamber-input:focus {
+      border-color: var(--amethyst-light);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+    }
+    .rune-action-btn {
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid var(--border-ancient);
+      color: var(--amethyst-light);
+      font-family: 'Cinzel', serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 0 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .rune-action-btn:hover {
+      background: var(--amethyst-core);
+      color: #fff;
+      box-shadow: 0 0 20px var(--amethyst-glow);
+    }
+
+    /* Energy Progress Bar */
+    .energy-bar-wrap {
+      margin-bottom: 24px;
+    }
+    .energy-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--muted-ash);
+      margin-bottom: 8px;
+    }
+    .energy-trough {
+      height: 10px;
+      background: rgba(7, 7, 12, 0.9);
+      border: 1px solid var(--border-ancient);
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+    .energy-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #6366f1, var(--amethyst-core), var(--amethyst-light));
+      box-shadow: 0 0 15px var(--amethyst-glow);
+      transition: width 0.3s ease;
+    }
+
+    /* Primary Altar Cast Buttons */
+    .spells-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+    .cast-spell-btn {
+      padding: 18px;
+      border-radius: 10px;
+      border: none;
+      font-family: 'Cinzel', serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.25s ease;
+    }
+    .spell-enchant {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(99, 102, 241, 0.3) 100%);
+      border: 1px solid var(--amethyst-core);
+      color: var(--amethyst-light);
+      box-shadow: 0 0 25px rgba(139, 92, 246, 0.15);
+    }
+    .spell-enchant:hover:not(:disabled) {
+      background: var(--amethyst-core);
+      color: #fff;
+      box-shadow: 0 0 35px var(--amethyst-glow);
+      transform: translateY(-2px);
+    }
+    .spell-enchant:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      border-color: rgba(255, 255, 255, 0.08);
+      color: var(--muted-ash);
+      box-shadow: none;
+      transform: none;
+    }
+    .spell-dispel {
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.12) 0%, rgba(190, 18, 60, 0.25) 100%);
+      border: 1px solid var(--blood-crimson);
+      color: var(--blood-crimson);
+      box-shadow: 0 0 20px rgba(244, 63, 94, 0.12);
+    }
+    .spell-dispel:hover:not(:disabled) {
+      background: var(--blood-crimson);
+      color: #fff;
+      box-shadow: 0 0 35px var(--blood-glow);
+      transform: translateY(-2px);
+    }
+    .spell-dispel:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      border-color: rgba(255, 255, 255, 0.08);
+      color: var(--muted-ash);
+      box-shadow: none;
+    }
+    .spell-footnote {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.8;
+      letter-spacing: 0.5px;
+    }
+
+    /* Runic Chronicle (Log Console) */
+    .chronicle-box {
+      background: #050508;
+      border: 1px solid var(--border-gilded);
+      border-radius: 8px;
+      padding: 12px 18px;
+      height: 115px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      color: var(--muted-ash);
+    }
+    .c-entry { margin-bottom: 2px; }
+    .c-violet { color: var(--amethyst-light); font-weight: 600; }
+    .c-blood { color: var(--blood-crimson); }
+    .c-white { color: #fff; font-weight: 600; }
+
+    /* Armory Tab (Tools) */
+    .armory-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .armory-card {
+      background: var(--bg-rune);
+      border: 1px solid var(--border-gilded);
+      border-radius: 10px;
+      padding: 20px;
+      position: relative;
+      transition: all 0.25s;
+    }
+    .armory-card:hover {
+      border-color: var(--border-ancient);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+      transform: translateY(-2px);
+    }
+    .armory-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .armory-name {
+      font-family: 'Cinzel', serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .armory-tag {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--amethyst-light);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-ancient);
+    }
+    .armory-desc {
+      font-size: 13px;
+      color: var(--muted-ash);
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="daeva-altar">
+    <div class="corner-rune cr-tl"></div>
+    <div class="corner-rune cr-tr"></div>
+    <div class="corner-rune cr-bl"></div>
+    <div class="corner-rune cr-br"></div>
+
+    <!-- Shrine Header -->
+    <div class="altar-header">
+      <div class="daeva-sigil-group">
+        <div class="sigil-crest">Δ</div>
+        <div>
+          <div class="shrine-title">AION 2 DAEVA LOCALE ALTAR</div>
+          <div class="shrine-subtitle">Hệ thống chuyển ngữ độc lập FEΔR • Không phụ thuộc GearUP</div>
+        </div>
+      </div>
+      <div style="font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 1px; color: var(--amethyst-light);">
+        UNIVERSAL LOCALE ENGINE
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="rune-tabs">
+      <button class="rune-tab-btn active" onclick="activateRuneTab('pane-viet-hoa', this)">
+        <span>KHAI ẤN VIỆT HÓA</span>
+      </button>
+      <button class="rune-tab-btn" onclick="activateRuneTab('pane-armory', this)">
+        <span>KHO VŨ KHÍ & TOOLS</span>
+        <span style="font-size: 10px; background: rgba(244, 63, 94, 0.2); color: var(--blood-crimson); padding: 2px 6px; border-radius: 4px;">RÈN</span>
+      </button>
+    </div>
+
+    <!-- Tab 1: VIỆT HÓA -->
+    <div id="pane-viet-hoa" class="altar-body active">
+      <!-- Monolith Status -->
+      <div class="status-monolith">
+        <div>
+          <div class="monolith-label">TRẠNG THÁI LINH HỒN GAME</div>
+          <div class="monolith-state">
+            <div class="rune-orb" id="runeOrb"></div>
+            <span id="runeStatusText">BẢN GỐC CHƯA KHAI MỞ (TIẾNG ANH / HÀN)</span>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div class="monolith-label">GIAO THỨC CHUYỂN NGỮ</div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--amethyst-light);">
+            Native UE5 I/O Override
+          </div>
+        </div>
+      </div>
+
+      <!-- Path Input -->
+      <div class="chamber-box">
+        <div class="chamber-label">
+          <span>THÁNH ĐỊA TRÒ CHƠI (GAME ROOT PATH)</span>
+          <span>QUÉT TỰ ĐỘNG REGISTRY</span>
+        </div>
+        <div class="chamber-row">
+          <input type="text" id="altarPathInput" class="chamber-input" value="F:\NCSoft\AION 2">
+          <button class="rune-action-btn" onclick="browseAltar()">
+            CHỌN THƯ MỤC
+          </button>
+          <button class="rune-action-btn" onclick="scanAltar()">
+            QUÉT LẠI
+          </button>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="energy-bar-wrap">
+        <div class="energy-meta">
+          <span id="altarStep">Tế đàn sẵn sàng tiếp nhận</span>
+          <span id="altarPercent">0%</span>
+        </div>
+        <div class="energy-trough">
+          <div class="energy-fill" id="altarEnergy"></div>
+        </div>
+      </div>
+
+      <!-- Spell Action Buttons -->
+      <div class="spells-grid">
+        <button class="cast-spell-btn spell-enchant" id="btnCastEnchant" onclick="castEnchant()">
+          <span>KÍCH HOẠT VIỆT HÓA</span>
+          <span class="spell-footnote">Đồng bộ 152,667 câu chú • Khóa Purple Rollback</span>
+        </button>
+        <button class="cast-spell-btn spell-dispel" id="btnCastDispel" onclick="castDispel()" disabled>
+          <span>HÓA GIẢI (VỀ GỐC NCSOFT)</span>
+          <span class="spell-footnote">Khôi phục 100% nguyên trạng ban đầu</span>
+        </button>
+      </div>
+
+      <!-- Chronicle Terminal -->
+      <div class="chronicle-box" id="chronicleBox">
+        <div class="c-entry c-violet">[Daeva Altar] Khởi động lõi ma thuật chuyển ngữ FEΔR v2.0.</div>
+        <div class="c-entry">[Registry] Đã định vị cội nguồn AION 2 tại F:\NCSoft\AION 2.</div>
+        <div class="c-entry c-white">[Ready] Tế đàn đã sẵn sàng. Nhấn 'KÍCH HOẠT VIỆT HÓA' để mở phong ấn.</div>
+      </div>
+    </div>
+
+    <!-- Tab 2: TOOLS -->
+    <div id="pane-armory" class="altar-body">
+      <div class="armory-grid">
+        <div class="armory-card">
+          <div class="armory-header">
+            <span class="armory-name">Abyss Combat Analyzer</span>
+            <span class="armory-tag">DPS OVERLAY</span>
+          </div>
+          <div class="armory-desc">Ghi nhận lượng sát thương bộc phá từng giây, phân tích chuỗi combo đòn đánh và thống kê chỉ số party trong chiến trường Abyss.</div>
+        </div>
+
+        <div class="armory-card">
+          <div class="armory-header">
+            <span class="armory-name">Aetheric Ping Shaper</span>
+            <span class="armory-tag">LATENCY FIX</span>
+          </div>
+          <div class="armory-desc">Thắt chặt độ trễ mạng với cụm máy chủ Global/TW, loại bỏ triệt để hiện tượng lag phím khi xoay skill tốc độ cao.</div>
+        </div>
+
+        <div class="armory-card">
+          <div class="armory-header">
+            <span class="armory-name">Wing Camera Unbound</span>
+            <span class="armory-tag">FOV MODULE</span>
+          </div>
+          <div class="armory-desc">Mở rộng tầm mắt Daeva khi bay lượn và không chiến, cho phép quan sát toàn cảnh chiến thuật mà không bị giới hạn góc nhìn.</div>
+        </div>
+
+        <div class="armory-card">
+          <div class="armory-header">
+            <span class="armory-name">Daeva Pulse Auto-Chain</span>
+            <span class="armory-tag">ASYNC MACRO</span>
+          </div>
+          <div class="armory-desc">Hệ thống hỗ trợ thao tác phím bất đồng bộ không gây khựng game, tích hợp ngắt khẩn cấp Emergency Release.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let activeMod = false;
+
+    function addChronicle(msg, style = '') {
+      const box = document.getElementById('chronicleBox');
+      const div = document.createElement('div');
+      div.className = 'c-entry ' + (style ? 'c-' + style : '');
+      const t = new Date().toLocaleTimeString();
+      div.innerText = `[${t}] ${msg}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function activateRuneTab(paneId, btn) {
+      document.querySelectorAll('.rune-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.altar-body').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(paneId).classList.add('active');
+    }
+
+    function setEnergy(val, text) {
+      document.getElementById('altarEnergy').style.width = val + '%';
+      document.getElementById('altarPercent').innerText = val + '%';
+      if (text) document.getElementById('altarStep').innerText = text;
+    }
+
+    function setModState(val) {
+      activeMod = val;
+      const btnE = document.getElementById('btnCastEnchant');
+      const btnD = document.getElementById('btnCastDispel');
+      const orb = document.getElementById('runeOrb');
+      const txt = document.getElementById('runeStatusText');
+
+      if (val) {
+        btnE.disabled = true;
+        btnD.disabled = false;
+        orb.className = 'rune-orb active';
+        txt.innerText = 'ĐÃ KHAI ẤN TIẾNG VIỆT (FEΔR ACTIVE)';
+        txt.style.color = 'var(--amethyst-light)';
+      } else {
+        btnE.disabled = false;
+        btnD.disabled = true;
+        orb.className = 'rune-orb';
+        txt.innerText = 'BẢN GỐC CHƯA KHAI MỞ (TIẾNG ANH / HÀN)';
+        txt.style.color = 'var(--silver-text)';
+      }
+    }
+
+    function browseAltar() {
+      const cur = document.getElementById('altarPathInput').value;
+      const p = prompt("Nhập đường dẫn cài đặt AION 2:", cur);
+      if (p) {
+        document.getElementById('altarPathInput').value = p;
+        addChronicle(`Thánh địa trò chơi thiết lập tại: ${p}`, 'violet');
+      }
+    }
+
+    function scanAltar() {
+      setEnergy(30, "Đang dò tìm linh hồn game trong Registry...");
+      addChronicle("Dò quét hệ thống...");
+      setTimeout(() => {
+        setEnergy(75, "Kiểm chứng đường dẫn file...");
+        setTimeout(() => {
+          setEnergy(100, "Định vị hoàn tất!");
+          document.getElementById('altarPathInput').value = "F:\\NCSoft\\AION 2";
+          addChronicle("Đã xác định vị trí AION 2 tại F:\\NCSoft\\AION 2", "white");
+          setTimeout(() => setEnergy(0, "Tế đàn sẵn sàng tiếp nhận"), 800);
+        }, 300);
+      }, 300);
+    }
+
+    function castEnchant() {
+      if (activeMod) return;
+      document.getElementById('btnCastEnchant').disabled = true;
+      addChronicle("Khởi sự khai ấn Việt Hóa AION 2...", "violet");
+
+      setEnergy(20, "Ghi nhớ bản sao lưu nguyên bản...");
+      setTimeout(() => {
+        setEnergy(45, "Thiết lập mồi dẫn linh hồn (15-byte fallback)...");
+        addChronicle("Áp dụng mồi dẫn Unreal Engine");
+        setTimeout(() => {
+          setEnergy(75, "Hòa hợp 152,667 câu chú tiếng Việt...");
+          addChronicle("Ghi nạp L10NString.dat hoàn chỉnh");
+          setTimeout(() => {
+            setEnergy(90, "Niêm phong cánh cổng Purple Launcher...");
+            addChronicle("Khóa ExcludedUpdateList.dat chống rollback");
+            setTimeout(() => {
+              setEnergy(100, "HOÀN TẤT KHAI ẤN!");
+              addChronicle("✔ TIẾNG VIỆT ĐÃ ĐƯỢC THẮP SÁNG! Hãy khởi động Purple để vào game.", "violet");
+              setModState(true);
+            }, 300);
+          }, 350);
+        }, 350);
+      }, 300);
+    }
+
+    function castDispel() {
+      if (!activeMod) return;
+      document.getElementById('btnCastDispel').disabled = true;
+      addChronicle("Bắt đầu nghi thức hóa giải...", "blood");
+
+      setEnergy(30, "Phục hồi nguyên bản từ bản sao lưu...");
+      setTimeout(() => {
+        setEnergy(65, "Tẩy sạch tàn dư loose files...");
+        setTimeout(() => {
+          setEnergy(90, "Giải trừ ấn ký bảo vệ...");
+          setTimeout(() => {
+            setEnergy(100, "HÓA GIẢI THÀNH CÔNG!");
+            addChronicle("✔ Trò chơi đã trở về 100% nguyên bản của NCSoft.", "white");
+            setModState(false);
+          }, 300);
+        }, 300);
+      }, 300);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEΔR - AION 2 MOD LOADER [CYBERPUNK HUD]</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #060913;
+      --bg-surface: #0b1120;
+      --bg-card: rgba(15, 23, 42, 0.75);
+      --cyan-neon: #00f0ff;
+      --cyan-glow: rgba(0, 240, 255, 0.35);
+      --magenta-neon: #ff0055;
+      --magenta-glow: rgba(255, 0, 85, 0.35);
+      --blue-accent: #38bdf8;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border-hud: rgba(0, 240, 255, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 15% 20%, rgba(0, 240, 255, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 80%, rgba(255, 0, 85, 0.08) 0%, transparent 40%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+    }
+
+    .window-frame {
+      width: 860px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-hud);
+      border-radius: 12px;
+      position: relative;
+      box-shadow: 0 0 50px rgba(0, 240, 255, 0.15), 0 25px 50px -12px rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(16px);
+      overflow: hidden;
+    }
+
+    /* Top Corner Accents */
+    .window-frame::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 16px;
+      height: 16px;
+      border-top: 2px solid var(--cyan-neon);
+      border-left: 2px solid var(--cyan-neon);
+      z-index: 10;
+    }
+    .window-frame::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 16px;
+      height: 16px;
+      border-top: 2px solid var(--cyan-neon);
+      border-right: 2px solid var(--cyan-neon);
+      z-index: 10;
+    }
+
+    /* Header Bar */
+    .title-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: rgba(11, 17, 32, 0.85);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.15);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--cyan-neon);
+      text-shadow: 0 0 10px var(--cyan-glow);
+      letter-spacing: 2px;
+      padding: 4px 10px;
+      background: rgba(0, 240, 255, 0.08);
+      border: 1px solid var(--border-hud);
+      border-radius: 6px;
+    }
+    .brand-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #ffffff;
+    }
+    .brand-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+    }
+
+    /* Tab Switcher */
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 0 24px;
+      background: rgba(7, 11, 20, 0.95);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 14px 20px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .tab-btn:hover {
+      color: var(--cyan-neon);
+    }
+    .tab-btn.active {
+      color: var(--cyan-neon);
+    }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--cyan-neon);
+      box-shadow: 0 0 10px var(--cyan-neon);
+    }
+    .tab-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 0, 85, 0.2);
+      color: var(--magenta-neon);
+      border: 1px solid rgba(255, 0, 85, 0.4);
+    }
+
+    /* Main Container */
+    .tab-content {
+      padding: 24px;
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Status Banner */
+    .status-hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--border-hud);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .status-hud::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--cyan-neon);
+      box-shadow: 0 0 12px var(--cyan-neon);
+      transition: all 0.3s;
+    }
+    .status-hud.installed::before {
+      background: var(--blue-accent);
+      box-shadow: 0 0 12px var(--blue-accent);
+    }
+    .status-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .status-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: 1px;
+    }
+    .status-indicator {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #64748b;
+      box-shadow: 0 0 8px #64748b;
+    }
+    .status-indicator.active {
+      background: var(--cyan-neon);
+      box-shadow: 0 0 12px var(--cyan-neon);
+      animation: pulse-glow 2s infinite;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.15); }
+    }
+
+    /* Path Selector Section */
+    .section-box {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--cyan-neon);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+    .path-input {
+      flex: 1;
+      background: rgba(5, 8, 17, 0.8);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      outline: none;
+      transition: all 0.25s;
+    }
+    .path-input:focus {
+      border-color: var(--cyan-neon);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+    }
+    .btn-hud {
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid var(--cyan-neon);
+      color: var(--cyan-neon);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 0 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-hud:hover {
+      background: var(--cyan-neon);
+      color: #000;
+      box-shadow: 0 0 16px var(--cyan-glow);
+    }
+    .btn-hud:active {
+      transform: scale(0.97);
+    }
+
+    /* Progress Section */
+    .progress-hud {
+      margin-bottom: 24px;
+    }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .progress-bar-bg {
+      height: 12px;
+      background: rgba(5, 8, 17, 0.9);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0284c7, var(--cyan-neon));
+      box-shadow: 0 0 16px var(--cyan-neon);
+      transition: width 0.3s ease;
+      position: relative;
+    }
+    .progress-bar-fill::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: #fff;
+      box-shadow: 0 0 8px #fff;
+    }
+
+    /* Action Buttons */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .btn-action {
+      padding: 16px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-install {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.15) 0%, rgba(14, 165, 233, 0.25) 100%);
+      border: 1px solid var(--cyan-neon);
+      color: var(--cyan-neon);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.12);
+    }
+    .btn-install:hover:not(:disabled) {
+      background: var(--cyan-neon);
+      color: #000;
+      box-shadow: 0 0 30px var(--cyan-glow);
+      transform: translateY(-2px);
+    }
+    .btn-install:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      border-color: rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      box-shadow: none;
+      transform: none;
+    }
+    .btn-uninstall {
+      background: linear-gradient(135deg, rgba(255, 0, 85, 0.1) 0%, rgba(225, 29, 72, 0.2) 100%);
+      border: 1px solid var(--magenta-neon);
+      color: var(--magenta-neon);
+      box-shadow: 0 0 20px rgba(255, 0, 85, 0.1);
+    }
+    .btn-uninstall:hover:not(:disabled) {
+      background: var(--magenta-neon);
+      color: #fff;
+      box-shadow: 0 0 30px var(--magenta-glow);
+      transform: translateY(-2px);
+    }
+    .btn-uninstall:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      border-color: rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      box-shadow: none;
+    }
+    .btn-subtext {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.8;
+      letter-spacing: 0.5px;
+    }
+
+    /* Terminal Console */
+    .console-hud {
+      background: #040711;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 12px 16px;
+      height: 120px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .log-entry {
+      line-height: 1.6;
+    }
+    .log-cyan { color: var(--cyan-neon); }
+    .log-magenta { color: var(--magenta-neon); }
+    .log-white { color: #fff; font-weight: 600; }
+
+    /* Tools Tab (Coming Soon) */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .tool-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+    .tool-card:hover {
+      border-color: var(--border-hud);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
+      transform: translateY(-2px);
+    }
+    .tool-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .tool-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .tool-tag {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(0, 240, 255, 0.1);
+      color: var(--cyan-neon);
+      border: 1px solid var(--border-hud);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .tool-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+    .tool-status {
+      font-size: 11px;
+      color: var(--magenta-neon);
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="window-frame">
+    <!-- Header -->
+    <div class="title-bar">
+      <div class="brand">
+        <div class="brand-logo">FEΔR</div>
+        <div>
+          <div class="brand-title">AION 2 STANDALONE MOD LAUNCHER</div>
+          <div class="brand-sub">Native Engine Injector v2.0 • SrymC Dev Team</div>
+        </div>
+      </div>
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--cyan-neon);">
+        GLOBAL & TW SUPPORTED
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-viet-hoa', this)">
+        <span>QUẢN LÝ VIỆT HÓA</span>
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-tools', this)">
+        <span>EXTENDED TOOLS</span>
+        <span class="tab-badge">DEV</span>
+      </button>
+    </div>
+
+    <!-- Tab 1: VIỆT HÓA -->
+    <div id="tab-viet-hoa" class="tab-content active">
+      <!-- Status HUD -->
+      <div class="status-hud" id="statusHud">
+        <div>
+          <div class="status-label">Trạng thái hệ thống</div>
+          <div class="status-value" id="statusText">
+            <div class="status-indicator" id="statusDot"></div>
+            <span id="statusTitle">CHƯA BẬT VIỆT HÓA (BẢN GỐC)</span>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div class="status-label">Engine Protocol</div>
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--cyan-neon);">
+            UE5 IoStore Fallback
+          </div>
+        </div>
+      </div>
+
+      <!-- Path Selection Box -->
+      <div class="section-box">
+        <div class="section-title">
+          <span>Đường dẫn cài đặt AION 2</span>
+          <span style="font-size: 11px; color: var(--text-muted);">Tự động nhận diện từ Registry</span>
+        </div>
+        <div class="input-row">
+          <input type="text" id="gamePath" class="path-input" value="F:\NCSoft\AION 2" placeholder="Chọn thư mục chứa game (ví dụ: F:\NCSoft\AION 2)...">
+          <button class="btn-hud" onclick="browseFolder()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            BROWSE
+          </button>
+          <button class="btn-hud" onclick="scanGame()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            QUÉT LẠI
+          </button>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="progress-hud">
+        <div class="progress-header">
+          <span id="progressStep">Sẵn sàng thực thi</span>
+          <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressBar"></div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-grid">
+        <button class="btn-action btn-install" id="btnInstall" onclick="runInstall()">
+          <span>CÀI ĐẶT BẢN VIỆT HÓA</span>
+          <span class="btn-subtext">Đồng bộ 152,667 dòng • Kích hoạt Native Fallback</span>
+        </button>
+        <button class="btn-action btn-uninstall" id="btnUninstall" onclick="runUninstall()" disabled>
+          <span>KHÔI PHỤC BẢN GỐC</span>
+          <span class="btn-subtext">Trả về 100% file gốc sạch của NCSoft</span>
+        </button>
+      </div>
+
+      <!-- Realtime Log Terminal -->
+      <div class="console-hud" id="consoleLogs">
+        <div class="log-entry log-cyan">[FEΔR Core] Standalone Mod Engine initialized.</div>
+        <div class="log-entry">[System] Detecting AION 2 clients in Registry and system drives...</div>
+        <div class="log-entry log-white">[Found] AION 2 Global client confirmed at F:\NCSoft\AION 2</div>
+        <div class="log-entry">[Ready] Standalone tool ready. Click 'CÀI ĐẶT BẢN VIỆT HÓA' to apply.</div>
+      </div>
+    </div>
+
+    <!-- Tab 2: EXTENDED TOOLS -->
+    <div id="tab-tools" class="tab-content">
+      <div class="tools-grid">
+        <div class="tool-card">
+          <div class="tool-header">
+            <div class="tool-name">FEΔR DPS METER</div>
+            <div class="tool-tag">OVERLAY HUD</div>
+          </div>
+          <div class="tool-desc">Đo lường sát thương theo thời gian thực (Real-time DPS/HPS), phân tích vòng quay kỹ năng và độ trễ combat theo chuẩn high-end MMORPG.</div>
+          <div class="tool-status">
+            <span>●</span> ĐANG PHÁT TRIỂN (COMING SOON)
+          </div>
+        </div>
+
+        <div class="tool-card">
+          <div class="tool-header">
+            <div class="tool-name">PING OPTIMIZER</div>
+            <div class="tool-tag">NETWORK</div>
+          </div>
+          <div class="tool-desc">Tối ưu hóa TCP Ack Frequency, Nagle Algorithm và Network Throttling Index giúp giảm giật lag và chống delay combo trong AION 2.</div>
+          <div class="tool-status">
+            <span>●</span> ĐANG PHÁT TRIỂN (COMING SOON)
+          </div>
+        </div>
+
+        <div class="tool-card">
+          <div class="tool-header">
+            <div class="tool-name">FOV & CAMERA HACK</div>
+            <div class="tool-tag">ENGINE UTILS</div>
+          </div>
+          <div class="tool-desc">Mở rộng góc nhìn Camera Field of View vượt giới hạn mặc định, hỗ trợ màn hình Ultra-wide 21:9 và 32:9 mà không bị méo góc.</div>
+          <div class="tool-status">
+            <span>●</span> ĐANG PHÁT TRIỂN (COMING SOON)
+          </div>
+        </div>
+
+        <div class="tool-card">
+          <div class="tool-header">
+            <div class="tool-name">AUTO EXECUTABLE HOOK</div>
+            <div class="tool-tag">DAEVA CORE</div>
+          </div>
+          <div class="tool-desc">Tự động kích hoạt profile cấu hình khi phát hiện AION2.exe khởi chạy từ Purple Launcher, không cần thao tác tay.</div>
+          <div class="tool-status">
+            <span>●</span> ĐANG PHÁT TRIỂN (COMING SOON)
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let isInstalled = false;
+
+    function log(msg, type = '') {
+      const box = document.getElementById('consoleLogs');
+      const div = document.createElement('div');
+      div.className = 'log-entry ' + (type ? 'log-' + type : '');
+      const time = new Date().toLocaleTimeString();
+      div.innerText = `[${time}] ${msg}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function switchTab(tabId, el) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    function setProgress(pct, text) {
+      document.getElementById('progressBar').style.width = pct + '%';
+      document.getElementById('progressPercent').innerText = pct + '%';
+      if (text) document.getElementById('progressStep').innerText = text;
+    }
+
+    function updateState(installed) {
+      isInstalled = installed;
+      const btnInstall = document.getElementById('btnInstall');
+      const btnUninstall = document.getElementById('btnUninstall');
+      const statusTitle = document.getElementById('statusTitle');
+      const statusDot = document.getElementById('statusDot');
+      const statusHud = document.getElementById('statusHud');
+
+      if (installed) {
+        btnInstall.disabled = true;
+        btnUninstall.disabled = false;
+        statusTitle.innerText = "ĐÃ BẬT VIỆT HÓA (FEΔR ACTIVE)";
+        statusTitle.style.color = "var(--cyan-neon)";
+        statusDot.className = "status-indicator active";
+        statusHud.classList.add('installed');
+      } else {
+        btnInstall.disabled = false;
+        btnUninstall.disabled = true;
+        statusTitle.innerText = "CHƯA BẬT VIỆT HÓA (BẢN GỐC)";
+        statusTitle.style.color = "var(--text-main)";
+        statusDot.className = "status-indicator";
+        statusHud.classList.remove('installed');
+      }
+    }
+
+    function browseFolder() {
+      log("Mở trình duyệt thư mục... Giả lập chọn đường dẫn game.");
+      const path = prompt("Nhập đường dẫn thư mục AION 2:", document.getElementById('gamePath').value);
+      if (path) {
+        document.getElementById('gamePath').value = path;
+        log(`Đã cập nhật đường dẫn: ${path}`, 'cyan');
+      }
+    }
+
+    function scanGame() {
+      log("Bắt đầu quét sâu Registry & File System...");
+      setProgress(30, "Đang quét HKLM WOW6432Node...");
+      setTimeout(() => {
+        setProgress(70, "Kiểm tra ổ đĩa hệ thống...");
+        setTimeout(() => {
+          setProgress(100, "Phát hiện game thành công!");
+          document.getElementById('gamePath').value = "F:\\NCSoft\\AION 2";
+          log("Tìm thấy AION 2 Global tại: F:\\NCSoft\\AION 2", "white");
+          setTimeout(() => setProgress(0, "Sẵn sàng thực thi"), 800);
+        }, 300);
+      }, 300);
+    }
+
+    function runInstall() {
+      if (isInstalled) return;
+      log(">>> BẮT ĐẦU CÀI ĐẶT VIỆT HÓA AION 2...", "cyan");
+      document.getElementById('btnInstall').disabled = true;
+
+      setProgress(15, "[1/4] Sao lưu file pak gốc (.official_clean_bak)...");
+      log("Tạo bản sao lưu: pakchunk502000-Windows_0_P.pak -> .official_clean_bak");
+
+      setTimeout(() => {
+        setProgress(40, "[2/4] Tạo dummy pak 15 byte mồi fallback...");
+        log("Ghi đè pakchunk502000 mồi 15 byte (kích hoạt engine I/O fallback)");
+
+        setTimeout(() => {
+          setProgress(75, "[3/4] Triển khai 152,667 dòng tiếng Việt vào Loose File...");
+          log("Copy Data/en-US/L10NString.dat -> Aion2/Content/L10N/Text/en-US/L10NString.dat", "white");
+
+          setTimeout(() => {
+            setProgress(90, "[4/4] Khóa cập nhật đè của Purple Launcher...");
+            log("Ghi ExcludedUpdateList.dat chống Purple rollback");
+
+            setTimeout(() => {
+              setProgress(100, "CÀI ĐẶT HOÀN TẤT!");
+              log("✔ KÍCH HOẠT VIỆT HÓA THÀNH CÔNG! Bạn có thể vào game qua Purple!", "cyan");
+              updateState(true);
+            }, 300);
+          }, 350);
+        }, 350);
+      }, 300);
+    }
+
+    function runUninstall() {
+      if (!isInstalled) return;
+      log(">>> BẮT ĐẦU KHÔI PHỤC BẢN GỐC NCSOFT...", "magenta");
+      document.getElementById('btnUninstall').disabled = true;
+
+      setProgress(25, "[1/3] Khôi phục file pak gốc từ bản sao lưu...");
+      log("Khôi phục file gốc từ: pakchunk502000-Windows_0_P.pak.official_clean_bak");
+
+      setTimeout(() => {
+        setProgress(60, "[2/3] Dọn dẹp loose file L10NString.dat...");
+        log("Xóa thư mục rời: Aion2/Content/L10N/Text/en-US/");
+
+        setTimeout(() => {
+          setProgress(85, "[3/3] Xóa cấu hình ExcludedUpdateList.dat...");
+          log("Dọn dẹp file bảo vệ Purple");
+
+          setTimeout(() => {
+            setProgress(100, "ĐÃ VỀ BẢN GỐC HOÀN TOÀN!");
+            log("✔ Khôi phục 100% nguyên bản nhà phát hành!", "white");
+            updateState(false);
+          }, 300);
+        }, 300);
+      }, 300);
+    }
+  </script>
+</body>
+</html>
