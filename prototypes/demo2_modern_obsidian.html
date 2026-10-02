@@ -430,11 +430,7 @@
         <div class="brand-badge">Δ</div>
         <div>
           <div class="brand-name">FEΔR • AION 2 LOCALE MANAGER</div>
-          <div class="brand-desc">Phiên bản Standalone Engine v2.0 • Không cần GearUP</div>
         </div>
-      </div>
-      <div class="client-badge">
-        NATIVE FALLBACK ACTIVE
       </div>
     </div>
 
@@ -456,13 +452,9 @@
         <div class="status-title-box">
           <div class="status-bulb" id="bulbIndicator"></div>
           <div>
-            <div class="status-heading">Trạng thái game hiện tại</div>
-            <div class="status-main-text" id="statusTitle">Bản gốc NCSoft (Chưa bật Việt Hóa)</div>
+            <div class="status-heading">Trạng thái</div>
+            <div class="status-main-text" id="statusTitle">Bản gốc (Chưa bật Việt Hóa)</div>
           </div>
-        </div>
-        <div class="client-spec">
-          <div class="status-heading">Máy chủ tương thích</div>
-          <div style="font-weight: 600; font-size: 13px; color: var(--accent-frost);">Global (en/ko) & TW (zh)</div>
         </div>
       </div>
 
@@ -470,7 +462,6 @@
       <div class="field-card">
         <div class="field-label">
           <span>Thư mục cài đặt game AION 2</span>
-          <span>Tự động quét Registry</span>
         </div>
         <div class="field-row">
           <input type="text" id="gameDirInput" class="field-input" value="F:\NCSoft\AION 2">
@@ -488,7 +479,7 @@
       <!-- Progress -->
       <div class="progress-widget">
         <div class="progress-meta">
-          <span id="stepLabel">Sẵn sàng thực thi</span>
+          <span id="stepLabel">Sẵn sàng</span>
           <span id="pctLabel" style="font-family: 'JetBrains Mono', monospace; color: #fff;">0%</span>
         </div>
         <div class="progress-track">
@@ -500,19 +491,16 @@
       <div class="buttons-row">
         <button class="btn-primary" id="btnApply" onclick="applyMod()">
           <span>CÀI ĐẶT VIỆT HÓA</span>
-          <span class="btn-sub-label">152,667 chuỗi dịch • Khóa Purple Auto-Update</span>
         </button>
         <button class="btn-danger" id="btnRestore" onclick="restoreOriginal()" disabled>
-          <span>GỠ VIỆT HÓA (VỀ GỐC)</span>
-          <span class="btn-sub-label">Khôi phục 100% file gốc sạch của NCSoft</span>
+          <span>GỠ VIỆT HÓA</span>
         </button>
       </div>
 
       <!-- Console Log -->
       <div class="mini-console" id="logBox">
-        <div class="clog-item clog-blue">[FEΔR System] Bộ cài đặt Standalone v2.0 khởi chạy thành công.</div>
-        <div class="clog-item">[Registry] Đã xác định thư mục AION 2 tại F:\NCSoft\AION 2.</div>
-        <div class="clog-item clog-success">[Ready] Sẵn sàng kích hoạt bản Việt hóa. Nhấn 'CÀI ĐẶT VIỆT HÓA'.</div>
+        <div class="clog-item clog-blue">[Hệ thống] Đã nhận diện thư mục AION 2 tại F:\NCSoft\AION 2.</div>
+        <div class="clog-item clog-success">[Trạng thái] Sẵn sàng thực thi.</div>
       </div>
     </div>
 

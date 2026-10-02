@@ -255,8 +255,8 @@ class ModApi:
 
 def main():
     api = ModApi()
-    # Choose HTML file (Default: Cyberpunk HUD demo)
-    html_path = os.path.join(ROOT_DIR, "prototypes", "demo1_cyberpunk_hud.html")
+    # Use User Selected: Demo 2 (Modern Obsidian)
+    html_path = os.path.join(ROOT_DIR, "prototypes", "demo2_modern_obsidian.html")
     if not os.path.exists(html_path):
         print(f"Error: {html_path} not found!")
         return
@@ -265,24 +265,24 @@ def main():
     with open(html_path, "r", encoding="utf-8") as f:
         html_content = f.read()
 
-    # Inject pywebview bridge glue
+    # Inject pywebview bridge glue specifically tailored for Demo 2
     bridge_script = """
     <script>
       window.frontendApp = {
-        log: function(msg, type) { if (typeof log === 'function') log(msg, type); },
-        setProgress: function(pct, text) { if (typeof setProgress === 'function') setProgress(pct, text); },
-        setState: function(val) { if (typeof updateState === 'function') updateState(val); },
+        log: function(msg, type) { if (typeof addLog === 'function') addLog(msg, type === 'cyan' ? 'blue' : type === 'magenta' ? 'red' : 'success'); },
+        setProgress: function(pct, text) { if (typeof setBar === 'function') setBar(pct, text); },
+        setState: function(val) { if (typeof setState === 'function') setState(val); },
         applyScanResult: function(dir, installed) {
-          if (dir) document.getElementById('gamePath').value = dir;
-          if (typeof updateState === 'function') updateState(installed);
+          if (dir) document.getElementById('gameDirInput').value = dir;
+          if (typeof setState === 'function') setState(installed);
         }
       };
 
       window.addEventListener('pywebviewready', function() {
         window.pywebview.api.get_initial_state().then(function(res) {
           if (res) {
-            if (res.gameDir) document.getElementById('gamePath').value = res.gameDir;
-            if (typeof updateState === 'function') updateState(res.isInstalled);
+            if (res.gameDir) document.getElementById('gameDirInput').value = res.gameDir;
+            if (typeof setState === 'function') setState(res.isInstalled);
           }
         });
       });
@@ -291,8 +291,8 @@ def main():
       window.browseFolder = function() {
         window.pywebview.api.browse_folder().then(function(res) {
           if (res && res.gameDir) {
-            document.getElementById('gamePath').value = res.gameDir;
-            updateState(res.isInstalled);
+            document.getElementById('gameDirInput').value = res.gameDir;
+            setState(res.isInstalled);
           }
         });
       };
@@ -301,13 +301,13 @@ def main():
         window.pywebview.api.scan_game();
       };
 
-      window.runInstall = function() {
-        var dir = document.getElementById('gamePath').value;
+      window.applyMod = function() {
+        var dir = document.getElementById('gameDirInput').value;
         window.pywebview.api.install_mod(dir);
       };
 
-      window.runUninstall = function() {
-        var dir = document.getElementById('gamePath').value;
+      window.restoreOriginal = function() {
+        var dir = document.getElementById('gameDirInput').value;
         window.pywebview.api.uninstall_mod(dir);
       };
     </script>
@@ -315,13 +315,13 @@ def main():
     html_content = html_content.replace("</body>", bridge_script + "\n</body>")
 
     window = webview.create_window(
-        title="FEΔR - AION 2 STANDALONE MOD LAUNCHER",
+        title="FEΔR • AION 2 LOCALE MANAGER",
         html=html_content,
         js_api=api,
-        width=920,
-        height=680,
+        width=880,
+        height=660,
         resizable=True,
-        background_color="#060913"
+        background_color="#07090e"
     )
     api.set_window(window)
     webview.start(debug=False)
