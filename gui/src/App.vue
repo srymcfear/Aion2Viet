@@ -177,7 +177,7 @@
       <div class="h-7 px-4 flex items-center justify-between border-t border-[var(--border-subtle)] bg-[#070a12] text-[11px] text-[var(--text-muted)] shrink-0">
         <div class="flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-sky-500/60"></span>
-          <span class="text-slate-400 font-medium">Standalone Engine v2.0</span>
+          <span class="text-slate-400 font-medium">cre by srymc</span>
         </div>
         <button 
           @click="openGithub"
