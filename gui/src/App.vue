@@ -554,7 +554,7 @@ function handleOpenRelease() {
   if (pyApi && pyApi.open_release_url) {
     pyApi.open_release_url();
   } else {
-    window.open('https://github.com/srymcfear/F-Aion-2-Tools/releases', '_blank');
+    window.open('https://github.com/srymcfear/Aion2Viet/releases', '_blank');
   }
 }
 

@@ -23,7 +23,7 @@ import webview
 CURRENT_VERSION = "1.0.0"
 SECURITY_KEY = "fearAion2Tran-key"
 SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
-GITHUB_REPO = "srymcfear/F-Aion-2-Tools"
+GITHUB_REPO = "srymcfear/Aion2Viet"
 RELEASE_URL = f"https://github.com/{GITHUB_REPO}/releases"
 API_RELEASE_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
