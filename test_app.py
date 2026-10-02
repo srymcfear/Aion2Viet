@@ -34,5 +34,12 @@ class TestModApi(unittest.TestCase):
         self.assertIn("isInstalled", res)
         print(f"[PASS] Scan game result: {res}")
 
+    def test_window_methods(self):
+        # Should gracefully handle None window
+        self.api.minimize_window()
+        self.assertIsNone(self.api.window)
+        print("[PASS] Window controls handled gracefully when window is None")
+
 if __name__ == "__main__":
     unittest.main()
+

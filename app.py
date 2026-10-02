@@ -20,6 +20,7 @@ DUMMY_PAK_BYTES = bytes([0x47, 0x55, 0x20, 0x32, 0x30, 0x32, 0x36, 0x30, 0x39, 0
 
 class ModApi:
     def __init__(self):
+        self.window = None
         self._lock = threading.Lock()
         self.state = {
             "gameDir": "",
@@ -37,6 +38,24 @@ class ModApi:
         if detected:
             self.log(f"Đã nhận diện thư mục AION 2: {detected}", "blue")
         self.log("Hệ thống sẵn sàng.", "success")
+
+    def set_window(self, window):
+        self.window = window
+
+    def minimize_window(self):
+        if self.window:
+            try:
+                self.window.minimize()
+            except Exception as e:
+                print("Lỗi minimize:", e)
+
+    def close_window(self):
+        if self.window:
+            try:
+                self.window.destroy()
+            except Exception:
+                pass
+        os._exit(0)
 
     def log(self, message, msg_type=""):
         with self._lock:
@@ -316,9 +335,13 @@ def main():
         js_api=api,
         width=680,
         height=450,
-        resizable=True,
+        resizable=False,
+        frameless=True,
+        easy_drag=True,
+        shadow=True,
         background_color="#090d16"
     )
+    api.set_window(window)
     webview.start(debug=False)
 
 if __name__ == "__main__":

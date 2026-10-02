@@ -1,35 +1,60 @@
 <template>
   <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
-    <div class="w-screen h-screen flex flex-col bg-[#090d16] text-[var(--text-main)] select-none overflow-hidden">
+    <div class="w-screen h-screen flex flex-col bg-[#090d16] text-[var(--text-main)] select-none overflow-hidden border border-[var(--border-subtle)] rounded-xl shadow-2xl">
       
-      <!-- Compact Header with Integrated Status Pill -->
-      <div class="h-12 px-4 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/90 shrink-0">
+      <!-- Compact Header with Integrated Status Pill & Window Controls -->
+      <div class="h-11 px-3.5 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/95 shrink-0 drag-region">
         <div class="flex items-center gap-2.5">
-          <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-[#0284c7] to-[#6366f1] flex items-center justify-center font-extrabold text-white text-xs shadow-md shadow-sky-500/20">
+          <div class="w-6 h-6 rounded-md bg-gradient-to-br from-[#0284c7] to-[#6366f1] flex items-center justify-center font-extrabold text-white text-[11px] shadow-sm shadow-sky-500/20">
             Δ
           </div>
-          <div class="text-[13px] font-bold tracking-tight text-white uppercase">
+          <div class="text-xs font-bold tracking-wider text-slate-200 uppercase">
             FEΔR • AION 2 LOCALE MANAGER
           </div>
         </div>
 
-        <!-- Integrated Status Pill -->
-        <div 
-          class="flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-bold border transition-all duration-300"
-          :class="isInstalled 
-            ? 'bg-sky-500/10 border-sky-400/40 text-[#38bdf8] shadow-[0_0_12px_rgba(56,189,248,0.2)]' 
-            : 'bg-slate-800/80 border-slate-700/60 text-slate-400'"
-        >
-          <span 
-            class="w-2 h-2 rounded-full transition-all duration-300"
-            :class="isInstalled ? 'bg-[#38bdf8] animate-pulse shadow-[0_0_8px_#38bdf8]' : 'bg-slate-500'"
-          ></span>
-          <span>{{ isInstalled ? 'ĐÃ BẬT VIỆT HÓA' : 'BẢN GỐC (CHƯA BẬT)' }}</span>
+        <div class="flex items-center gap-2.5 no-drag">
+          <!-- Integrated Status Pill -->
+          <div 
+            class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-all duration-300"
+            :class="isInstalled 
+              ? 'bg-sky-500/10 border-sky-400/40 text-[#38bdf8] shadow-[0_0_12px_rgba(56,189,248,0.2)]' 
+              : 'bg-slate-800/80 border-slate-700/60 text-slate-400'"
+          >
+            <span 
+              class="w-1.5 h-1.5 rounded-full transition-all duration-300"
+              :class="isInstalled ? 'bg-[#38bdf8] animate-pulse shadow-[0_0_8px_#38bdf8]' : 'bg-slate-500'"
+            ></span>
+            <span>{{ isInstalled ? 'ĐÃ BẬT VIỆT HÓA' : 'BẢN GỐC' }}</span>
+          </div>
+
+          <!-- Window Controls (Minimize & Close) -->
+          <div class="flex items-center gap-1 pl-1.5 border-l border-slate-700/50">
+            <button 
+              @click="handleMinimize"
+              title="Thu nhỏ"
+              class="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <button 
+              @click="handleClose"
+              title="Đóng"
+              class="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 active:bg-red-600 transition-colors cursor-pointer"
+            >
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- Tab Bar -->
-      <div class="px-4 border-b border-[var(--border-subtle)] bg-[#080b13]/80 shrink-0">
+      <div class="px-3.5 border-b border-[var(--border-subtle)] bg-[#080b13]/80 shrink-0">
         <n-tabs v-model:value="activeTab" type="line" size="small">
           <n-tab name="locale" tab="Quản lý Việt Hóa" />
           <n-tab name="tools">
@@ -42,11 +67,11 @@
       </div>
 
       <!-- Tab 1: Locale Manager -->
-      <div v-show="activeTab === 'locale'" class="flex-1 p-4 flex flex-col justify-between gap-3 overflow-hidden">
+      <div v-show="activeTab === 'locale'" class="flex-1 p-3.5 flex flex-col justify-between gap-2.5 overflow-hidden">
         
         <!-- Game Directory Section -->
-        <div class="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-2">
-          <div class="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+        <div class="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] space-y-1.5">
+          <div class="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
             Thư mục cài đặt game AION 2
           </div>
           <div class="flex gap-2">
@@ -56,17 +81,17 @@
               size="medium"
               class="flex-1 font-mono text-xs"
             />
-            <n-button secondary size="medium" @click="handleBrowse" class="!px-3.5 font-semibold text-xs">
+            <n-button secondary size="medium" @click="handleBrowse" class="!px-3 font-semibold text-xs">
               Chọn thư mục
             </n-button>
-            <n-button secondary size="medium" @click="handleScan" class="!px-3.5 font-semibold text-xs">
+            <n-button secondary size="medium" @click="handleScan" class="!px-3 font-semibold text-xs">
               Quét lại
             </n-button>
           </div>
         </div>
 
         <!-- Progress Bar -->
-        <div class="space-y-1.5 px-0.5">
+        <div class="space-y-1 px-0.5">
           <div class="flex justify-between text-[11px] font-medium text-[var(--text-muted)]">
             <span class="truncate max-w-[85%]">{{ progressStep }}</span>
             <span class="font-mono text-white font-semibold">{{ progressPct }}%</span>
@@ -82,11 +107,11 @@
         </div>
 
         <!-- Action Buttons -->
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 gap-2.5">
           <button
             :disabled="isInstalled || isBusy"
             @click="handleInstall"
-            class="h-11 rounded-xl font-bold text-xs tracking-wider transition-all duration-200 flex items-center justify-center cursor-pointer shadow-md"
+            class="h-10 rounded-xl font-bold text-xs tracking-wider transition-all duration-200 flex items-center justify-center cursor-pointer shadow-md"
             :class="isInstalled || isBusy 
               ? 'opacity-35 cursor-not-allowed bg-slate-800 text-slate-500 border border-transparent shadow-none' 
               : 'bg-gradient-to-r from-[#0284c7] to-[#0ea5e9] text-white border border-sky-400/40 shadow-sky-500/20 hover:from-[#0ea5e9] hover:to-[#0284c7] hover:shadow-sky-400/40 active:scale-[0.99]'"
@@ -97,7 +122,7 @@
           <button
             :disabled="!isInstalled || isBusy"
             @click="handleUninstall"
-            class="h-11 rounded-xl font-bold text-xs tracking-wider transition-all duration-200 flex items-center justify-center cursor-pointer"
+            class="h-10 rounded-xl font-bold text-xs tracking-wider transition-all duration-200 flex items-center justify-center cursor-pointer"
             :class="!isInstalled || isBusy 
               ? 'opacity-35 cursor-not-allowed bg-slate-800 text-slate-500 border border-transparent shadow-none' 
               : 'bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 hover:border-red-500/50 hover:text-white active:scale-[0.99]'"
@@ -128,12 +153,12 @@
       </div>
 
       <!-- Tab 2: Tools (Extended) -->
-      <div v-show="activeTab === 'tools'" class="flex-1 p-4 overflow-y-auto">
-        <div class="grid grid-cols-2 gap-3">
+      <div v-show="activeTab === 'tools'" class="flex-1 p-3.5 overflow-y-auto">
+        <div class="grid grid-cols-2 gap-2.5">
           <div 
             v-for="tool in toolsList" 
             :key="tool.title"
-            class="p-3.5 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[#1a2337]/80 hover:border-sky-400/30 transition-all duration-200 space-y-1.5"
+            class="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[#1a2337]/80 hover:border-sky-400/30 transition-all duration-200 space-y-1"
           >
             <div class="flex justify-between items-center">
               <span class="font-bold text-white text-xs">{{ tool.title }}</span>
@@ -280,6 +305,22 @@ function startPolling() {
       console.error(e);
     }
   }, 120);
+}
+
+function handleMinimize() {
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.minimize_window) {
+    pyApi.minimize_window();
+  }
+}
+
+function handleClose() {
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.close_window) {
+    pyApi.close_window();
+  } else {
+    window.close();
+  }
 }
 
 async function handleBrowse() {
