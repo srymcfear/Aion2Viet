@@ -11,6 +11,7 @@ import time
 import shutil
 import threading
 import winreg
+import webbrowser
 import webview
 
 # Force UTF-8 encoding on Windows to prevent Unicode charmap encoding freezes
@@ -71,6 +72,13 @@ class ModApi:
                     pass
             os._exit(0)
         threading.Thread(target=_close, daemon=True).start()
+        return True
+
+    def open_github(self):
+        try:
+            webbrowser.open("https://github.com/srymcfear")
+        except Exception as e:
+            self.log(f"Lỗi mở link: {e}", "red")
         return True
 
     def log(self, message, msg_type=""):
@@ -350,11 +358,11 @@ def main():
     target_url = f"file:///{target_path.replace(os.sep, '/')}"
 
     window = webview.create_window(
-        title="FEΔR • AION 2 LOCALE MANAGER",
+        title="F-Aion 2 Tools",
         url=target_url,
         js_api=api,
         width=680,
-        height=450,
+        height=475,
         resizable=False,
         frameless=True,
         easy_drag=False,  # CRITICAL: easy_drag=False prevents Win32 mouse hook deadlock
