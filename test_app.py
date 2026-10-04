@@ -70,6 +70,7 @@ class TestModApi(unittest.TestCase):
 
     def test_window_methods(self):
         # Should gracefully handle None window
+        self.api.show_window()
         self.api.minimize_window()
         self.assertIsNone(self.api.window)
         print("[PASS] Window controls handled gracefully when window is None")
