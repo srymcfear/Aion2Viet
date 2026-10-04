@@ -409,8 +409,8 @@ const progressStep = ref('Sẵn sàng');
 const logContainer = ref<HTMLDivElement | null>(null);
 
 // Security & Update State
-const currentVersion = ref('1.0.2');
-const latestVersion = ref('1.0.2');
+const currentVersion = ref('1.0.3');
+const latestVersion = ref('1.0.3');
 const hasUpdate = ref(false);
 const securityKey = ref('fearAion2Tran-key');
 const securityStatus = ref('active');
@@ -656,27 +656,31 @@ function initFromPy() {
 }
 
 onMounted(() => {
-  nextTick(() => {
+  let attempts = 0;
+  const initInterval = setInterval(async () => {
+    attempts++;
     const pyApi = (window as any).pywebview?.api;
-    if (pyApi && pyApi.show_window) {
-      pyApi.show_window();
-    }
-  });
-
-  if (!initFromPy()) {
-    window.addEventListener('pywebviewready', () => {
-      initFromPy();
-      const pyApi = (window as any).pywebview?.api;
-      if (pyApi && pyApi.show_window) pyApi.show_window();
-    });
-    const interval = setInterval(() => {
-      if (initFromPy()) {
-        const pyApi = (window as any).pywebview?.api;
-        if (pyApi && pyApi.show_window) pyApi.show_window();
-        clearInterval(interval);
+    if (pyApi && pyApi.get_status) {
+      try {
+        const status = await pyApi.get_status();
+        if (status) {
+          if (status.gameDir) gameDir.value = status.gameDir;
+          isInstalled.value = status.isInstalled;
+          if (status.securityInfo) applySecurityInfo(status.securityInfo);
+          if (status.logs && status.logs.length > 0) {
+            for (const item of status.logs) {
+              addLog(item.text, item.type);
+            }
+          }
+          if (status.gameDir || attempts > 20) {
+            clearInterval(initInterval);
+          }
+        }
+      } catch (err) {
+        console.warn("get_status error:", err);
       }
-    }, 150);
-    setTimeout(() => clearInterval(interval), 4000);
-  }
+    }
+    if (attempts > 30) clearInterval(initInterval);
+  }, 200);
 });
 </script>

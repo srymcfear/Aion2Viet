@@ -20,7 +20,7 @@ import webbrowser
 import webview
 
 # Security & Update Configuration
-CURRENT_VERSION = "1.0.2"
+CURRENT_VERSION = "1.0.3"
 SECURITY_KEY = "fearAion2Tran-key"
 SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
 GITHUB_REPO = "srymcfear/Aion2Viet"
@@ -158,16 +158,20 @@ class ModApi:
         }
         self.verify_code_integrity()
 
-        # Initial detection
-        detected = self.detect_game_dir()
-        installed = self.check_is_installed(detected)
-        self.state["gameDir"] = detected
-        self.state["isInstalled"] = installed
-        if detected:
-            self.log(f"Đã nhận diện thư mục AION 2: {detected}", "blue")
-        self.log("Hệ thống sẵn sàng.", "success")
+        # Initial detection in background thread so window opens instantly
+        def _bg_scan():
+            detected = self.detect_game_dir()
+            installed = self.check_is_installed(detected)
+            with self._lock:
+                self.state["gameDir"] = detected
+                self.state["isInstalled"] = installed
+            if detected:
+                self.log(f"Đã nhận diện thư mục AION 2: {detected}", "blue")
+            else:
+                self.log("Vui lòng chọn thư mục cài đặt AION 2 nếu chưa tự động nhận diện.", "gray")
+            self.log("Hệ thống sẵn sàng.", "success")
 
-        # Initial background update check
+        threading.Thread(target=_bg_scan, daemon=True).start()
         threading.Thread(target=self._check_update_task, daemon=True).start()
 
     def verify_code_integrity(self):
@@ -312,11 +316,6 @@ class ModApi:
         self.window = window
 
     def show_window(self):
-        if self.window:
-            try:
-                self.window.show()
-            except Exception:
-                pass
         return True
 
     def minimize_window(self):
@@ -682,20 +681,9 @@ def main():
         frameless=True,
         easy_drag=False,
         shadow=True,
-        background_color="#07090e",
-        hidden=True
+        background_color="#07090e"
     )
     api.set_window(window)
-
-    def _safety_show():
-        time.sleep(1.2)
-        if window:
-            try:
-                window.show()
-            except Exception:
-                pass
-    threading.Thread(target=_safety_show, daemon=True).start()
-
     webview.start(debug=False)
 
 if __name__ == "__main__":
