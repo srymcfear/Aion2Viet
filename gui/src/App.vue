@@ -1,6 +1,89 @@
 <template>
   <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
-    <div class="w-screen h-screen flex flex-col bg-[#090d16] text-[var(--text-main)] select-none overflow-hidden border border-[var(--border-subtle)] rounded-xl shadow-2xl">
+    <div class="relative w-screen h-screen flex flex-col bg-[#090d16] text-[var(--text-main)] select-none overflow-hidden border border-[var(--border-subtle)] rounded-xl shadow-2xl">
+      
+      <!-- Splash / Loading Screen (~10s on launch) -->
+      <div 
+        v-if="!splashRemoved"
+        class="absolute inset-0 z-50 flex flex-col justify-between bg-[#07090e] select-none transition-opacity duration-700 ease-out"
+        :class="splashFading ? 'opacity-0 pointer-events-none' : 'opacity-100'"
+      >
+        <!-- Top Drag Bar with Status & Window Controls -->
+        <div class="h-11 px-3.5 flex items-center justify-between pywebview-drag-region bg-transparent">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+            <span class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Khởi tạo hệ thống</span>
+          </div>
+          <div class="flex items-center gap-1 no-drag">
+            <button 
+              @click="handleMinimize"
+              title="Thu nhỏ"
+              class="w-6 h-6 rounded-md flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+            <button 
+              @click="handleClose"
+              title="Đóng"
+              class="w-6 h-6 rounded-md flex items-center justify-center text-slate-500 hover:text-white hover:bg-red-500 transition-colors cursor-pointer"
+            >
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Center Content: Logo & Brand -->
+        <div class="flex flex-col items-center justify-center -mt-4 space-y-4">
+          <div class="relative">
+            <div class="absolute -inset-2 bg-gradient-to-r from-sky-500/25 to-blue-600/25 rounded-2xl blur-xl animate-pulse"></div>
+            <img 
+              src="./assets/logo.png" 
+              alt="FEAR" 
+              class="relative h-20 w-20 object-contain rounded-2xl border border-sky-400/30 bg-[#0d121f] p-1.5 shadow-[0_0_30px_rgba(56,189,248,0.25)]"
+            />
+          </div>
+
+          <div class="text-center space-y-1">
+            <h1 class="text-xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-sky-300">
+              F-AION 2 TOOLS
+            </h1>
+            <p class="text-[11px] font-semibold tracking-wider text-sky-400/80 uppercase">
+              Mod Manager & Game Optimizer • Team FEΔR
+            </p>
+          </div>
+        </div>
+
+        <!-- Bottom: Progress Bar & Dynamic Status -->
+        <div class="px-10 pb-8 space-y-2.5">
+          <div class="flex justify-between items-center text-[11px]">
+            <div class="flex items-center gap-2 text-slate-300 font-medium">
+              <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping"></span>
+              <span class="font-mono text-slate-300">{{ splashStatusText }}</span>
+            </div>
+            <div class="font-mono font-bold text-sky-400">
+              {{ splashProgress }}%
+            </div>
+          </div>
+
+          <!-- Sleek Progress Bar -->
+          <div class="h-2 w-full bg-slate-900/90 rounded-full overflow-hidden p-0.5 border border-white/10 shadow-inner">
+            <div 
+              class="h-full bg-gradient-to-r from-sky-600 via-sky-400 to-cyan-300 rounded-full transition-all duration-150 ease-out shadow-[0_0_12px_rgba(56,189,248,0.6)]"
+              :style="{ width: `${splashProgress}%` }"
+            ></div>
+          </div>
+
+          <div class="flex justify-between text-[10px] text-slate-500 font-mono pt-1">
+            <span>Powered by FEΔR Engine</span>
+            <span>v{{ currentVersion }}</span>
+          </div>
+        </div>
+      </div>
       
       <!-- Compact Header with Integrated Status Pill & Window Controls -->
       <div class="h-11 px-3.5 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/95 shrink-0 pywebview-drag-region">
@@ -374,6 +457,12 @@ const changelog = ref('');
 const lastChecked = ref('');
 const isCheckingUpdate = ref(false);
 
+// Splash / Loading Screen State (~10s)
+const splashProgress = ref(0);
+const splashStatusText = ref('Khởi tạo hệ thống FEΔR Engine...');
+const splashFading = ref(false);
+const splashRemoved = ref(false);
+
 const logs = ref<LogItem[]>([
   { time: new Date().toLocaleTimeString(), text: 'Khởi tạo hệ thống quản lý AION 2.', type: 'blue' }
 ]);
@@ -611,6 +700,31 @@ function initFromPy() {
 }
 
 onMounted(() => {
+  // 10s Splash Screen Sequence (100 steps * 100ms = 10,000ms)
+  const splashInterval = setInterval(() => {
+    splashProgress.value += 1;
+    if (splashProgress.value <= 20) {
+      splashStatusText.value = 'Khởi tạo hệ thống FEΔR Engine...';
+    } else if (splashProgress.value <= 45) {
+      splashStatusText.value = 'Quét cấu trúc thư mục & Registry AION 2...';
+    } else if (splashProgress.value <= 70) {
+      splashStatusText.value = 'Xác thực gói ngôn ngữ L10N & mã hóa...';
+    } else if (splashProgress.value <= 90) {
+      splashStatusText.value = 'Kiểm tra kết nối máy chủ & cập nhật...';
+    } else if (splashProgress.value < 100) {
+      splashStatusText.value = 'Hoàn tất khởi tạo môi trường...';
+    } else {
+      splashStatusText.value = 'Sẵn sàng khởi chạy giao diện!';
+      clearInterval(splashInterval);
+      setTimeout(() => {
+        splashFading.value = true;
+        setTimeout(() => {
+          splashRemoved.value = true;
+        }, 700);
+      }, 400);
+    }
+  }, 100);
+
   let attempts = 0;
   const initInterval = setInterval(async () => {
     attempts++;
