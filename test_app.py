@@ -77,6 +77,16 @@ class TestModApi(unittest.TestCase):
         self.assertIsNone(app._main_window)
         print("[PASS] Window controls handled gracefully and no window exposed to pywebview")
 
+    def test_browse_folder_and_process_check(self):
+        # browse_folder should gracefully return current state when window is None
+        res = self.api.browse_folder()
+        self.assertIn("gameDir", res)
+        self.assertIn("isInstalled", res)
+        # is_game_running should return a boolean
+        running = app.is_game_running()
+        self.assertIsInstance(running, bool)
+        print(f"[PASS] browse_folder returned gracefully ({res}), is_game_running: {running}")
+
 if __name__ == "__main__":
     unittest.main()
 

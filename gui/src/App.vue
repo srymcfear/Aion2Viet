@@ -55,12 +55,7 @@
       <div class="px-3.5 border-b border-[var(--border-subtle)] bg-[#080b13]/80 shrink-0">
         <n-tabs v-model:value="activeTab" type="line" size="small">
           <n-tab name="locale" tab="Quản lý Việt Hóa" />
-          <n-tab name="tools">
-            <div class="flex items-center gap-1.5">
-              <span>Tools Mở Rộng</span>
-              <span class="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-300">Đang phát triển</span>
-            </div>
-          </n-tab>
+          <n-tab name="tools" tab="Tools Mở Rộng" />
           <n-tab name="about">
             <div class="flex items-center gap-1.5">
               <span>About & Update</span>
@@ -201,61 +196,21 @@
 
       <!-- Tab 3: About & Update -->
       <div v-show="activeTab === 'about'" class="flex-1 p-3.5 flex flex-col gap-2.5 overflow-y-auto">
-        <!-- Top Row: App Brand & Security Card -->
-        <div class="grid grid-cols-2 gap-2.5">
-          <!-- App Info Card -->
-          <div class="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] flex flex-col justify-between space-y-2">
-            <div class="flex items-center gap-2.5">
-              <img src="./assets/logo.png" alt="FEAR" class="h-9 w-9 object-contain rounded-lg border border-white/10 p-0.5 bg-black/40 shadow" />
-              <div>
-                <div class="text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
-                  <span>F-Aion 2 Tools</span>
-                  <span class="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono font-bold">v{{ currentVersion }}</span>
-                </div>
-                <div class="text-[10px] text-[var(--text-muted)]">Quản lý & Tối ưu Việt Hóa AION 2</div>
+        <!-- Top Row: App Brand Card -->
+        <div class="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <img src="./assets/logo.png" alt="FEAR" class="h-9 w-9 object-contain rounded-lg border border-white/10 p-0.5 bg-black/40 shadow" />
+            <div>
+              <div class="text-xs font-bold text-white tracking-wide flex items-center gap-1.5">
+                <span>F-Aion 2 Tools</span>
+                <span class="text-[9px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono font-bold">v{{ currentVersion }}</span>
               </div>
-            </div>
-            <div class="pt-2 border-t border-white/5 flex items-center justify-between text-[11px]">
-              <span class="text-slate-400">Tác giả:</span>
-              <span class="font-semibold text-slate-200">SrymC (FEΔR Team)</span>
+              <div class="text-[10px] text-[var(--text-muted)]">Quản lý & Tối ưu Việt Hóa AION 2</div>
             </div>
           </div>
-
-          <!-- Security Status Card (fearAion2Tran-key) -->
-          <div class="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] flex flex-col justify-between space-y-2">
-            <div class="flex justify-between items-center">
-              <div class="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-                Khóa bảo mật (Key)
-              </div>
-              <!-- Status Pill Badge -->
-              <div 
-                class="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all"
-                :class="{
-                  'bg-sky-500/10 border-sky-400/40 text-[#38bdf8]': securityStatus === 'active',
-                  'bg-amber-500/10 border-amber-400/40 text-amber-400': securityStatus === 'baotri',
-                  'bg-red-500/10 border-red-400/40 text-red-400': securityStatus === 'lock'
-                }"
-              >
-                <span 
-                  class="w-1.5 h-1.5 rounded-full"
-                  :class="{
-                    'bg-[#38bdf8] animate-pulse shadow-[0_0_6px_#38bdf8]': securityStatus === 'active',
-                    'bg-amber-400 animate-pulse': securityStatus === 'baotri',
-                    'bg-red-500': securityStatus === 'lock'
-                  }"
-                ></span>
-                <span class="uppercase font-mono">{{ securityStatus === 'active' ? 'Active' : (securityStatus === 'baotri' ? 'Bảo trì' : 'Đã khóa') }}</span>
-              </div>
-            </div>
-
-            <div class="flex items-center justify-between bg-[#06080e] px-2.5 py-1.5 rounded-lg border border-white/5 font-mono text-xs text-sky-400">
-              <span class="font-bold tracking-wider">{{ securityKey }}</span>
-              <span class="text-[9px] text-slate-500 uppercase">SHA-256</span>
-            </div>
-
-            <div class="text-[10px] text-slate-400 truncate" :title="securityMessage">
-              {{ securityMessage }}
-            </div>
+          <div class="flex items-center gap-2 text-[11px]">
+            <span class="text-slate-400">Tác giả:</span>
+            <span class="font-semibold text-slate-200">SrymC (FEΔR Team)</span>
           </div>
         </div>
 
@@ -409,8 +364,8 @@ const progressStep = ref('Sẵn sàng');
 const logContainer = ref<HTMLDivElement | null>(null);
 
 // Security & Update State
-const currentVersion = ref('1.0.4');
-const latestVersion = ref('1.0.4');
+const currentVersion = ref('1.0.5');
+const latestVersion = ref('1.0.5');
 const hasUpdate = ref(false);
 const securityKey = ref('fearAion2Tran-key');
 const securityStatus = ref('active');

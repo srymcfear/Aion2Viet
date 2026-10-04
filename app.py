@@ -20,12 +20,25 @@ import webbrowser
 import webview
 
 # Security & Update Configuration
-CURRENT_VERSION = "1.0.4"
+CURRENT_VERSION = "1.0.5"
 SECURITY_KEY = "fearAion2Tran-key"
 SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
 GITHUB_REPO = "srymcfear/Aion2Viet"
 RELEASE_URL = f"https://github.com/{GITHUB_REPO}/releases"
 API_RELEASE_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+
+def is_game_running():
+    try:
+        import subprocess
+        out = subprocess.check_output(
+            ["tasklist", "/FI", "IMAGENAME eq Aion2*", "/FO", "CSV", "/NH"],
+            creationflags=0x08000000,
+            text=True,
+            timeout=3
+        )
+        return "Aion2" in out
+    except Exception:
+        return False
 
 def parse_semver(s):
     nums = [int(x) for x in re.findall(r'\d+', str(s))]
@@ -427,25 +440,26 @@ class ModApi:
             }
 
     def browse_folder(self):
+        global _main_window
+        chosen_dir = None
         try:
-            import tkinter as tk
-            from tkinter import filedialog
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes('-topmost', True)
-            initial = self.state["gameDir"] if (self.state["gameDir"] and os.path.isdir(self.state["gameDir"])) else "C:\\"
-            chosen = filedialog.askdirectory(title="Chọn thư mục cài đặt game AION 2", initialdir=initial)
-            root.destroy()
-            if chosen and os.path.isdir(chosen):
-                chosen = os.path.normpath(chosen)
-                installed = self.check_is_installed(chosen)
-                with self._lock:
-                    self.state["gameDir"] = chosen
-                    self.state["isInstalled"] = installed
-                self.log(f"Đã chọn đường dẫn: {chosen}", "blue")
-                return {"gameDir": chosen, "isInstalled": installed}
+            if _main_window:
+                initial = self.state["gameDir"] if (self.state["gameDir"] and os.path.isdir(self.state["gameDir"])) else ""
+                res = _main_window.create_file_dialog(webview.FileDialog.FOLDER, directory=initial)
+                if res and len(res) > 0:
+                    chosen_dir = res[0]
         except Exception as e:
-            self.log(f"Lỗi chọn thư mục: {e}", "red")
+            self.log(f"Lỗi mở hộp thoại: {e}", "red")
+
+        if chosen_dir and os.path.isdir(chosen_dir):
+            chosen = os.path.normpath(chosen_dir)
+            installed = self.check_is_installed(chosen)
+            with self._lock:
+                self.state["gameDir"] = chosen
+                self.state["isInstalled"] = installed
+            self.log(f"Đã chọn đường dẫn: {chosen}", "blue")
+            return {"gameDir": chosen, "isInstalled": installed}
+
         return {"gameDir": self.state["gameDir"], "isInstalled": self.state["isInstalled"]}
 
     def scan_game(self):
@@ -475,100 +489,114 @@ class ModApi:
             self.state["isBusy"] = True
 
         def _install_thread():
-            target_dir = game_dir or self.state["gameDir"]
-            if not target_dir or not os.path.isdir(target_dir):
-                self.log("LỖI: Đường dẫn game không tồn tại!", "red")
-                self.update_progress(0, "Lỗi đường dẫn")
-                with self._lock: self.state["isBusy"] = False
-                return
+            try:
+                target_dir = game_dir or self.state["gameDir"]
+                if not target_dir or not os.path.isdir(target_dir):
+                    self.log("LỖI: Đường dẫn game không tồn tại!", "red")
+                    self.update_progress(0, "Lỗi đường dẫn")
+                    return
 
-            self.log(f">>> BẮT ĐẦU CÀI ĐẶT VIỆT HÓA TẠI: {target_dir}", "blue")
-            self.update_progress(15, "[1/4] Sao lưu file pak gốc (.official_clean_bak)...")
+                if is_game_running():
+                    self.log("❌ Game AION 2 đang chạy! Vui lòng thoát game trước khi tiếp tục.", "red")
+                    self.update_progress(0, "Game đang chạy")
+                    return
 
-            # Clean old mods
-            old_mod_pak = os.path.join(target_dir, "Aion2", "Content", "Paks", "pakchunk502000-Windows_999_P.pak")
-            if os.path.isfile(old_mod_pak):
-                try: os.remove(old_mod_pak)
-                except Exception: pass
+                self.log(f">>> BẮT ĐẦU CÀI ĐẶT VIỆT HÓA TẠI: {target_dir}", "blue")
+                self.update_progress(15, "[1/4] Sao lưu file pak gốc (.official_clean_bak)...")
 
-            mods_folder = os.path.join(target_dir, "Aion2", "Content", "Paks", "~mods")
-            if os.path.isdir(mods_folder):
-                try: shutil.rmtree(mods_folder, ignore_errors=True)
-                except Exception: pass
+                # Clean old mods
+                old_mod_pak = os.path.join(target_dir, "Aion2", "Content", "Paks", "pakchunk502000-Windows_999_P.pak")
+                if os.path.isfile(old_mod_pak):
+                    try: os.remove(old_mod_pak)
+                    except Exception: pass
 
-            data_dir = get_data_dir()
+                mods_folder = os.path.join(target_dir, "Aion2", "Content", "Paks", "~mods")
+                if os.path.isdir(mods_folder):
+                    try: shutil.rmtree(mods_folder, ignore_errors=True)
+                    except Exception: pass
 
-            # 1. en-US
-            en_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "en-US")
-            en_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "en-US")
-            if os.path.isdir(en_pak_dir):
-                base_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak")
-                bak_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak.official_clean_bak")
-                if os.path.isfile(base_pak) and not os.path.isfile(bak_pak) and os.path.getsize(base_pak) > 1024 * 1024:
-                    shutil.copy2(base_pak, bak_pak)
-                    self.log("Sao lưu file pak gốc en-US thành công.", "success")
+                data_dir = get_data_dir()
 
+                # 1. en-US
+                en_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "en-US")
+                en_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "en-US")
+                if os.path.isdir(en_pak_dir):
+                    base_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak")
+                    bak_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak.official_clean_bak")
+                    bak_valid = os.path.isfile(bak_pak) and os.path.getsize(bak_pak) > 1024 * 1024
+                    if os.path.isfile(base_pak) and not bak_valid and os.path.getsize(base_pak) > 1024 * 1024:
+                        shutil.copy2(base_pak, bak_pak)
+                        self.log("Sao lưu file pak gốc en-US thành công.", "success")
+
+                    time.sleep(0.3)
+                    self.update_progress(45, "[2/4] Tạo dummy pak 15 byte mồi fallback...")
+                    with open(base_pak, "wb") as f:
+                        f.write(DUMMY_PAK_BYTES)
+
+                    time.sleep(0.3)
+                    self.update_progress(75, "[3/4] Triển khai 152,667 dòng tiếng Việt vào Loose File...")
+                    os.makedirs(en_loose_dir, exist_ok=True)
+                    src_dat = os.path.join(data_dir, "en-US", "L10NString.dat")
+                    if os.path.isfile(src_dat):
+                        shutil.copy2(src_dat, os.path.join(en_loose_dir, "L10NString.dat"))
+                        self.log("✔ Đã nạp bảng dịch tiếng Việt en-US", "success")
+
+                # 2. ko-KR
+                ko_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "ko-KR")
+                ko_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "ko-KR")
+                if os.path.isdir(ko_pak_dir):
+                    base_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak")
+                    bak_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak.official_clean_bak")
+                    bak_ko_valid = os.path.isfile(bak_ko_pak) and os.path.getsize(bak_ko_pak) > 1024 * 1024
+                    if os.path.isfile(base_ko_pak) and not bak_ko_valid and os.path.getsize(base_ko_pak) > 1024 * 1024:
+                        shutil.copy2(base_ko_pak, bak_ko_pak)
+
+                    with open(base_ko_pak, "wb") as f:
+                        f.write(DUMMY_PAK_BYTES)
+
+                    os.makedirs(ko_loose_dir, exist_ok=True)
+                    src_ko_dat = os.path.join(data_dir, "ko-KR", "L10NString.dat")
+                    if os.path.isfile(src_ko_dat):
+                        shutil.copy2(src_ko_dat, os.path.join(ko_loose_dir, "L10NString.dat"))
+                        self.log("✔ Đã nạp bảng dịch tiếng Việt ko-KR", "success")
+
+                # 3. zh-TW
+                zh_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "zh-TW")
+                zh_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "zh-TW")
+                if os.path.isdir(zh_pak_dir):
+                    base_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak")
+                    bak_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak.official_clean_bak")
+                    bak_zh_valid = os.path.isfile(bak_zh_pak) and os.path.getsize(bak_zh_pak) > 1024 * 1024
+                    if os.path.isfile(base_zh_pak) and not bak_zh_valid and os.path.getsize(base_zh_pak) > 1024 * 1024:
+                        shutil.copy2(base_zh_pak, bak_zh_pak)
+
+                    with open(base_zh_pak, "wb") as f:
+                        f.write(DUMMY_PAK_BYTES)
+
+                    os.makedirs(zh_loose_dir, exist_ok=True)
+                    src_zh_dat = os.path.join(data_dir, "zh-TW", "L10NString.dat")
+                    if os.path.isfile(src_zh_dat):
+                        shutil.copy2(src_zh_dat, os.path.join(zh_loose_dir, "L10NString.dat"))
+                        self.log("✔ Đã nạp bảng dịch tiếng Việt zh-TW", "success")
+
+                # 4. ExcludedUpdateList.dat
                 time.sleep(0.3)
-                self.update_progress(45, "[2/4] Tạo dummy pak 15 byte mồi fallback...")
-                with open(base_pak, "wb") as f:
-                    f.write(DUMMY_PAK_BYTES)
+                self.update_progress(90, "[4/4] Khóa cập nhật đè của Purple Launcher...")
+                excl_file = os.path.join(target_dir, "Aion2", "ExcludedUpdateList.dat")
+                excl_content = "Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.pak\r\nAion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.pak\r\nAion2/Content/Paks/L10N/Text/zh-TW/pakchunk500000-Windows_0_P.pak\r\n"
+                with open(excl_file, "w", encoding="utf-8") as f:
+                    f.write(excl_content)
 
-                time.sleep(0.3)
-                self.update_progress(75, "[3/4] Triển khai 152,667 dòng tiếng Việt vào Loose File...")
-                os.makedirs(en_loose_dir, exist_ok=True)
-                src_dat = os.path.join(data_dir, "en-US", "L10NString.dat")
-                if os.path.isfile(src_dat):
-                    shutil.copy2(src_dat, os.path.join(en_loose_dir, "L10NString.dat"))
-                    self.log("✔ Đã nạp bảng dịch tiếng Việt en-US", "success")
-
-            # 2. ko-KR
-            ko_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "ko-KR")
-            ko_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "ko-KR")
-            if os.path.isdir(ko_pak_dir):
-                base_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak")
-                bak_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak.official_clean_bak")
-                if os.path.isfile(base_ko_pak) and not os.path.isfile(bak_ko_pak) and os.path.getsize(base_ko_pak) > 1024 * 1024:
-                    shutil.copy2(base_ko_pak, bak_ko_pak)
-
-                with open(base_ko_pak, "wb") as f:
-                    f.write(DUMMY_PAK_BYTES)
-
-                os.makedirs(ko_loose_dir, exist_ok=True)
-                src_ko_dat = os.path.join(data_dir, "ko-KR", "L10NString.dat")
-                if os.path.isfile(src_ko_dat):
-                    shutil.copy2(src_ko_dat, os.path.join(ko_loose_dir, "L10NString.dat"))
-                    self.log("✔ Đã nạp bảng dịch tiếng Việt ko-KR", "success")
-
-            # 3. zh-TW
-            zh_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "zh-TW")
-            zh_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "zh-TW")
-            if os.path.isdir(zh_pak_dir):
-                base_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak")
-                bak_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak.official_clean_bak")
-                if os.path.isfile(base_zh_pak) and not os.path.isfile(bak_zh_pak) and os.path.getsize(base_zh_pak) > 1024 * 1024:
-                    shutil.copy2(base_zh_pak, bak_zh_pak)
-
-                with open(base_zh_pak, "wb") as f:
-                    f.write(DUMMY_PAK_BYTES)
-
-                os.makedirs(zh_loose_dir, exist_ok=True)
-                src_zh_dat = os.path.join(data_dir, "zh-TW", "L10NString.dat")
-                if os.path.isfile(src_zh_dat):
-                    shutil.copy2(src_zh_dat, os.path.join(zh_loose_dir, "L10NString.dat"))
-                    self.log("✔ Đã nạp bảng dịch tiếng Việt zh-TW", "success")
-
-            # 4. ExcludedUpdateList.dat
-            time.sleep(0.3)
-            self.update_progress(90, "[4/4] Khóa cập nhật đè của Purple Launcher...")
-            excl_file = os.path.join(target_dir, "Aion2", "ExcludedUpdateList.dat")
-            excl_content = "Aion2/Content/Paks/L10N/Text/en-US/pakchunk502000-Windows_0_P.pak\nAion2/Content/Paks/L10N/Text/ko-KR/pakchunk501000-Windows_0_P.pak\nAion2/Content/Paks/L10N/Text/zh-TW/pakchunk500000-Windows_0_P.pak\n"
-            with open(excl_file, "w", encoding="utf-8") as f:
-                f.write(excl_content)
-
-            time.sleep(0.4)
-            self.update_progress(100, "CÀI ĐẶT HOÀN TẤT!")
-            self.log("🎉 KÍCH HOẠT VIỆT HÓA THÀNH CÔNG! Hãy khởi động game qua Purple.", "success")
-            self.update_state(True)
+                time.sleep(0.4)
+                self.update_progress(100, "CÀI ĐẶT HOÀN TẤT!")
+                self.log("🎉 KÍCH HOẠT VIỆT HÓA THÀNH CÔNG! Hãy khởi động game qua Purple.", "success")
+                self.update_state(True)
+            except Exception as e:
+                self.log(f"Lỗi trong quá trình cài đặt: {e}", "red")
+                self.update_progress(0, "Lỗi cài đặt")
+            finally:
+                with self._lock:
+                    self.state["isBusy"] = False
 
         threading.Thread(target=_install_thread, daemon=True).start()
         return True
@@ -587,71 +615,84 @@ class ModApi:
             self.state["isBusy"] = True
 
         def _uninstall_thread():
-            target_dir = game_dir or self.state["gameDir"]
-            if not target_dir or not os.path.isdir(target_dir):
-                with self._lock: self.state["isBusy"] = False
-                return
+            try:
+                target_dir = game_dir or self.state["gameDir"]
+                if not target_dir or not os.path.isdir(target_dir):
+                    self.log("LỖI: Đường dẫn game không tồn tại!", "red")
+                    self.update_progress(0, "Lỗi đường dẫn")
+                    return
 
-            self.log(f">>> BẮT ĐẦU KHÔI PHỤC BẢN GỐC TẠI: {target_dir}", "blue")
-            self.update_progress(30, "[1/3] Khôi phục file pak gốc từ bản sao lưu...")
+                if is_game_running():
+                    self.log("❌ Game AION 2 đang chạy! Vui lòng thoát game trước khi tiếp tục.", "red")
+                    self.update_progress(0, "Game đang chạy")
+                    return
 
-            # Restore en-US
-            en_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "en-US")
-            en_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "en-US")
-            if os.path.isdir(en_pak_dir):
-                base_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak")
-                bak_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak.official_clean_bak")
-                if os.path.isfile(bak_pak):
-                    shutil.copy2(bak_pak, base_pak)
-                    try: os.remove(bak_pak)
+                self.log(f">>> BẮT ĐẦU KHÔI PHỤC BẢN GỐC TẠI: {target_dir}", "blue")
+                self.update_progress(30, "[1/3] Khôi phục file pak gốc từ bản sao lưu...")
+
+                # Restore en-US
+                en_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "en-US")
+                en_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "en-US")
+                if os.path.isdir(en_pak_dir):
+                    base_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak")
+                    bak_pak = os.path.join(en_pak_dir, "pakchunk502000-Windows_0_P.pak.official_clean_bak")
+                    if os.path.isfile(bak_pak):
+                        shutil.copy2(bak_pak, base_pak)
+                        try: os.remove(bak_pak)
+                        except Exception: pass
+                        self.log("Đã khôi phục file pak gốc en-US.", "success")
+
+                if os.path.isdir(en_loose_dir):
+                    shutil.rmtree(en_loose_dir, ignore_errors=True)
+
+                # Restore ko-KR
+                time.sleep(0.3)
+                self.update_progress(65, "[2/3] Dọn dẹp loose file L10N...")
+                ko_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "ko-KR")
+                ko_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "ko-KR")
+                if os.path.isdir(ko_pak_dir):
+                    base_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak")
+                    bak_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak.official_clean_bak")
+                    if os.path.isfile(bak_ko_pak):
+                        shutil.copy2(bak_ko_pak, base_ko_pak)
+                        try: os.remove(bak_ko_pak)
+                        except Exception: pass
+
+                if os.path.isdir(ko_loose_dir):
+                    shutil.rmtree(ko_loose_dir, ignore_errors=True)
+
+                # Restore zh-TW
+                zh_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "zh-TW")
+                zh_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "zh-TW")
+                if os.path.isdir(zh_pak_dir):
+                    base_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak")
+                    bak_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak.official_clean_bak")
+                    if os.path.isfile(bak_zh_pak):
+                        shutil.copy2(bak_zh_pak, base_zh_pak)
+                        try: os.remove(bak_zh_pak)
+                        except Exception: pass
+
+                if os.path.isdir(zh_loose_dir):
+                    shutil.rmtree(zh_loose_dir, ignore_errors=True)
+
+                # Remove ExcludedUpdateList.dat
+                time.sleep(0.3)
+                self.update_progress(90, "[3/3] Xóa cấu hình ExcludedUpdateList...")
+                excl_file = os.path.join(target_dir, "Aion2", "ExcludedUpdateList.dat")
+                if os.path.isfile(excl_file):
+                    try: os.remove(excl_file)
                     except Exception: pass
-                    self.log("Đã khôi phục file pak gốc en-US.", "success")
 
-            if os.path.isdir(en_loose_dir):
-                shutil.rmtree(en_loose_dir, ignore_errors=True)
-
-            # Restore ko-KR
-            time.sleep(0.3)
-            self.update_progress(65, "[2/3] Dọn dẹp loose file L10N...")
-            ko_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "ko-KR")
-            ko_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "ko-KR")
-            if os.path.isdir(ko_pak_dir):
-                base_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak")
-                bak_ko_pak = os.path.join(ko_pak_dir, "pakchunk501000-Windows_0_P.pak.official_clean_bak")
-                if os.path.isfile(bak_ko_pak):
-                    shutil.copy2(bak_ko_pak, base_ko_pak)
-                    try: os.remove(bak_ko_pak)
-                    except Exception: pass
-
-            if os.path.isdir(ko_loose_dir):
-                shutil.rmtree(ko_loose_dir, ignore_errors=True)
-
-            # Restore zh-TW
-            zh_pak_dir = os.path.join(target_dir, "Aion2", "Content", "Paks", "L10N", "Text", "zh-TW")
-            zh_loose_dir = os.path.join(target_dir, "Aion2", "Content", "L10N", "Text", "zh-TW")
-            if os.path.isdir(zh_pak_dir):
-                base_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak")
-                bak_zh_pak = os.path.join(zh_pak_dir, "pakchunk500000-Windows_0_P.pak.official_clean_bak")
-                if os.path.isfile(bak_zh_pak):
-                    shutil.copy2(bak_zh_pak, base_zh_pak)
-                    try: os.remove(bak_zh_pak)
-                    except Exception: pass
-
-            if os.path.isdir(zh_loose_dir):
-                shutil.rmtree(zh_loose_dir, ignore_errors=True)
-
-            # Remove ExcludedUpdateList.dat
-            time.sleep(0.3)
-            self.update_progress(90, "[3/3] Xóa cấu hình ExcludedUpdateList...")
-            excl_file = os.path.join(target_dir, "Aion2", "ExcludedUpdateList.dat")
-            if os.path.isfile(excl_file):
-                try: os.remove(excl_file)
-                except Exception: pass
-
-            time.sleep(0.4)
-            self.update_progress(100, "ĐÃ VỀ BẢN GỐC!")
-            self.log("✔ Đã trả về 100% nguyên bản của nhà phát hành NCSoft.", "success")
-            self.update_state(False)
+                time.sleep(0.4)
+                self.update_progress(100, "ĐÃ VỀ BẢN GỐC!")
+                self.log("✔ Đã trả về 100% nguyên bản của nhà phát hành NCSoft.", "success")
+                self.update_state(False)
+            except Exception as e:
+                self.log(f"Lỗi trong quá trình gỡ cài đặt: {e}", "red")
+                self.update_progress(0, "Lỗi gỡ cài đặt")
+            finally:
+                with self._lock:
+                    self.state["isBusy"] = False
 
         threading.Thread(target=_uninstall_thread, daemon=True).start()
         return True

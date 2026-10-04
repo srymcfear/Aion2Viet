@@ -16,8 +16,6 @@ a = Analysis(
     hiddenimports=[
         'webview',
         'clr',
-        'tkinter',
-        'tkinter.filedialog',
         'winreg',
         'webbrowser',
         'PIL',
@@ -28,7 +26,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['tkinter', '_tkinter'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
