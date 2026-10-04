@@ -20,7 +20,7 @@ import webbrowser
 import webview
 
 # Security & Update Configuration
-CURRENT_VERSION = "1.0.3"
+CURRENT_VERSION = "1.0.4"
 SECURITY_KEY = "fearAion2Tran-key"
 SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
 GITHUB_REPO = "srymcfear/Aion2Viet"
@@ -131,9 +131,10 @@ def get_gui_html_path():
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 DUMMY_PAK_BYTES = bytes([0x47, 0x55, 0x20, 0x32, 0x30, 0x32, 0x36, 0x30, 0x39, 0x32, 0x39, 0x31, 0x37, 0x35, 0x37])
 
+_main_window = None
+
 class ModApi:
     def __init__(self):
-        self.window = None
         self._lock = threading.Lock()
         self.state = {
             "gameDir": "",
@@ -312,29 +313,28 @@ class ModApi:
         threading.Thread(target=_down, daemon=True).start()
         return True
 
-    def set_window(self, window):
-        self.window = window
-
     def show_window(self):
         return True
 
     def minimize_window(self):
+        global _main_window
         def _min():
-            time.sleep(0.05)
-            if self.window:
+            time.sleep(0.02)
+            if _main_window:
                 try:
-                    self.window.minimize()
+                    _main_window.minimize()
                 except Exception:
                     pass
         threading.Thread(target=_min, daemon=True).start()
         return True
 
     def close_window(self):
+        global _main_window
         def _close():
-            time.sleep(0.05)
-            if self.window:
+            time.sleep(0.02)
+            if _main_window:
                 try:
-                    self.window.destroy()
+                    _main_window.destroy()
                 except Exception:
                     pass
             os._exit(0)
@@ -683,7 +683,8 @@ def main():
         shadow=True,
         background_color="#07090e"
     )
-    api.set_window(window)
+    global _main_window
+    _main_window = window
     webview.start(debug=False)
 
 if __name__ == "__main__":

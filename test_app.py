@@ -1,5 +1,6 @@
 import os
 import unittest
+import app
 from app import ModApi, is_admin, parse_release_security, is_newer_version, SECURITY_KEY
 
 class TestModApi(unittest.TestCase):
@@ -72,8 +73,9 @@ class TestModApi(unittest.TestCase):
         # Should gracefully handle None window
         self.api.show_window()
         self.api.minimize_window()
-        self.assertIsNone(self.api.window)
-        print("[PASS] Window controls handled gracefully when window is None")
+        self.assertNotIn("window", dir(self.api))
+        self.assertIsNone(app._main_window)
+        print("[PASS] Window controls handled gracefully and no window exposed to pywebview")
 
 if __name__ == "__main__":
     unittest.main()
