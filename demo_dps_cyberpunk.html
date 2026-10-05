@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEΔR DPS Meter - Cyberpunk Tactical HUD</title>
+  <!-- Google Fonts: Orbitron & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CDN & GSAP -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <style>
+    :root {
+      --cyan-neon: #00f0ff;
+      --purple-neon: #a855f7;
+      --crimson-neon: #ff0055;
+      --dark-bg: #090b10;
+      --panel-bg: rgba(13, 17, 26, 0.88);
+      --border-cyan: rgba(0, 240, 255, 0.25);
+    }
+    body {
+      background-color: #050608;
+      background-image: 
+        radial-gradient(ellipse at 20% 20%, rgba(168, 85, 247, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(0, 240, 255, 0.10) 0%, transparent 50%),
+        linear-gradient(rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+    }
+    .font-hud { font-family: 'Orbitron', monospace; }
+    .font-mono-num { font-family: 'JetBrains Mono', monospace; }
+    
+    .cyber-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-cyan);
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.08), inset 0 0 15px rgba(0, 240, 255, 0.03);
+      position: relative;
+    }
+    .cyber-panel::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: -1px; width: 12px; height: 12px;
+      border-top: 2px solid var(--cyan-neon);
+      border-left: 2px solid var(--cyan-neon);
+    }
+    .cyber-panel::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; right: -1px; width: 12px; height: 12px;
+      border-bottom: 2px solid var(--purple-neon);
+      border-right: 2px solid var(--purple-neon);
+    }
+
+    .clip-hud {
+      clip-path: polygon(10px 0%, 100% 0%, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0% 100%, 0% 10px);
+    }
+    
+    .hud-btn {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .hud-btn:hover {
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+      transform: translateY(-1px);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); }
+    ::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.3); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--cyan-neon); }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+  <!-- Main Container -->
+  <div class="w-full max-w-4xl cyber-panel rounded-lg overflow-hidden flex flex-col shadow-2xl transition-all duration-300" id="mainWidget">
+    
+    <!-- Top Cyber Header & Target Bar -->
+    <div class="px-5 py-3 border-b border-cyan-500/20 bg-black/40 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-3 h-3 bg-cyan-400 rotate-45 animate-pulse shadow-[0_0_8px_#00f0ff]"></div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-hud font-bold text-sm tracking-widest text-cyan-400">FEΔR</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-purple-950/80 border border-purple-500/40 text-purple-300 font-mono-num">TACTICAL DPS v1.0</span>
+            <span class="inline-flex items-center text-[10px] text-cyan-400/90 font-mono-num">
+              <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 mr-1 animate-ping"></span>
+              LIVE: 24ms
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex items-center space-x-2">
+        <button id="toggleSimBtn" class="hud-btn text-xs font-mono-num px-3 py-1 bg-cyan-950/60 border border-cyan-500/50 text-cyan-300 rounded hover:bg-cyan-500/20 flex items-center space-x-1">
+          <span id="simStatusDot" class="w-2 h-2 rounded-full bg-cyan-400 mr-1"></span>
+          <span id="simBtnText">Dừng Tạm</span>
+        </button>
+        <button id="resetBtn" class="hud-btn text-xs font-mono-num px-3 py-1 bg-purple-950/60 border border-purple-500/50 text-purple-300 rounded hover:bg-purple-500/20">
+          Reset (00:00)
+        </button>
+        <button id="compactModeBtn" class="hud-btn text-xs font-mono-num px-2.5 py-1 bg-slate-900 border border-slate-700 text-slate-300 rounded hover:border-cyan-400 hover:text-cyan-400" title="Chuyển chế độ Mini HUD nổi">
+          ⤢ Mini HUD
+        </button>
+      </div>
+    </div>
+
+    <!-- Target Boss Banner -->
+    <div class="px-5 py-3 bg-gradient-to-r from-red-950/30 via-purple-950/20 to-black/60 border-b border-red-500/20 flex flex-col space-y-1.5">
+      <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center space-x-2">
+          <span class="px-1.5 py-0.5 bg-red-600/30 border border-red-500/60 text-red-400 text-[10px] font-bold rounded">BOSS</span>
+          <span class="font-bold text-slate-100 text-sm tracking-wide" id="targetName">Lord Tahabata (Raid Lv.60)</span>
+        </div>
+        <div class="font-mono-num text-xs text-slate-300">
+          <span class="text-red-400 font-bold" id="targetHpPercent">64.8%</span>
+          <span class="text-slate-500 mx-1">|</span>
+          <span class="text-slate-400" id="targetHpValue">32,400,000 / 50,000,000</span>
+        </div>
+      </div>
+      <!-- Target HP Bar -->
+      <div class="w-full h-2.5 bg-black/60 rounded-full overflow-hidden p-0.5 border border-red-500/30">
+        <div id="targetHpBar" class="h-full bg-gradient-to-r from-purple-600 via-pink-600 to-red-500 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(239,68,68,0.5)]" style="width: 64.8%;"></div>
+      </div>
+      
+      <!-- Party Summary Stats -->
+      <div class="grid grid-cols-4 gap-2 pt-1 text-[11px] font-mono-num text-slate-400">
+        <div class="bg-black/30 px-2 py-1 rounded border border-slate-800 flex justify-between">
+          <span>Thời gian:</span>
+          <span class="text-cyan-400 font-bold" id="combatTimer">02:45</span>
+        </div>
+        <div class="bg-black/30 px-2 py-1 rounded border border-slate-800 flex justify-between">
+          <span>Tổng Sát Thương:</span>
+          <span class="text-slate-200 font-bold" id="totalPartyDmg">17.60M</span>
+        </div>
+        <div class="bg-black/30 px-2 py-1 rounded border border-slate-800 flex justify-between">
+          <span>Party DPS:</span>
+          <span class="text-purple-400 font-bold" id="partyDps">106,666/s</span>
+        </div>
+        <div class="bg-black/30 px-2 py-1 rounded border border-slate-800 flex justify-between">
+          <span>Thành viên:</span>
+          <span class="text-slate-300 font-bold">6 Người</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Players DPS Leaderboard Table -->
+    <div class="flex-1 overflow-y-auto p-4 space-y-2 max-h-[380px]" id="playerListContainer">
+      <!-- Player Rows inserted by JS -->
+    </div>
+
+    <!-- Selected Player Skill Details Drawer (Expandable) -->
+    <div id="skillDrawer" class="border-t border-purple-500/30 bg-black/70 p-4 hidden transition-all duration-300">
+      <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center space-x-2 text-xs">
+          <span class="text-purple-400 font-bold">CHI TIẾT KỸ NĂNG:</span>
+          <span class="text-cyan-300 font-bold" id="drawerPlayerName">SrymC (Gladiator)</span>
+        </div>
+        <button id="closeDrawerBtn" class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800">Đóng ✕</button>
+      </div>
+      <div class="grid grid-cols-3 gap-2" id="skillListContainer">
+        <!-- Skill items injected by JS -->
+      </div>
+    </div>
+
+    <!-- Bottom Footer Status -->
+    <div class="px-5 py-2 bg-black/60 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400 font-mono-num">
+      <div class="flex items-center space-x-3">
+        <span class="text-cyan-400 flex items-center">
+          <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block mr-1"></span>
+          Npcap Engine: Sẵn sàng
+        </span>
+        <span class="text-slate-600">|</span>
+        <span>Adapter: Loopback / VPN Active</span>
+      </div>
+      <div>
+        <span class="text-purple-400/90 font-bold">FEΔR System Design</span> • No Memory Injection
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Initial Combat Data Model
+    const players = [
+      { id: 1, name: "SrymC (Bạn)", class: "Gladiator", color: "from-cyan-500 to-blue-600", dmg: 5850000, dps: 35450, crit: 48.2, back: 62.0, perfect: 18.5, parry: 4.1, skills: [
+        { name: "Aerial Bind", hits: 32, critRate: 62.5, dmg: 2150000, pct: 36.7 },
+        { name: "Heart Gore", hits: 45, critRate: 44.4, dmg: 1680000, pct: 28.7 },
+        { name: "Wrathful Wave", hits: 28, critRate: 50.0, dmg: 1120000, pct: 19.1 },
+        { name: "Crushing Blow", hits: 38, critRate: 36.8, dmg: 900000, pct: 15.5 }
+      ]},
+      { id: 2, name: "Yunara", class: "Sorcerer", color: "from-purple-500 to-indigo-600", dmg: 4620000, dps: 28000, crit: 55.4, back: 12.0, perfect: 22.1, parry: 0.0, skills: [
+        { name: "Flame Hell", hits: 20, critRate: 65.0, dmg: 2200000, pct: 47.6 },
+        { name: "Glacial Shard", hits: 28, critRate: 53.5, dmg: 1420000, pct: 30.7 },
+        { name: "Inferno", hits: 40, critRate: 47.5, dmg: 1000000, pct: 21.7 }
+      ]},
+      { id: 3, name: "ShadowX", class: "Assassin", color: "from-pink-500 to-rose-600", dmg: 3950000, dps: 23930, crit: 61.2, back: 88.4, perfect: 28.0, parry: 2.5, skills: [
+        { name: "Shadowstrike", hits: 65, critRate: 69.2, dmg: 2100000, pct: 53.1 },
+        { name: "Assassination", hits: 24, critRate: 75.0, dmg: 1150000, pct: 29.1 },
+        { name: "Venomous Claw", hits: 80, critRate: 41.2, dmg: 700000, pct: 17.8 }
+      ]},
+      { id: 4, name: "IronShield", class: "Templar", color: "from-blue-600 to-slate-700", dmg: 1520000, dps: 9210, crit: 21.0, back: 2.1, perfect: 8.5, parry: 32.4, skills: [
+        { name: "Shield Bash", hits: 42, critRate: 23.8, dmg: 720000, pct: 47.3 },
+        { name: "Taunt Wave", hits: 18, critRate: 11.1, dmg: 450000, pct: 29.6 },
+        { name: "Judgment Spear", hits: 25, critRate: 28.0, dmg: 350000, pct: 23.1 }
+      ]},
+      { id: 5, name: "Moonlight", class: "Chanter", color: "from-fuchsia-600 to-purple-800", dmg: 1120000, dps: 6780, crit: 30.5, back: 22.0, perfect: 12.0, parry: 8.0, skills: [
+        { name: "Meteor Strike", hits: 30, critRate: 36.6, dmg: 620000, pct: 55.3 },
+        { name: "Mountain Fall", hits: 35, critRate: 25.7, dmg: 500000, pct: 44.7 }
+      ]},
+      { id: 6, name: "GraceHeal", class: "Cleric", color: "from-cyan-600 to-teal-800", dmg: 540000, dps: 3270, crit: 18.2, back: 5.0, perfect: 9.0, parry: 1.0, skills: [
+        { name: "Holy Punishment", hits: 32, critRate: 21.8, dmg: 340000, pct: 62.9 },
+        { name: "Thunder Storm", hits: 22, critRate: 13.6, dmg: 200000, pct: 37.1 }
+      ]}
+    ];
+
+    let isSimulating = true;
+    let secondsElapsed = 165;
+    let selectedPlayer = null;
+
+    function renderLeaderboard() {
+      const container = document.getElementById('playerListContainer');
+      const maxDmg = Math.max(...players.map(p => p.dmg));
+      const totalDmg = players.reduce((acc, p) => acc + p.dmg, 0);
+
+      container.innerHTML = '';
+
+      players.sort((a, b) => b.dmg - a.dmg).forEach((p, idx) => {
+        const pctOfTop = ((p.dmg / maxDmg) * 100).toFixed(1);
+        const pctOfTotal = ((p.dmg / totalDmg) * 100).toFixed(1);
+        const isSelected = selectedPlayer && selectedPlayer.id === p.id;
+
+        const row = document.createElement('div');
+        row.className = `p-2.5 rounded-lg border transition-all cursor-pointer relative overflow-hidden ${
+          isSelected ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_12px_rgba(0,240,255,0.2)]' : 'border-slate-800/80 bg-slate-900/50 hover:border-slate-700 hover:bg-slate-850'
+        }`;
+        
+        row.onclick = () => selectPlayer(p);
+
+        row.innerHTML = `
+          <!-- Background Progress Bar -->
+          <div class="absolute left-0 top-0 bottom-0 bg-gradient-to-r ${p.color} opacity-20 pointer-events-none transition-all duration-300" style="width: ${pctOfTop}%;"></div>
+          
+          <div class="relative z-10 flex items-center justify-between">
+            <!-- Left Info -->
+            <div class="flex items-center space-x-3 min-w-[200px]">
+              <span class="w-5 text-center font-hud font-bold text-xs ${idx === 0 ? 'text-cyan-400' : 'text-slate-400'}">#${idx + 1}</span>
+              <div>
+                <div class="flex items-center space-x-1.5">
+                  <span class="text-xs font-bold ${p.id === 1 ? 'text-cyan-300' : 'text-slate-100'}">${p.name}</span>
+                  <span class="text-[10px] text-slate-400 px-1 py-0.2 rounded bg-black/40 border border-slate-800">${p.class}</span>
+                </div>
+                <div class="text-[10px] text-slate-400 font-mono-num flex space-x-2 mt-0.5">
+                  <span>Crit: <b class="text-cyan-400">${p.crit}%</b></span>
+                  <span>Back: <b class="text-purple-400">${p.back}%</b></span>
+                  <span>Perf: <b class="text-pink-400">${p.perfect}%</b></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Numbers -->
+            <div class="flex items-center space-x-5 text-right font-mono-num">
+              <div>
+                <div class="text-sm font-bold text-white">${(p.dps).toLocaleString()}/s</div>
+                <div class="text-[10px] text-slate-400">DPS</div>
+              </div>
+              <div class="w-24">
+                <div class="text-xs font-bold text-slate-200">${(p.dmg / 1000000).toFixed(2)}M</div>
+                <div class="text-[10px] text-cyan-400 font-bold">${pctOfTotal}%</div>
+              </div>
+              <div class="text-slate-500 text-xs">
+                ${isSelected ? '▲' : '▼'}
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      // Update party totals
+      document.getElementById('totalPartyDmg').innerText = (totalDmg / 1000000).toFixed(2) + 'M';
+      const avgDps = Math.round(totalDmg / secondsElapsed);
+      document.getElementById('partyDps').innerText = avgDps.toLocaleString() + '/s';
+    }
+
+    function selectPlayer(p) {
+      if (selectedPlayer && selectedPlayer.id === p.id) {
+        selectedPlayer = null;
+        document.getElementById('skillDrawer').classList.add('hidden');
+      } else {
+        selectedPlayer = p;
+        document.getElementById('skillDrawer').classList.remove('hidden');
+        document.getElementById('drawerPlayerName').innerText = `${p.name} (${p.class})`;
+        
+        const skillContainer = document.getElementById('skillListContainer');
+        skillContainer.innerHTML = '';
+        p.skills.forEach(s => {
+          const sBox = document.createElement('div');
+          sBox.className = "bg-slate-900/90 border border-purple-900/40 p-2 rounded text-xs";
+          sBox.innerHTML = `
+            <div class="flex justify-between font-bold text-slate-200">
+              <span class="text-cyan-300">${s.name}</span>
+              <span class="text-purple-400">${s.pct}%</span>
+            </div>
+            <div class="text-[11px] text-slate-400 font-mono-num flex justify-between mt-1">
+              <span>${(s.dmg / 1000000).toFixed(2)}M DMG</span>
+              <span>Hits: ${s.hits} (Crit ${s.critRate}%)</span>
+            </div>
+            <div class="w-full h-1 bg-black rounded-full overflow-hidden mt-1.5">
+              <div class="h-full bg-cyan-400" style="width: ${s.pct}%;"></div>
+            </div>
+          `;
+          skillContainer.appendChild(sBox);
+        });
+      }
+      renderLeaderboard();
+    }
+
+    document.getElementById('closeDrawerBtn').onclick = () => {
+      selectedPlayer = null;
+      document.getElementById('skillDrawer').classList.add('hidden');
+      renderLeaderboard();
+    };
+
+    // Simulation loop
+    setInterval(() => {
+      if (!isSimulating) return;
+      secondsElapsed++;
+      const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+      const secs = String(secondsElapsed % 60).padStart(2, '0');
+      document.getElementById('combatTimer').innerText = `${mins}:${secs}`;
+
+      // Random damage tick
+      players.forEach(p => {
+        const added = Math.floor(p.dps * (0.8 + Math.random() * 0.4));
+        p.dmg += added;
+      });
+
+      // Boss HP tick
+      const totalDmg = players.reduce((acc, p) => acc + p.dmg, 0);
+      const maxBossHp = 50000000;
+      const currentBossHp = Math.max(0, maxBossHp - totalDmg);
+      const bossPct = ((currentBossHp / maxBossHp) * 100).toFixed(1);
+
+      document.getElementById('targetHpPercent').innerText = bossPct + '%';
+      document.getElementById('targetHpValue').innerText = `${currentBossHp.toLocaleString()} / ${maxBossHp.toLocaleString()}`;
+      document.getElementById('targetHpBar').style.width = bossPct + '%';
+
+      renderLeaderboard();
+    }, 1000);
+
+    // Toggle Sim
+    document.getElementById('toggleSimBtn').onclick = () => {
+      isSimulating = !isSimulating;
+      document.getElementById('simBtnText').innerText = isSimulating ? 'Dừng Tạm' : 'Tiếp Tục';
+      document.getElementById('simStatusDot').className = `w-2 h-2 rounded-full mr-1 ${isSimulating ? 'bg-cyan-400' : 'bg-slate-500'}`;
+    };
+
+    // Reset
+    document.getElementById('resetBtn').onclick = () => {
+      secondsElapsed = 0;
+      document.getElementById('combatTimer').innerText = '00:00';
+      players.forEach(p => { p.dmg = 1000; });
+      renderLeaderboard();
+    };
+
+    // Compact mode simulation
+    let isCompact = false;
+    document.getElementById('compactModeBtn').onclick = () => {
+      isCompact = !isCompact;
+      const widget = document.getElementById('mainWidget');
+      if (isCompact) {
+        widget.classList.remove('max-w-4xl');
+        widget.classList.add('max-w-md');
+        document.getElementById('compactModeBtn').innerText = '⤢ Full View';
+      } else {
+        widget.classList.remove('max-w-md');
+        widget.classList.add('max-w-4xl');
+        document.getElementById('compactModeBtn').innerText = '⤢ Mini HUD';
+      }
+    };
+
+    renderLeaderboard();
+  </script>
+</body>
+</html>

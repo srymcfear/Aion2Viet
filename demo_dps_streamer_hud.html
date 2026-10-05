@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEΔR DPS Meter - Streamer Floating HUD (Full Names)</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: #030406;
+      background-image: 
+        radial-gradient(ellipse at 50% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 60%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 100% 100%, 30px 30px, 30px 30px;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+    }
+    .font-mono-num { font-family: 'JetBrains Mono', monospace; }
+
+    /* Streamer In-Game Floating HUD Container */
+    .streamer-overlay {
+      background: rgba(11, 14, 20, var(--overlay-opacity, 0.92));
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.85), 0 0 20px rgba(56, 189, 248, 0.12);
+      transition: background 0.2s ease, border-color 0.2s ease, width 0.3s ease;
+    }
+
+    .drag-handle {
+      cursor: grab;
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .dmg-bar {
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); }
+    ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-6 relative">
+
+  <!-- Streamer / Player Simulation Toolbar -->
+  <div class="mb-4 bg-slate-900/90 border border-slate-700/80 rounded-xl px-5 py-2.5 flex items-center space-x-6 text-xs shadow-xl">
+    <div class="flex items-center space-x-2">
+      <span class="text-slate-400">Độ mờ Overlay:</span>
+      <input type="range" id="opacitySlider" min="30" max="100" value="92" class="w-24 accent-sky-400 cursor-pointer">
+      <span class="font-mono-num text-sky-400 font-bold" id="opacityVal">92%</span>
+    </div>
+
+    <div class="h-4 w-px bg-slate-700"></div>
+
+    <button id="toggleCombatBtn" class="px-3 py-1 rounded bg-sky-950 border border-sky-500/50 text-sky-300 font-semibold hover:bg-sky-900/50 transition flex items-center space-x-1.5">
+      <span id="combatStatusDot" class="w-2 h-2 rounded-full bg-sky-400"></span>
+      <span id="combatBtnText">Tạm dừng Ticker</span>
+    </button>
+
+    <button id="resetBtn" class="px-3 py-1 rounded bg-rose-950 border border-rose-500/50 text-rose-300 font-semibold hover:bg-rose-900/50 transition">
+      ↺ Reset (00:00)
+    </button>
+
+    <div class="h-4 w-px bg-slate-700"></div>
+
+    <div class="flex items-center space-x-1.5 text-slate-300 font-mono-num">
+      <span class="text-slate-400">Chế độ hiển thị:</span>
+      <span class="px-2 py-0.5 rounded bg-sky-900/40 border border-sky-500/40 text-sky-300 font-bold">Hiện đầy đủ Tên (Full Name)</span>
+    </div>
+  </div>
+
+  <!-- FLOATING HUD WIDGET (Full Names Design) -->
+  <div id="hudWidget" class="w-full max-w-lg streamer-overlay rounded-xl overflow-hidden shadow-2xl">
+    
+    <!-- Top Drag & Metrics Header -->
+    <div class="drag-handle px-4 py-2.5 bg-black/60 border-b border-sky-500/20 flex items-center justify-between">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-2.5 h-2.5 rounded-sm bg-sky-400 rotate-45 shadow-[0_0_8px_#38bdf8]"></div>
+        <span class="text-sky-400 font-bold tracking-wider text-xs">FEΔR COMBAT HUD</span>
+        <span class="text-slate-600">|</span>
+        <span class="text-xs text-slate-300 font-mono-num font-bold" id="hudTimer">02:34</span>
+      </div>
+
+      <!-- Quick Metrics -->
+      <div class="flex items-center space-x-4 text-xs font-mono-num">
+        <div class="text-slate-300">
+          <span class="text-slate-400 text-[11px]">TEAM DPS:</span>
+          <span class="text-sky-300 font-bold ml-1" id="teamDpsSummary">185.8K/s</span>
+        </div>
+        <div class="flex items-center space-x-1 px-2 py-0.5 rounded bg-black/40 border border-slate-800 text-sky-400 font-bold text-[11px]">
+          <span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+          <span>20ms</span>
+        </div>
+        <button id="lockToggleBtn" class="text-slate-400 hover:text-white" title="Khoá vị trí Overlay">
+          🔒
+        </button>
+      </div>
+    </div>
+
+    <!-- Target Slim Bar -->
+    <div class="px-4 py-2 bg-gradient-to-r from-rose-950/40 via-purple-950/30 to-black/50 border-b border-rose-500/20 flex flex-col space-y-1">
+      <div class="flex items-center justify-between text-xs">
+        <div class="flex items-center space-x-2">
+          <span class="px-1.5 py-0.2 rounded bg-rose-900/80 border border-rose-500/60 text-rose-300 text-[10px] font-bold">TARGET</span>
+          <span class="font-bold text-slate-100 tracking-wide text-xs" id="bossName">Lord Tahabata (Raid Lv.60)</span>
+        </div>
+        <div class="font-mono-num text-[11px] flex items-center space-x-1.5">
+          <span class="text-rose-400 font-bold" id="bossPct">58.4%</span>
+          <span class="text-slate-500">|</span>
+          <span class="text-slate-300" id="bossHp">29,200,000 / 50,000,000</span>
+        </div>
+      </div>
+      <!-- Boss Mini HP Bar -->
+      <div class="w-full h-1.5 bg-black/60 rounded-full overflow-hidden p-0.2 border border-rose-900/40">
+        <div id="bossBarFill" class="h-full bg-gradient-to-r from-purple-600 via-rose-600 to-rose-400 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(244,63,94,0.6)]" style="width: 58.4%;"></div>
+      </div>
+    </div>
+
+    <!-- Player Rows Container (Full Names, No Truncation) -->
+    <div class="p-2.5 space-y-1.5 max-h-[420px] overflow-y-auto" id="hudRowsContainer">
+      <!-- Injected by JS -->
+    </div>
+
+    <!-- Compact Footer -->
+    <div class="px-4 py-2 bg-black/50 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400 font-mono-num">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+        <span class="text-slate-300">Npcap Sniffer Connected: <strong>Aion 2 (x64)</strong></span>
+      </div>
+      <div class="text-slate-500 text-[10px]">
+        Team FEΔR • No Memory Hooking
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Player data with realistic full length names
+    const players = [
+      { id: 1, name: "SrymC (Gladiator - You)", class: "Gladiator", dps: 68400, dmg: 8520000, crit: 54.2, back: 68.0, color: "from-sky-500 to-blue-600" },
+      { id: 2, name: "Yunara • Archmage", class: "Sorcerer", dps: 54100, dmg: 6740000, crit: 65.1, back: 11.2, color: "from-purple-500 to-indigo-600" },
+      { id: 3, name: "ShadowStriker_VN", class: "Assassin", dps: 45200, dmg: 5630000, crit: 71.0, back: 92.5, color: "from-rose-500 to-pink-600" },
+      { id: 4, name: "VanguardIronShield", class: "Templar", dps: 15600, dmg: 1940000, crit: 22.4, back: 3.5, color: "from-slate-500 to-slate-700" },
+      { id: 5, name: "AriaMoonlightSerenade", class: "Chanter", dps: 11200, dmg: 1390000, crit: 33.0, back: 31.0, color: "from-fuchsia-500 to-purple-700" },
+      { id: 6, name: "SaintGraceHealer", class: "Cleric", dps: 5800, dmg: 720000, crit: 19.5, back: 4.0, color: "from-cyan-600 to-teal-800" }
+    ];
+
+    let isRunning = true;
+    let timer = 154;
+
+    function renderHud() {
+      const container = document.getElementById('hudRowsContainer');
+      const maxDmg = Math.max(...players.map(p => p.dmg));
+      const totalDmg = players.reduce((acc, p) => acc + p.dmg, 0);
+
+      container.innerHTML = '';
+
+      players.sort((a,b) => b.dmg - a.dmg).forEach((p, idx) => {
+        const pctTop = ((p.dmg / maxDmg) * 100).toFixed(0);
+        const sharePct = ((p.dmg / totalDmg) * 100).toFixed(1);
+
+        const row = document.createElement('div');
+        row.className = `relative p-2 rounded-lg bg-black/60 border ${
+          p.id === 1 ? 'border-sky-500/50 shadow-[0_0_10px_rgba(56,189,248,0.15)]' : 'border-slate-800/80'
+        } overflow-hidden hover:border-slate-700 transition`;
+
+        row.innerHTML = `
+          <!-- Bar Fill -->
+          <div class="absolute left-0 top-0 bottom-0 bg-gradient-to-r ${p.color} opacity-25 dmg-bar" style="width: ${pctTop}%;"></div>
+          
+          <div class="relative z-10 flex items-center justify-between text-xs">
+            <!-- Left Info: Full Name without truncation -->
+            <div class="flex items-center space-x-2.5 min-w-[220px]">
+              <span class="w-4 text-center text-[11px] font-mono-num font-bold ${idx === 0 ? 'text-sky-400' : 'text-slate-500'}">0${idx + 1}</span>
+              <div class="flex flex-col">
+                <div class="flex items-center space-x-2">
+                  <span class="font-bold ${p.id === 1 ? 'text-sky-300' : 'text-slate-100'} whitespace-nowrap">${p.name}</span>
+                  <span class="text-[9px] text-slate-400 px-1 py-0.2 rounded bg-black/60 border border-slate-800 font-mono-num">${p.class}</span>
+                </div>
+                <div class="text-[10px] text-slate-400 font-mono-num flex space-x-2 mt-0.5">
+                  <span>Crit: <b class="text-rose-400">${p.crit}%</b></span>
+                  <span>Back: <b class="text-purple-400">${p.back}%</b></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Metrics: DPS, Total Damage, % Contribution -->
+            <div class="flex items-center space-x-4 text-right font-mono-num text-xs">
+              <div class="min-w-[65px]">
+                <div class="font-bold text-white">${p.dps.toLocaleString()}</div>
+                <div class="text-[9px] text-slate-400">DPS</div>
+              </div>
+              <div class="min-w-[55px]">
+                <div class="font-bold text-sky-200">${(p.dmg / 1000000).toFixed(2)}M</div>
+                <div class="text-[10px] text-rose-400 font-bold">${sharePct}%</div>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      const totalTeamDps = Math.round(totalDmg / timer);
+      document.getElementById('teamDpsSummary').innerText = `${(totalTeamDps / 1000).toFixed(1)}K/s`;
+    }
+
+    // Timer & Ticker
+    setInterval(() => {
+      if (!isRunning) return;
+      timer++;
+      const m = String(Math.floor(timer / 60)).padStart(2, '0');
+      const s = String(timer % 60).padStart(2, '0');
+      document.getElementById('hudTimer').innerText = `${m}:${s}`;
+
+      players.forEach(p => {
+        p.dmg += Math.round(p.dps * (0.8 + Math.random() * 0.4));
+      });
+
+      const maxBossHp = 50000000;
+      const totalDmg = players.reduce((acc, p) => acc + p.dmg, 0);
+      const curHp = Math.max(0, maxBossHp - totalDmg);
+      const hpPct = ((curHp / maxBossHp) * 100).toFixed(1);
+
+      document.getElementById('bossPct').innerText = hpPct + '%';
+      document.getElementById('bossHp').innerText = `${curHp.toLocaleString()} / ${maxBossHp.toLocaleString()}`;
+      document.getElementById('bossBarFill').style.width = hpPct + '%';
+
+      renderHud();
+    }, 1000);
+
+    // Opacity slider
+    document.getElementById('opacitySlider').oninput = (e) => {
+      const val = e.target.value;
+      document.documentElement.style.setProperty('--overlay-opacity', val / 100);
+      document.getElementById('opacityVal').innerText = val + '%';
+    };
+
+    // Toggle Combat Simulation
+    document.getElementById('toggleCombatBtn').onclick = () => {
+      isRunning = !isRunning;
+      document.getElementById('combatBtnText').innerText = isRunning ? 'Tạm dừng Ticker' : 'Tiếp tục Ticker';
+      document.getElementById('combatStatusDot').className = `w-2 h-2 rounded-full ${isRunning ? 'bg-sky-400' : 'bg-slate-500'}`;
+    };
+
+    // Reset
+    document.getElementById('resetBtn').onclick = () => {
+      timer = 0;
+      players.forEach(p => { p.dmg = 1000; });
+      renderHud();
+    };
+
+    renderHud();
+  </script>
+</body>
+</html>

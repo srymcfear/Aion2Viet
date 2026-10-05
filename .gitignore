@@ -31,4 +31,9 @@ scratch/
 *.zip
 user_avatar.png
 
-
+# DPS Meter microservice
+dps_core_src/
+dps_daemon/bin/
+dps_daemon/obj/
+dps_daemon/publish/
+combat-history.db*

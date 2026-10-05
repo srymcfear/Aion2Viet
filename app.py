@@ -20,17 +20,45 @@ import webbrowser
 import webview
 
 # Security & Update Configuration
-CURRENT_VERSION = "1.0.6"
+CURRENT_VERSION = "1.0.7"
 SECURITY_KEY = "fearAion2Tran-key"
 SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
 GITHUB_REPO = "srymcfear/Aion2Viet"
 RELEASE_URL = f"https://github.com/{GITHUB_REPO}/releases"
 API_RELEASE_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
+def is_webview2_installed():
+    if sys.platform != "win32":
+        return True
+    subkeys = [
+        r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+        r"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+        r"Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+    ]
+    for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+        for subkey in subkeys:
+            try:
+                with winreg.OpenKey(root, subkey) as key:
+                    pv, _ = winreg.QueryValueEx(key, "pv")
+                    if pv and str(pv).strip() not in ["", "0", "0.0.0.0"]:
+                        return True
+            except Exception:
+                pass
+    return False
+
 def get_app_storage_dir():
-    pdata = os.environ.get("ProgramData", r"C:\ProgramData")
-    base_dir = os.path.join(pdata, "FEAR", "Aion2_Tools")
-    os.makedirs(base_dir, exist_ok=True)
+    # Prefer LOCALAPPDATA to guarantee full read/write permissions for all users
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data and os.path.isdir(local_app_data):
+        base_dir = os.path.join(local_app_data, "FEAR", "Aion2_Tools")
+    else:
+        pdata = os.environ.get("ProgramData", r"C:\ProgramData")
+        base_dir = os.path.join(pdata, "FEAR", "Aion2_Tools")
+    try:
+        os.makedirs(base_dir, exist_ok=True)
+    except Exception:
+        base_dir = os.path.join(os.path.expanduser("~"), ".fear_aion2")
+        os.makedirs(base_dir, exist_ok=True)
     return base_dir
 
 def get_cache_dir():
@@ -718,6 +746,29 @@ def main():
     if sys.platform == "win32" and not is_admin():
         ensure_admin()
         return
+
+    # 1. Check WebView2 Runtime availability on Windows
+    if sys.platform == "win32" and not is_webview2_installed():
+        import ctypes
+        MB_YESNO = 0x00000004
+        MB_ICONWARNING = 0x00000030
+        IDYES = 6
+        res = ctypes.windll.user32.MessageBoxW(
+            0,
+            "Máy tính của bạn chưa cài đặt Microsoft Edge WebView2 Runtime.\n\n"
+            "Ứng dụng cần thành phần này để hiển thị giao diện. "
+            "Bạn có muốn mở trang tải chính thức từ Microsoft ngay bây giờ không?",
+            "FEΔR - Yêu cầu WebView2 Runtime",
+            MB_YESNO | MB_ICONWARNING
+        )
+        if res == IDYES:
+            webbrowser.open("https://go.microsoft.com/fwlink/p/?LinkId=2124703")
+        sys.exit(0)
+
+    # 2. Disable problematic GPU compositing on buggy drivers to eliminate black screen
+    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
+        "--disable-gpu-compositing --disable-features=msWebOOUI,msPdfOOUI"
+    )
 
     api = ModApi()
     gui_path = get_gui_html_path()

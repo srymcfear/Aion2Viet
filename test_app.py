@@ -97,6 +97,11 @@ class TestModApi(unittest.TestCase):
         self.assertIn("Updates", u_dir)
         print(f"[PASS] Storage directories verified: {s_dir}, {c_dir}, {u_dir}")
 
+    def test_webview2_detection(self):
+        installed = app.is_webview2_installed()
+        self.assertIsInstance(installed, bool)
+        print(f"[PASS] is_webview2_installed returned: {installed}")
+
 if __name__ == "__main__":
     unittest.main()
 
