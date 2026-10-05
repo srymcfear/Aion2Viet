@@ -93,19 +93,27 @@ def parse_semver(s):
 def is_newer_version(remote_v, local_v):
     return parse_semver(remote_v) > parse_semver(local_v)
 
+SECURITY_VER_KEY = "fearAion2Tran-ver"
+
 def parse_release_security(body_text):
     status = "active"
     message = "Hệ thống hoạt động bình thường"
+    req_ver = None
     if not body_text:
-        return status, message
+        return status, message, req_ver
     
     # 1. JSON block check
-    json_match = re.search(r'\{[^{}]*"key"\s*:\s*"fearAion2Tran-key"[^{}]*\}', body_text)
+    json_match = re.search(r'\{[^{}]*(?:"key"\s*:\s*"fearAion2Tran-key"|"ver"\s*:|"fearAion2Tran-ver"\s*:)[^{}]*\}', body_text)
     if json_match:
         try:
             d = json.loads(json_match.group(0))
             if d.get("status") in ["active", "baotri", "lock"]:
-                return d["status"], d.get("message", message)
+                status = d["status"]
+                message = d.get("message", message)
+            v = d.get("ver") or d.get("fearAion2Tran-ver")
+            if v:
+                req_ver = str(v).strip().lstrip("v")
+            return status, message, req_ver
         except Exception:
             pass
 
@@ -118,9 +126,14 @@ def parse_release_security(body_text):
             msg = msg or "Hệ thống đang bảo trì, vui lòng quay lại sau."
         elif st == "lock":
             msg = msg or "Công cụ đã bị khóa bởi tác giả."
-        return st, msg
+        status, message = st, msg
 
-    return status, message
+    # 3. Version tag check: fearAion2Tran-ver:([0-9\.]+)
+    mv = re.search(r'fearAion2Tran-ver\s*:\s*v?([0-9\.]+)', body_text, re.IGNORECASE)
+    if mv:
+        req_ver = mv.group(1).strip()
+
+    return status, message, req_ver
 
 # Force UTF-8 encoding on Windows to prevent Unicode charmap encoding freezes
 if sys.platform == "win32":
@@ -297,7 +310,7 @@ class ModApi:
                     body = str(data.get("body", ""))
                     html_url = data.get("html_url", RELEASE_URL)
                     
-                    sec_status, sec_msg = parse_release_security(body)
+                    sec_status, sec_msg, req_ver = parse_release_security(body)
                     
                     download_url = None
                     for asset in data.get("assets", []):
@@ -305,7 +318,8 @@ class ModApi:
                             download_url = asset.get("browser_download_url")
                             break
                     
-                    remote_ver = tag.lstrip("v")
+                    # Prioritize fearAion2Tran-ver if present in release notes, otherwise tag name
+                    remote_ver = req_ver or tag.lstrip("v")
                     has_upd = is_newer_version(remote_ver, CURRENT_VERSION)
                     
                     with self._lock:
@@ -313,6 +327,7 @@ class ModApi:
                         self.security_info["message"] = sec_msg
                         self.security_info["latestVersion"] = remote_ver or CURRENT_VERSION
                         self.security_info["hasUpdate"] = has_upd
+                        self.security_info["requiredVer"] = req_ver
                         self.security_info["releaseUrl"] = html_url
                         self.security_info["downloadUrl"] = download_url
                         self.security_info["changelog"] = body
@@ -320,7 +335,7 @@ class ModApi:
                         self.security_info["isChecking"] = False
 
                     if has_upd:
-                        self.log(f"🔔 Đã có phiên bản mới: v{remote_ver}!", "blue")
+                        self.log(f"🔔 YÊU CẦU CẬP NHẬT: Đã có phiên bản v{remote_ver} (Hiện tại: v{CURRENT_VERSION}). Vui lòng cập nhật phần mềm!", "blue")
                     else:
                         self.log("✔ Đang sử dụng phiên bản mới nhất.", "success")
                     return

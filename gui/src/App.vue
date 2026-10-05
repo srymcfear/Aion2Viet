@@ -95,6 +95,17 @@
         </div>
 
         <div class="flex items-center gap-2.5 no-drag">
+          <!-- Update Required Notification Pill -->
+          <div 
+            v-if="hasUpdate"
+            @click="activeTab = 'about'"
+            title="Nhấn để cập nhật ngay phiên bản mới"
+            class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border border-sky-500/50 bg-sky-500/20 text-sky-300 animate-pulse cursor-pointer shadow-[0_0_12px_rgba(56,189,248,0.25)] hover:bg-sky-500/30 transition-all"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+            <span>YÊU CẦU CẬP NHẬT v{{ latestVersion }}</span>
+          </div>
+
           <!-- Integrated Status Pill -->
           <div 
             class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-all duration-300"
@@ -351,7 +362,7 @@
                   <polyline points="7 10 12 15 17 10"/>
                   <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
-                <span>Đã có phiên bản mới: v{{ latestVersion }}</span>
+                <span>Yêu cầu cập nhật: v{{ latestVersion }} (Hiện tại: v{{ currentVersion }})</span>
               </div>
               <div class="flex gap-2">
                 <button 
@@ -696,6 +707,11 @@ async function handleScan() {
 
 async function handleInstall() {
   if (isInstalled.value || isBusy.value || securityStatus.value !== 'active') return;
+  if (hasUpdate.value) {
+    addLog(`⚠️ YÊU CẦU CẬP NHẬT: Đã có phiên bản v${latestVersion.value} (Hiện tại: v${currentVersion.value}). Vui lòng cập nhật phần mềm trước khi cài đặt!`, 'red');
+    activeTab.value = 'about';
+    return;
+  }
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.install_mod) {
     isBusy.value = true;

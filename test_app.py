@@ -20,17 +20,34 @@ class TestModApi(unittest.TestCase):
         print(f"[PASS] Security key '{sec['key']}' is verified, status: {sec['status']}")
 
     def test_parse_release_security(self):
-        st1, msg1 = parse_release_security("Default release notes")
+        st1, msg1, v1 = parse_release_security("Default release notes")
         self.assertEqual(st1, "active")
+        self.assertIsNone(v1)
 
-        st2, msg2 = parse_release_security("Notice\nfearAion2Tran-key:baotri:May chu dang bao tri")
+        st2, msg2, v2 = parse_release_security("Notice\nfearAion2Tran-key:baotri:May chu dang bao tri")
         self.assertEqual(st2, "baotri")
         self.assertEqual(msg2, "May chu dang bao tri")
+        self.assertIsNone(v2)
 
-        st3, msg3 = parse_release_security("fearAion2Tran-key:lock:Ban bi khoa")
+        st3, msg3, v3 = parse_release_security("fearAion2Tran-key:lock:Ban bi khoa")
         self.assertEqual(st3, "lock")
         self.assertEqual(msg3, "Ban bi khoa")
-        print("[PASS] Security key parsing for active/baotri/lock works as expected")
+
+        # Test fearAion2Tran-ver tag
+        st4, msg4, v4 = parse_release_security("fearAion2Tran-key:active\nfearAion2Tran-ver:1.1.0")
+        self.assertEqual(st4, "active")
+        self.assertEqual(v4, "1.1.0")
+
+        # Test fearAion2Tran-ver with prefix v
+        st4b, msg4b, v4b = parse_release_security("fearAion2Tran-ver:v2.0.0 | fearAion2Tran-key:active")
+        self.assertEqual(st4b, "active")
+        self.assertEqual(v4b, "2.0.0")
+
+        # Test JSON block with ver / fearAion2Tran-ver
+        st5, msg5, v5 = parse_release_security('{"key": "fearAion2Tran-key", "status": "active", "ver": "1.2.5"}')
+        self.assertEqual(st5, "active")
+        self.assertEqual(v5, "1.2.5")
+        print("[PASS] Security key and fearAion2Tran-ver parsing works as expected")
 
     def test_semver_compare(self):
         self.assertTrue(is_newer_version("1.0.1", "1.0.0"))
