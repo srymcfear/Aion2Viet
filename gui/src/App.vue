@@ -268,7 +268,7 @@
       </div>
 
       <!-- Tab 2: Tools (Extended) -->
-      <div v-show="activeTab === 'tools'" class="flex-1 p-3.5 overflow-y-auto">
+      <div v-show="activeTab === 'tools'" class="flex-1 p-3.5 overflow-y-auto flex flex-col justify-between">
         <div class="grid grid-cols-2 gap-2.5">
           <div 
             v-for="tool in toolsList" 
@@ -298,10 +298,35 @@
             </div>
             <div v-if="tool.active" class="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-purple-900/30 text-purple-300">
               <span class="flex items-center gap-1">
-                <span>Nhấn để khởi chạy DPS Meter</span>
+                <span>Khởi chạy DPS Meter</span>
               </span>
               <span class="text-xs group-hover:translate-x-0.5 transition-transform text-purple-300">➔</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Nút truy cập Trang Web của Tôi (aion2-hub) -->
+        <div 
+          @click="openHubWeb"
+          class="mt-2.5 p-2.5 px-3.5 rounded-xl border border-sky-500/40 bg-gradient-to-r from-sky-950/30 via-[var(--bg-card)] to-purple-950/30 hover:border-sky-400 hover:shadow-[0_0_16px_rgba(56,189,248,0.25)] transition-all cursor-pointer flex items-center justify-between group active:scale-[0.99]"
+        >
+          <div class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 group-hover:scale-105 transition-transform">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+              </svg>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-white group-hover:text-sky-300 transition-colors flex items-center gap-2">
+                <span>AION 2 Hub</span>
+                <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40">TRANG WEB</span>
+              </div>
+              <div class="text-[10px] text-slate-400 font-mono">https://aion2-hub-bice.vercel.app/</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 text-[11px] font-bold text-sky-400 group-hover:translate-x-0.5 transition-transform">
+            <span>Truy cập Web</span>
+            <span>➔</span>
           </div>
         </div>
       </div>
@@ -394,11 +419,21 @@
 
       </div>
 
-      <!-- Footer with @FEAR Github Link -->
+      <!-- Footer with Website Link & @FEAR Github Link -->
       <div class="h-7 px-4 flex items-center justify-between border-t border-[var(--border-subtle)] bg-[#070a12] text-[11px] text-[var(--text-muted)] shrink-0">
-        <div class="flex items-center gap-1.5">
-          <span class="w-1.5 h-1.5 rounded-full bg-sky-500/60"></span>
-          <span class="text-slate-400 font-medium">cre by srymc</span>
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-sky-500/60"></span>
+            <span class="text-slate-400 font-medium">cre by srymc</span>
+          </div>
+          <button 
+            @click="openHubWeb"
+            class="flex items-center gap-1 text-[10px] text-sky-400/80 hover:text-sky-300 transition-colors cursor-pointer bg-transparent border-0 p-0"
+            title="Truy cập aion2-hub-bice.vercel.app"
+          >
+            <span>🌐</span>
+            <span class="hover:underline">aion2-hub</span>
+          </button>
         </div>
         <button 
           @click="openGithub"
@@ -501,28 +536,28 @@ const toolsList = [
     id: 'dps',
     title: 'AION 2 DPS Meter',
     badge: 'PLUGIN',
-    desc: 'Plugin đo DPS thời gian thực, Target Tracking, Lịch sử chiến đấu & Giả lập chỉ số (Lưu trữ độc lập tại ProgramData).',
+    desc: 'Đo DPS thời gian thực & Target Tracking.',
     active: true
   },
   {
     id: 'tcp',
     title: 'TCP/UDP Optimizer',
     badge: 'PHÁT TRIỂN',
-    desc: 'Cấu hình Reg TCPNoDelay và MTU Packet Size tối ưu cho máy chủ AION 2 Global & TW.',
+    desc: 'Tối ưu ping & độ trễ kết nối máy chủ.',
     active: false
   },
   {
     id: 'fov',
     title: 'Góc nhìn FOV Extender',
     badge: 'PHÁT TRIỂN',
-    desc: 'Tăng góc nhìn toàn cảnh chiến trường, tùy biến tầm xa của camera khi đi Boss và PvP.',
+    desc: 'Mở rộng tầm nhìn và khoảng cách camera.',
     active: false
   },
   {
     id: 'macro',
     title: 'Quick Macro Controller',
     badge: 'PHÁT TRIỂN',
-    desc: 'Xâu chuỗi kỹ năng luồng bất đồng bộ chuẩn FEΔR, hỗ trợ phím dừng khẩn cấp.',
+    desc: 'Tự động chuỗi kỹ năng & ngắt khẩn cấp.',
     active: false
   }
 ];
@@ -628,6 +663,18 @@ function openGithub() {
     pyApi.open_github();
   } else {
     window.open('https://github.com/srymcfear', '_blank');
+  }
+}
+
+function openHubWeb() {
+  addLog('Đang mở trang web AION 2 Hub (aion2-hub-bice.vercel.app)...', 'blue');
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.open_hub_web) {
+    pyApi.open_hub_web();
+  } else if (pyApi && pyApi.open_url) {
+    pyApi.open_url('https://aion2-hub-bice.vercel.app/');
+  } else {
+    window.open('https://aion2-hub-bice.vercel.app/', '_blank');
   }
 }
 

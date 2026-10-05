@@ -705,6 +705,19 @@ exit
             self.log(f"Lỗi mở link: {e}", "red")
         return True
 
+    def open_url(self, url):
+        try:
+            target = str(url).strip()
+            if target.startswith("http://") or target.startswith("https://"):
+                webbrowser.open(target)
+                return True
+        except Exception as e:
+            self.log(f"Lỗi mở link: {e}", "red")
+        return False
+
+    def open_hub_web(self):
+        return self.open_url("https://aion2-hub-bice.vercel.app/")
+
     def log(self, message, msg_type=""):
         with self._lock:
             self.state["newLogs"].append({

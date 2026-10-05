@@ -130,6 +130,11 @@ class TestModApi(unittest.TestCase):
         self.assertTrue(self.api.stop_dps_meter())
         print("[PASS] DPS overlay methods and overlay template verified.")
 
+    def test_hub_web_link(self):
+        self.assertTrue(hasattr(self.api, "open_hub_web"))
+        self.assertTrue(hasattr(self.api, "open_url"))
+        print("[PASS] Web Hub URL handler verified.")
+
     def test_dps_meter_integration(self):
         npcap = app.is_npcap_installed()
         self.assertIsInstance(npcap, bool)
