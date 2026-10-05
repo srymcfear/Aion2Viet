@@ -257,58 +257,39 @@
       </div>
 
       <!-- Tab 2: Tools (Extended) -->
-      <div v-show="activeTab === 'tools'" class="flex-1 p-3.5 overflow-y-auto space-y-2.5">
-        <!-- Featured Tool Card: AION 2 DPS Meter & HUD (Dark Fantasy) -->
-        <div class="p-3.5 rounded-xl border border-purple-500/40 bg-gradient-to-r from-purple-950/40 via-[#0d121f] to-black/70 shadow-lg space-y-2.5">
-          <div class="flex justify-between items-center">
-            <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse shadow-[0_0_8px_#a855f7]"></span>
-              <span class="font-bold text-white text-xs tracking-wider">AION 2 DPS CHRONICLE & HUD OVERLAY</span>
-              <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono">
-                v1.1 DARK FANTASY
-              </span>
-            </div>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/40">
-              SẴN SÀNG
-            </span>
-          </div>
-
-          <div class="text-[11px] text-slate-300 leading-relaxed">
-            Đo lường sát thương thời gian thực, tự động nhận diện Boss & Thanh máu, biểu đồ biến thiên DPS, phân tích kỹ năng & chỉ số chi tiết, giám sát Buff/Cooldown, lưu trữ lịch sử chiến đấu và chế độ thu nhỏ Mini HUD cho Streamer.
-          </div>
-
-          <div class="flex items-center justify-between pt-1 border-t border-purple-900/40">
-            <div class="flex items-center gap-2 text-[10px] font-mono text-slate-400">
-              <span>Driver: Npcap WinPcap</span>
-              <span>•</span>
-              <span>Always-On-Top: Có</span>
-              <span>•</span>
-              <span>Chống drop FPS</span>
-            </div>
-            <button
-              @click="handleLaunchDpsOverlay"
-              class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-bold text-xs shadow-md shadow-purple-900/40 border border-purple-400/40 transition-all duration-200 cursor-pointer active:scale-95 flex items-center gap-1.5"
-            >
-              <span>⚔️ KHỞI CHẠY OVERLAY HUD</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Other Tools Grid -->
+      <div v-show="activeTab === 'tools'" class="flex-1 p-3.5 overflow-y-auto">
         <div class="grid grid-cols-2 gap-2.5">
           <div 
             v-for="tool in toolsList" 
             :key="tool.title"
-            class="p-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[#1a2337]/80 hover:border-sky-400/30 transition-all duration-200 space-y-1"
+            @click="handleToolClick(tool)"
+            class="p-3 rounded-xl border transition-all duration-200 space-y-1.5 cursor-pointer relative group overflow-hidden"
+            :class="tool.active 
+              ? 'border-purple-500/50 bg-gradient-to-br from-purple-950/30 via-[var(--bg-card)] to-[#090d16] hover:border-purple-400 hover:shadow-[0_0_18px_rgba(139,92,246,0.3)] active:scale-[0.99]' 
+              : 'border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[#1a2337]/80 hover:border-sky-400/30'"
           >
             <div class="flex justify-between items-center">
-              <span class="font-bold text-white text-xs">{{ tool.title }}</span>
-              <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+              <div class="flex items-center gap-1.5">
+                <span v-if="tool.active" class="w-2 h-2 rounded-full bg-purple-400 animate-pulse shadow-[0_0_8px_#a855f7]"></span>
+                <span class="font-bold text-white text-xs group-hover:text-purple-200 transition-colors">{{ tool.title }}</span>
+              </div>
+              <span 
+                class="text-[9px] font-bold px-1.5 py-0.5 rounded border transition-colors"
+                :class="tool.active
+                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 group-hover:bg-purple-600 group-hover:text-white'
+                  : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'"
+              >
                 {{ tool.badge }}
               </span>
             </div>
             <div class="text-[11px] text-[var(--text-muted)] leading-relaxed">
               {{ tool.desc }}
+            </div>
+            <div v-if="tool.active" class="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-purple-900/30 text-purple-300">
+              <span class="flex items-center gap-1">
+                <span>Nhấn để mở Overlay HUD</span>
+              </span>
+              <span class="text-xs group-hover:translate-x-0.5 transition-transform text-purple-300">➔</span>
             </div>
           </div>
         </div>
@@ -506,26 +487,42 @@ const logs = ref<LogItem[]>([
 
 const toolsList = [
   {
+    id: 'dps',
+    title: 'AION 2 DPS Meter',
+    badge: 'KÍCH HOẠT',
+    desc: 'Bảng thống kê sát thương thời gian thực, đo lường DPS Party, Skill Breakdown không giảm FPS.',
+    active: true
+  },
+  {
+    id: 'tcp',
     title: 'TCP/UDP Optimizer',
     badge: 'PHÁT TRIỂN',
-    desc: 'Cấu hình Reg TCPNoDelay và MTU Packet Size tối ưu cho máy chủ AION 2 Global & TW.'
+    desc: 'Cấu hình Reg TCPNoDelay và MTU Packet Size tối ưu cho máy chủ AION 2 Global & TW.',
+    active: false
   },
   {
+    id: 'fov',
     title: 'Góc nhìn FOV Extender',
     badge: 'PHÁT TRIỂN',
-    desc: 'Tăng góc nhìn toàn cảnh chiến trường, tùy biến tầm xa của camera khi đi Boss và PvP.'
+    desc: 'Tăng góc nhìn toàn cảnh chiến trường, tùy biến tầm xa của camera khi đi Boss và PvP.',
+    active: false
   },
   {
+    id: 'macro',
     title: 'Quick Macro Controller',
     badge: 'PHÁT TRIỂN',
-    desc: 'Xâu chuỗi kỹ năng luồng bất đồng bộ chuẩn FEΔR, hỗ trợ phím dừng khẩn cấp.'
-  },
-  {
-    title: 'DirectX & Shader Cache Boost',
-    badge: 'PHÁT TRIỂN',
-    desc: 'Dọn dẹp và tối ưu hóa bộ nhớ đệm đồ họa shader của Unreal Engine 5.'
+    desc: 'Xâu chuỗi kỹ năng luồng bất đồng bộ chuẩn FEΔR, hỗ trợ phím dừng khẩn cấp.',
+    active: false
   }
 ];
+
+function handleToolClick(tool: any) {
+  if (tool.id === 'dps') {
+    handleLaunchDpsOverlay();
+  } else {
+    addLog(`Công cụ [${tool.title}] đang trong lộ trình phát triển của Team FEΔR.`, 'blue');
+  }
+}
 
 function handleLaunchDpsOverlay() {
   addLog('Đang khởi chạy cửa sổ AION 2 DPS Overlay...', 'blue');
