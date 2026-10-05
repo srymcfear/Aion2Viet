@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FEΔR DPS Meter - Obsidian Dark Fantasy</title>
+  <title>FEΔR DPS Chronicle - Obsidian Dark Fantasy</title>
   <!-- Google Fonts: Cinzel & Outfit & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -11,223 +11,716 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <style>
+    :root {
+      --amethyst: #8b5cf6;
+      --amethyst-dark: #6d28d9;
+      --ruby: #e11d48;
+      --ruby-dark: #9f1239;
+      --ice-cyan: #38bdf8;
+      --obsidian-bg: #040508;
+    }
     body {
-      background: #06070a;
-      background-image: 
-        radial-gradient(circle at 50% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 60%),
-        radial-gradient(circle at 10% 90%, rgba(225, 29, 72, 0.10) 0%, transparent 50%),
-        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
-      background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+      background: var(--obsidian-bg);
       color: #cbd5e1;
       font-family: 'Outfit', sans-serif;
       user-select: none;
+      overflow-x: hidden;
     }
     .font-fantasy { font-family: 'Cinzel', serif; }
     .font-mono-num { font-family: 'JetBrains Mono', monospace; }
 
+    /* Background Embers Canvas */
+    #emberCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+
     .obsidian-card {
-      background: linear-gradient(135deg, rgba(17, 20, 29, 0.92) 0%, rgba(10, 12, 18, 0.96) 100%);
-      backdrop-filter: blur(20px);
-      border: 1px solid rgba(139, 92, 246, 0.22);
-      box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8), 0 0 25px rgba(124, 58, 237, 0.08);
+      background: linear-gradient(135deg, rgba(13, 16, 26, 0.95) 0%, rgba(6, 8, 14, 0.98) 100%);
+      backdrop-filter: blur(28px);
+      border: 1px solid rgba(139, 92, 246, 0.28);
+      box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.95), 0 0 35px rgba(124, 58, 237, 0.16);
       position: relative;
     }
 
     .obsidian-card::before {
       content: '';
       position: absolute;
-      top: 0; left: 15%; right: 15%; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.6), transparent);
+      top: 0; left: 8%; right: 8%; height: 1.5px;
+      background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.85), rgba(225, 29, 72, 0.75), transparent);
     }
 
     .rune-glow {
-      text-shadow: 0 0 12px rgba(168, 85, 247, 0.6);
+      text-shadow: 0 0 14px rgba(168, 85, 247, 0.8);
     }
     .ruby-glow {
-      text-shadow: 0 0 12px rgba(225, 29, 72, 0.6);
+      text-shadow: 0 0 14px rgba(225, 29, 72, 0.85);
+    }
+    .cyan-glow {
+      text-shadow: 0 0 14px rgba(56, 189, 248, 0.85);
+    }
+
+    .tab-btn {
+      position: relative;
+      transition: all 0.25s ease;
+    }
+    .tab-btn.active {
+      color: #f1f5f9;
+      background: rgba(139, 92, 246, 0.22);
+      border-color: rgba(168, 85, 247, 0.55);
+    }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; left: 15%; right: 15%; height: 2px;
+      background: #c084fc;
+      box-shadow: 0 0 10px #c084fc;
+    }
+
+    /* Progress bar smooth */
+    .bar-fill {
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Cast bar pulsation */
+    @keyframes castGlow {
+      0%, 100% { box-shadow: 0 0 10px rgba(225, 29, 72, 0.6); }
+      50% { box-shadow: 0 0 22px rgba(225, 29, 72, 0.95); }
+    }
+    .cast-active {
+      animation: castGlow 1.2s infinite;
     }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: rgba(10, 10, 15, 0.5); }
-    ::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.35); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.7); }
+    ::-webkit-scrollbar-track { background: rgba(6, 8, 12, 0.7); }
+    ::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.4); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
+
+    /* Modal Backdrop */
+    .modal-backdrop {
+      background: rgba(2, 3, 6, 0.85);
+      backdrop-filter: blur(12px);
+    }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="min-h-screen flex items-center justify-center p-3 relative">
 
-  <div class="w-full max-w-5xl obsidian-card rounded-2xl overflow-hidden flex flex-col shadow-2xl">
+  <!-- Ambient Dark Fantasy Canvas -->
+  <canvas id="emberCanvas"></canvas>
+
+  <!-- Main Container -->
+  <div id="mainChronicleContainer" class="w-full max-w-5xl obsidian-card rounded-2xl overflow-hidden flex flex-col shadow-2xl relative z-10 transition-all duration-300">
     
     <!-- Top Header Bar -->
-    <div class="px-6 py-4 border-b border-purple-500/20 bg-black/40 flex items-center justify-between">
+    <div class="px-6 py-3.5 border-b border-purple-500/25 bg-black/60 flex items-center justify-between">
       <div class="flex items-center space-x-4">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-700 to-indigo-950 border border-purple-400/40 flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.4)]">
-          <span class="font-fantasy font-black text-xl text-purple-200">𝔉</span>
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-800 via-indigo-950 to-black border border-purple-400/50 flex items-center justify-center shadow-[0_0_20px_rgba(139,92,246,0.6)]">
+          <span class="font-fantasy font-black text-2xl text-purple-200">𝔉</span>
         </div>
         <div>
           <div class="flex items-center space-x-3">
-            <h1 class="font-fantasy font-bold text-lg tracking-wider text-purple-100 rune-glow">FEΔR BATTLE CHRONICLE</h1>
-            <span class="text-[11px] font-mono-num px-2 py-0.5 rounded-full bg-purple-900/40 border border-purple-500/30 text-purple-300">AION 2 PASSIVE METER</span>
+            <h1 class="font-fantasy font-bold text-lg tracking-wider text-purple-100 rune-glow">FEΔR COMBAT CHRONICLE</h1>
+            <span class="text-[10px] font-mono-num px-2 py-0.5 rounded-full bg-purple-900/50 border border-purple-500/40 text-purple-300">v1.1 DARK FANTASY</span>
           </div>
-          <p class="text-xs text-slate-400">Non-intrusive Npcap Real-Time Combat Analytics</p>
+          <p class="text-[11px] text-slate-400">Deep Analytics & Boss Mechanics Engine • Team FEΔR</p>
         </div>
       </div>
 
-      <!-- Quick Session Controls -->
-      <div class="flex items-center space-x-3">
-        <div class="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-black/50 border border-slate-800 text-xs font-mono-num">
-          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-          <span class="text-slate-400">PING:</span>
-          <span class="text-cyan-300 font-bold">18ms</span>
-        </div>
-        <button id="pauseToggleBtn" class="px-3 py-1.5 rounded-lg bg-purple-900/30 border border-purple-500/40 text-purple-200 text-xs font-semibold hover:bg-purple-800/40 transition">
+      <!-- Quick Session & Engine Controls -->
+      <div class="flex items-center space-x-2.5">
+        <!-- Live Daemon / Simulation Switch -->
+        <button id="wsModeToggleBtn" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-black/70 border border-purple-950 text-xs font-mono-num hover:border-purple-600 transition" title="Chuyển đổi giữa chế độ Giả lập và Kết nối Trực tiếp Daemon (127.0.0.1:28888)">
+          <span id="wsStatusDot" class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+          <span class="text-slate-400">DAEMON:</span>
+          <span id="wsStatusText" class="text-purple-300 font-bold">SIMULATION</span>
+        </button>
+
+        <!-- Streamer HUD Mini Toggle -->
+        <button id="miniHudToggleBtn" class="px-2.5 py-1 rounded-lg bg-indigo-950/50 border border-indigo-500/40 text-indigo-300 text-xs font-mono-num hover:bg-indigo-900/50 transition" title="Thu nhỏ giao diện thành thanh HUD trong suốt cho Game Streamer">
+          ⤢ Mini HUD
+        </button>
+
+        <!-- Sound FX Toggle -->
+        <button id="sfxToggleBtn" class="px-2 py-1 rounded-lg bg-black/70 border border-purple-950 text-slate-300 text-xs hover:border-purple-600 transition" title="Bật/Tắt âm thanh hiệu ứng Grimoire">
+          🔔 SFX
+        </button>
+
+        <button id="pauseToggleBtn" class="px-3 py-1 rounded-lg bg-purple-950/60 border border-purple-500/40 text-purple-200 text-xs font-semibold hover:bg-purple-800/40 transition">
           ❚❚ Tạm dừng
         </button>
-        <button id="resetSessionBtn" class="px-3 py-1.5 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-200 text-xs font-semibold hover:bg-rose-900/50 transition">
+        <button id="resetSessionBtn" class="px-3 py-1 rounded-lg bg-rose-950/50 border border-rose-500/50 text-rose-200 text-xs font-semibold hover:bg-rose-900/60 transition">
           ↺ Làm mới
         </button>
       </div>
     </div>
 
-    <!-- Boss Stage Header Banner -->
-    <div class="px-6 py-4 bg-gradient-to-r from-rose-950/30 via-purple-950/20 to-slate-950/40 border-b border-purple-500/10">
+    <!-- Boss Stage Header Banner (Phases, Stagger Gauge, & Enrage) -->
+    <div class="px-6 py-4 bg-gradient-to-r from-rose-950/40 via-purple-950/30 to-black/70 border-b border-purple-500/20" id="bossBanner">
       <div class="flex items-center justify-between mb-2">
         <div class="flex items-center space-x-3">
-          <span class="px-2 py-0.5 rounded bg-rose-900/60 border border-rose-500/50 text-rose-300 text-[10px] font-bold tracking-widest uppercase">RAID BOSS</span>
+          <span class="px-2 py-0.5 rounded bg-rose-900/80 border border-rose-500/60 text-rose-300 text-[10px] font-bold tracking-widest uppercase">ABYSSAL BOSS</span>
           <h2 class="text-base font-bold text-slate-100 tracking-wide font-fantasy" id="bossTitle">Stormwing • The Cataclysm</h2>
-          <span class="text-xs text-rose-400 font-mono-num font-bold">ENRAGE: <span id="enrageTimer">04:12</span></span>
+          <span class="text-[11px] font-mono-num font-bold px-2.5 py-0.5 rounded bg-black/60 border border-rose-900/60" id="phaseTag">
+            PHASE II: BERSERK
+          </span>
+          <span class="text-xs text-rose-400 font-mono-num font-bold">ENRAGE: <span id="enrageTimer">03:45</span></span>
         </div>
         <div class="font-mono-num text-xs">
-          <span class="text-rose-400 font-bold text-sm" id="bossHpPercent">72.4%</span>
+          <span class="text-rose-400 font-bold text-sm" id="bossHpPercent">64.2%</span>
           <span class="text-slate-500 mx-2">|</span>
-          <span class="text-slate-300" id="bossHpDisplay">43,440,000 / 60,000,000</span>
+          <span class="text-slate-300" id="bossHpDisplay">38,520,000 / 60,000,000</span>
         </div>
       </div>
 
       <!-- Boss HP Bar -->
-      <div class="w-full h-3 bg-black/70 rounded-full p-0.5 border border-purple-900/50 overflow-hidden">
-        <div id="bossHpFill" class="h-full rounded-full bg-gradient-to-r from-purple-600 via-rose-600 to-rose-400 transition-all duration-300 shadow-[0_0_12px_rgba(225,29,72,0.6)]" style="width: 72.4%;"></div>
+      <div class="w-full h-3.5 bg-black/90 rounded-full p-0.5 border border-purple-900/60 overflow-hidden shadow-inner">
+        <div id="bossHpFill" class="h-full rounded-full bg-gradient-to-r from-purple-600 via-rose-600 to-rose-400 transition-all duration-300 shadow-[0_0_15px_rgba(225,29,72,0.8)]" style="width: 64.2%;"></div>
+      </div>
+
+      <!-- Boss Active Cast Bar & Stagger Gauge (Abyssal Mechanics) -->
+      <div class="grid grid-cols-12 gap-3 mt-2.5">
+        <!-- Cast Bar (7 cols) -->
+        <div class="col-span-7 bg-black/60 rounded-xl p-2 border border-rose-950 flex flex-col justify-center">
+          <div class="flex justify-between items-center text-[11px] font-mono-num mb-1">
+            <span class="text-rose-300 font-bold flex items-center space-x-1.5">
+              <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+              <span id="bossCastName">Stormwing is casting [Cataclysmic Tempest]</span>
+            </span>
+            <span class="text-rose-400 font-bold" id="bossCastTime">1.8s / 4.0s</span>
+          </div>
+          <div class="w-full h-2 bg-black rounded-full overflow-hidden border border-rose-900/50">
+            <div id="bossCastFill" class="h-full bg-gradient-to-r from-rose-700 via-rose-500 to-purple-400 cast-active" style="width: 45%;"></div>
+          </div>
+        </div>
+
+        <!-- Stagger / Impairment Meter (5 cols) -->
+        <div class="col-span-5 bg-black/60 rounded-xl p-2 border border-purple-950 flex flex-col justify-center">
+          <div class="flex justify-between items-center text-[11px] font-mono-num mb-1">
+            <span class="text-sky-300 font-bold">ABYSSAL STAGGER</span>
+            <span class="text-sky-400 font-bold" id="bossStaggerText">78.5% (Weakness Ready)</span>
+          </div>
+          <div class="w-full h-2 bg-black rounded-full overflow-hidden border border-sky-900/50">
+            <div id="bossStaggerFill" class="h-full bg-gradient-to-r from-sky-700 via-indigo-500 to-sky-400 transition-all duration-300" style="width: 78.5%;"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Combat Statistics Ribbons -->
       <div class="grid grid-cols-4 gap-3 mt-3 font-mono-num text-xs">
-        <div class="p-2.5 rounded-xl bg-black/40 border border-purple-950 flex items-center justify-between">
+        <div class="p-2 rounded-xl bg-black/50 border border-purple-950 flex items-center justify-between">
           <span class="text-slate-400">Thời gian đánh:</span>
-          <span class="text-purple-300 font-bold text-sm" id="fightDuration">01:48</span>
+          <span class="text-purple-300 font-bold text-sm" id="fightDuration">02:15</span>
         </div>
-        <div class="p-2.5 rounded-xl bg-black/40 border border-purple-950 flex items-center justify-between">
-          <span class="text-slate-400">Tổng Damage Team:</span>
-          <span class="text-slate-100 font-bold text-sm" id="teamTotalDmg">16.56M</span>
+        <div class="p-2 rounded-xl bg-black/50 border border-purple-950 flex items-center justify-between">
+          <span class="text-slate-400">Tổng Sát Thương:</span>
+          <span class="text-slate-100 font-bold text-sm" id="teamTotalDmg">21.48M</span>
         </div>
-        <div class="p-2.5 rounded-xl bg-black/40 border border-purple-950 flex items-center justify-between">
-          <span class="text-slate-400">Team Total DPS:</span>
-          <span class="text-cyan-300 font-bold text-sm" id="teamDps">153,330/s</span>
+        <div class="p-2 rounded-xl bg-black/50 border border-purple-950 flex items-center justify-between">
+          <span class="text-slate-400">Party DPS:</span>
+          <span class="text-sky-300 font-bold text-sm" id="teamDps">159,110/s</span>
         </div>
-        <div class="p-2.5 rounded-xl bg-black/40 border border-purple-950 flex items-center justify-between">
-          <span class="text-slate-400">Tỉ lệ Bạo kích Đội:</span>
-          <span class="text-rose-400 font-bold text-sm" id="teamCritRate">46.8%</span>
+        <div class="p-2 rounded-xl bg-black/50 border border-purple-950 flex items-center justify-between">
+          <span class="text-slate-400">Bạo Kích Toàn Đội:</span>
+          <span class="text-rose-400 font-bold text-sm" id="teamCritRate">51.4%</span>
         </div>
       </div>
     </div>
 
-    <!-- Main Content Area: Split Grid (Leaderboard + Live Combat Log Stream) -->
-    <div class="grid grid-cols-12 gap-0 flex-1 min-h-[380px]">
-      
+    <!-- Navigation Tabs & Mode Sub-selectors -->
+    <div class="px-6 py-2 bg-black/75 border-b border-purple-950/60 flex items-center justify-between text-xs">
+      <div class="flex items-center space-x-2">
+        <button class="tab-btn active px-4 py-1.5 rounded-lg border border-transparent font-medium" data-tab="tab-leaderboard">
+          ⚔️ Bảng Xếp Hạng & Kỹ Năng
+        </button>
+        <button class="tab-btn px-4 py-1.5 rounded-lg border border-transparent font-medium text-slate-400 hover:text-slate-200" data-tab="tab-graph">
+          📊 Biểu Đồ DPS Thời Gian Thực
+        </button>
+        <button class="tab-btn px-4 py-1.5 rounded-lg border border-transparent font-medium text-slate-400 hover:text-slate-200" data-tab="tab-damage-taken">
+          🛡️ Sát Thương Gánh Chịu & Tử Vong
+        </button>
+        <button class="tab-btn px-4 py-1.5 rounded-lg border border-transparent font-medium text-slate-400 hover:text-slate-200" data-tab="tab-buffs">
+          🔮 Hiệu Ứng Buff & Stigma
+        </button>
+      </div>
+
+      <!-- Sorting Filter -->
+      <div class="flex items-center space-x-2 text-[11px] font-mono-num text-slate-400">
+        <span>Sắp xếp theo:</span>
+        <select id="sortSelect" class="bg-black/90 border border-purple-900/60 rounded px-2 py-0.5 text-purple-200 outline-none cursor-pointer">
+          <option value="dmg">Tổng Sát Thương (DMG)</option>
+          <option value="dps">Tốc độ (DPS)</option>
+          <option value="crit">Tỉ lệ Bạo Kích (Crit %)</option>
+          <option value="back">Đòn Sau Lưng (Back %)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- TAB 1: Main Split View (Leaderboard + Combat Log Feed) -->
+    <div id="tab-leaderboard" class="tab-content grid grid-cols-12 gap-0 flex-1 min-h-[440px]">
       <!-- Left: Player Leaderboard (8 cols) -->
-      <div class="col-span-8 p-5 border-r border-purple-950/60 flex flex-col space-y-2.5 overflow-y-auto max-h-[460px]" id="leaderboardList">
+      <div class="col-span-8 p-4 border-r border-purple-950/60 flex flex-col space-y-2.5 overflow-y-auto max-h-[480px]" id="leaderboardList">
         <!-- Rendered by JS -->
       </div>
 
-      <!-- Right: Realtime Combat Log / Top Skills (4 cols) -->
-      <div class="col-span-4 p-5 bg-black/30 flex flex-col space-y-3">
-        <div class="flex items-center justify-between border-b border-purple-900/30 pb-2">
-          <span class="text-xs font-bold text-purple-300 font-fantasy tracking-wider">LIVE COMBAT LOG</span>
+      <!-- Right: Realtime Combat Log (4 cols) -->
+      <div class="col-span-4 p-4 bg-black/40 flex flex-col space-y-3">
+        <div class="flex items-center justify-between border-b border-purple-900/40 pb-2">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+            <span class="text-xs font-bold text-purple-300 font-fantasy tracking-wider">LIVE COMBAT LOG</span>
+          </div>
           <span class="text-[10px] font-mono-num text-slate-500">PACKET FEED</span>
         </div>
 
-        <div class="flex-1 overflow-y-auto space-y-1.5 text-xs font-mono-num pr-1 max-h-[380px]" id="combatLogFeed">
+        <div class="flex-1 overflow-y-auto space-y-1.5 text-xs font-mono-num pr-1 max-h-[400px]" id="combatLogFeed">
           <!-- Combat log items injected dynamically -->
         </div>
       </div>
+    </div>
 
+    <!-- TAB 2: Live DPS Graph Timeline -->
+    <div id="tab-graph" class="tab-content hidden p-6 flex flex-col space-y-4 min-h-[440px]">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-fantasy font-bold text-purple-200 text-sm tracking-wider">TIMELINE SÁT THƯƠNG ĐỘI (PARTY DPS SPIKES)</h3>
+          <p class="text-xs text-slate-400">Theo dõi nhịp sát thương của từng thành viên trong cuộc chiến</p>
+        </div>
+        <div class="flex items-center space-x-4 text-xs font-mono-num">
+          <span class="flex items-center space-x-1.5"><span class="w-3 h-1.5 rounded-full bg-purple-500"></span><span class="text-slate-300">SrymC</span></span>
+          <span class="flex items-center space-x-1.5"><span class="w-3 h-1.5 rounded-full bg-sky-400"></span><span class="text-slate-300">Yunara</span></span>
+          <span class="flex items-center space-x-1.5"><span class="w-3 h-1.5 rounded-full bg-rose-500"></span><span class="text-slate-300">DarkScythe</span></span>
+        </div>
+      </div>
+
+      <!-- Canvas Chart Container -->
+      <div class="w-full h-64 bg-black/70 rounded-xl border border-purple-950 p-4 relative overflow-hidden flex items-end">
+        <canvas id="dpsCanvas" class="w-full h-full"></canvas>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4 text-xs font-mono-num">
+        <div class="p-3 rounded-xl bg-black/50 border border-purple-950">
+          <div class="text-slate-400">Peak DPS (Điểm Đột Biến):</div>
+          <div class="text-base font-bold text-purple-300 mt-1">214,500/s (01:24)</div>
+        </div>
+        <div class="p-3 rounded-xl bg-black/50 border border-purple-950">
+          <div class="text-slate-400">Giai đoạn Enrage Boss:</div>
+          <div class="text-base font-bold text-rose-400 mt-1">Còn 03 phút 45 giây</div>
+        </div>
+        <div class="p-3 rounded-xl bg-black/50 border border-purple-950">
+          <div class="text-slate-400">Trạng thái Đồng bộ:</div>
+          <div class="text-base font-bold text-sky-400 mt-1">TCP Packet Stream 60 FPS</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Damage Taken & Deaths -->
+    <div id="tab-damage-taken" class="tab-content hidden p-6 flex flex-col space-y-4 min-h-[440px]">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-fantasy font-bold text-purple-200 text-sm tracking-wider">SÁT THƯƠNG GÁNH CHỊU & PHÒNG THỦ</h3>
+          <p class="text-xs text-slate-400">Bảng phân tích mức chống chịu, đỡ đòn (Parry) và số lần tử vong của thành viên</p>
+        </div>
+        <span class="text-xs font-mono-num text-rose-400">Tổng sát thương nhận: 8.92M</span>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-purple-950 bg-black/40">
+        <table class="w-full text-left text-xs font-mono-num">
+          <thead class="bg-black/80 text-purple-300 border-b border-purple-950">
+            <tr>
+              <th class="p-3 font-fantasy">Thành viên</th>
+              <th class="p-3">Sát thương nhận</th>
+              <th class="p-3">Giảm trừ / Né tránh</th>
+              <th class="p-3">Đỡ đòn (Parry %)</th>
+              <th class="p-3">Tử vong (Deaths)</th>
+              <th class="p-3 text-right">Đánh giá sinh tồn</th>
+            </tr>
+          </thead>
+          <tbody id="damageTakenTbody" class="divide-y divide-purple-950/40">
+            <!-- Injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: Active Buffs & Stigmas -->
+    <div id="tab-buffs" class="tab-content hidden p-6 flex flex-col space-y-4 min-h-[440px]">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-fantasy font-bold text-purple-200 text-sm tracking-wider">ACTIVE BUFFS & STIGMA TRACKER</h3>
+          <p class="text-xs text-slate-400">Giám sát các hiệu ứng hỗ trợ và thời gian hồi chiêu của đội</p>
+        </div>
+        <span class="text-xs font-mono-num text-purple-400">6 Hiệu ứng đang kích hoạt</span>
+      </div>
+
+      <div class="grid grid-cols-3 gap-4" id="buffCardsContainer">
+        <!-- Rendered by JS -->
+      </div>
     </div>
 
     <!-- Footer -->
-    <div class="px-6 py-2.5 bg-black/60 border-t border-purple-950/50 flex items-center justify-between text-xs text-slate-400 font-mono-num">
+    <div class="px-6 py-2.5 bg-black/80 border-t border-purple-950/60 flex items-center justify-between text-xs text-slate-400 font-mono-num">
       <div class="flex items-center space-x-2">
-        <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+        <span class="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_#a855f7]"></span>
         <span>Passive Sniffer Connected: <strong class="text-slate-200">Aion 2 (x64)</strong></span>
+        <span class="text-slate-600">|</span>
+        <span>Driver: Npcap WinPcap API</span>
       </div>
       <div>
-        <span>Design for SrymC & Team FEΔR</span>
+        <span class="text-purple-300 font-bold">Team FEΔR</span> • Non-intrusive Architecture
       </div>
     </div>
 
   </div>
 
+  <!-- Deep Inspection Modal (Grimoire of Combat Soul) -->
+  <div id="playerInspectModal" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 hidden">
+    <div class="w-full max-w-2xl obsidian-card rounded-2xl overflow-hidden border border-purple-500/50 shadow-[0_0_50px_rgba(139,92,246,0.35)] animate-fadeIn">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 bg-black/80 border-b border-purple-900/60 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-xl bg-purple-950 border border-purple-500/60 flex items-center justify-center">
+            <span class="font-fantasy text-lg font-bold text-purple-300" id="modalClassInitial">G</span>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h3 class="font-bold text-base text-slate-100 font-fantasy" id="modalPlayerName">SrymC</h3>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-purple-900/60 border border-purple-500/40 text-purple-200 font-mono-num" id="modalPlayerClass">Gladiator</span>
+            </div>
+            <p class="text-[11px] text-slate-400">Combat Soul & Stigma Resonance Analysis</p>
+          </div>
+        </div>
+        <button id="closeModalBtn" class="w-8 h-8 rounded-lg bg-black/60 border border-purple-900/60 text-slate-400 hover:text-white hover:border-purple-500 transition flex items-center justify-center font-bold">
+          ✕
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+        <!-- Radar & Combat Assessment Grid -->
+        <div class="grid grid-cols-12 gap-4">
+          <!-- Canvas Radar (5 cols) -->
+          <div class="col-span-5 bg-black/60 rounded-xl p-3 border border-purple-950 flex flex-col items-center justify-center">
+            <div class="text-[11px] font-mono-num text-purple-300 font-bold mb-1">BIỂU ĐỒ NĂNG LỰC (RADAR)</div>
+            <canvas id="radarCanvas" width="180" height="180"></canvas>
+          </div>
+
+          <!-- Key Metrics Badges (7 cols) -->
+          <div class="col-span-7 grid grid-cols-2 gap-2 text-xs font-mono-num">
+            <div class="p-2.5 rounded-lg bg-black/50 border border-purple-950">
+              <span class="text-slate-400 text-[10px]">Đòn đánh lớn nhất (Max Hit):</span>
+              <div class="text-sm font-bold text-rose-400 mt-0.5" id="modalMaxHit">485,200 (CRIT)</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-black/50 border border-purple-950">
+              <span class="text-slate-400 text-[10px]">Độ chính xác xoay chiêu:</span>
+              <div class="text-sm font-bold text-purple-300 mt-0.5" id="modalRotationSync">98.4% (Perfect)</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-black/50 border border-purple-950">
+              <span class="text-slate-400 text-[10px]">Tỉ lệ định vị sau lưng:</span>
+              <div class="text-sm font-bold text-sky-400 mt-0.5" id="modalBackRatio">68.2%</div>
+            </div>
+            <div class="p-2.5 rounded-lg bg-black/50 border border-purple-950">
+              <span class="text-slate-400 text-[10px]">Tử vong trong trận:</span>
+              <div class="text-sm font-bold text-slate-200 mt-0.5" id="modalDeaths">0 lần</div>
+            </div>
+            <!-- Equipped Stigmas Preview -->
+            <div class="col-span-2 p-2.5 rounded-lg bg-black/50 border border-purple-950">
+              <span class="text-slate-400 text-[10px] block mb-1">Stigma & Daevanion Trang Bị:</span>
+              <div class="flex flex-wrap gap-1.5" id="modalStigmas">
+                <!-- Injected by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full Skill Distribution Table -->
+        <div>
+          <h4 class="text-xs font-bold text-purple-300 font-fantasy tracking-wider mb-2">CHI TIẾT KỸ NĂNG THI TRIỂN</h4>
+          <div class="rounded-xl border border-purple-950 bg-black/50 overflow-hidden">
+            <table class="w-full text-left text-xs font-mono-num">
+              <thead class="bg-black/70 text-slate-400 border-b border-purple-950">
+                <tr>
+                  <th class="p-2.5">Kỹ năng</th>
+                  <th class="p-2.5">Số lần đánh</th>
+                  <th class="p-2.5">Tỉ lệ Bạo kích</th>
+                  <th class="p-2.5">Tổng DMG</th>
+                  <th class="p-2.5 text-right">Tỉ trọng %</th>
+                </tr>
+              </thead>
+              <tbody id="modalSkillTableBody" class="divide-y divide-purple-950/40">
+                <!-- Injected by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <script>
+    // Audio synthesis for Dark Fantasy click feedback (without external audio files)
+    let sfxEnabled = true;
+    const audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+    function playRuneChime(freq = 440) {
+      if (!sfxEnabled || !audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      } catch(e) {}
+    }
+
+    // Particle Background System (Ember Canvas)
+    const emberCanvas = document.getElementById('emberCanvas');
+    const emberCtx = emberCanvas.getContext('2d');
+    let embers = [];
+
+    function resizeEmberCanvas() {
+      emberCanvas.width = window.innerWidth;
+      emberCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeEmberCanvas);
+    resizeEmberCanvas();
+
+    function initEmbers() {
+      embers = [];
+      const count = Math.floor(window.innerWidth / 35);
+      for (let i = 0; i < count; i++) {
+        embers.push({
+          x: Math.random() * emberCanvas.width,
+          y: Math.random() * emberCanvas.height,
+          radius: 1 + Math.random() * 2.2,
+          speedY: 0.3 + Math.random() * 0.7,
+          speedX: (Math.random() - 0.5) * 0.4,
+          opacity: 0.1 + Math.random() * 0.6,
+          color: Math.random() > 0.45 ? '168, 85, 247' : '225, 29, 72' // Amethyst & Ruby
+        });
+      }
+    }
+    initEmbers();
+
+    function drawEmbers() {
+      emberCtx.clearRect(0, 0, emberCanvas.width, emberCanvas.height);
+      embers.forEach(p => {
+        emberCtx.beginPath();
+        emberCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        emberCtx.fillStyle = `rgba(${p.color}, ${p.opacity})`;
+        emberCtx.shadowBlur = 10;
+        emberCtx.shadowColor = `rgba(${p.color}, 0.8)`;
+        emberCtx.fill();
+
+        p.y -= p.speedY;
+        p.x += p.speedX;
+        if (p.y < -10) {
+          p.y = emberCanvas.height + 10;
+          p.x = Math.random() * emberCanvas.width;
+        }
+      });
+      requestAnimationFrame(drawEmbers);
+    }
+    requestAnimationFrame(drawEmbers);
+
+    // Detailed combat data model with individual skills (strictly English names as per rules)
     const combatData = [
-      { id: 1, name: "SrymC", class: "Gladiator", dmg: 5920000, dps: 54800, crit: 52.4, back: 68.0, color: "from-purple-600 to-indigo-700" },
-      { id: 2, name: "Yunara", class: "Sorcerer", dmg: 4850000, dps: 44900, crit: 64.0, back: 10.5, color: "from-cyan-600 to-blue-700" },
-      { id: 3, name: "DarkScythe", class: "Assassin", dmg: 3410000, dps: 31570, crit: 58.2, back: 91.2, color: "from-rose-600 to-pink-800" },
-      { id: 4, name: "Vanguard", class: "Templar", dmg: 1380000, dps: 12770, crit: 24.1, back: 4.0, color: "from-slate-600 to-slate-800" },
-      { id: 5, name: "Aria", class: "Chanter", dmg: 1000000, dps: 9260, crit: 32.0, back: 28.5, color: "from-fuchsia-600 to-purple-900" }
+      { 
+        id: 1, name: "SrymC (Bạn)", class: "Gladiator", dmg: 7650000, dps: 56660, crit: 53.4, back: 68.2, perfect: 22.0, parry: 4.1, dmgTaken: 1420000, deaths: 0, maxHit: 485200, color: "from-purple-600 to-indigo-700",
+        stigmas: ["Empyrean Fury", "Daevanion: Berserk Edge", "Lockdown", "Crippling Cut"],
+        radar: [90, 85, 95, 70, 75], // Atk, Crit, Rotation, Defense, Pos
+        skills: [
+          { name: "Aerial Bind", hits: 42, critRate: 64.2, dmg: 2750000, pct: 35.9, maxHit: 485200 },
+          { name: "Heart Gore", hits: 55, critRate: 49.0, dmg: 2180000, pct: 28.5, maxHit: 395000 },
+          { name: "Wrathful Wave", hits: 36, critRate: 52.7, dmg: 1520000, pct: 19.9, maxHit: 280000 },
+          { name: "Crushing Blow", hits: 44, critRate: 40.9, dmg: 1200000, pct: 15.7, maxHit: 210000 }
+        ]
+      },
+      { 
+        id: 2, name: "Yunara", class: "Sorcerer", dmg: 6180000, dps: 45770, crit: 65.8, back: 12.0, perfect: 24.5, parry: 0.0, dmgTaken: 890000, deaths: 0, maxHit: 540000, color: "from-sky-600 to-blue-700",
+        stigmas: ["Arcane Power", "Inferno Mastery", "Boon of Iron-Clad", "Lumiel's Wisdom"],
+        radar: [95, 90, 88, 45, 40],
+        skills: [
+          { name: "Flame Hell", hits: 28, critRate: 71.4, dmg: 2850000, pct: 46.1, maxHit: 540000 },
+          { name: "Glacial Shard", hits: 36, critRate: 61.1, dmg: 1950000, pct: 31.6, maxHit: 360000 },
+          { name: "Inferno", hits: 50, critRate: 54.0, dmg: 1380000, pct: 22.3, maxHit: 290000 }
+        ]
+      },
+      { 
+        id: 3, name: "DarkScythe", class: "Assassin", dmg: 4890000, dps: 36220, crit: 62.0, back: 91.5, perfect: 31.0, parry: 2.5, dmgTaken: 1100000, deaths: 1, maxHit: 410000, color: "from-rose-600 to-pink-800",
+        stigmas: ["Shadow Cloak", "Sensory Boost", "Quickening Gloom", "Venomous Strike"],
+        radar: [88, 92, 85, 55, 98],
+        skills: [
+          { name: "Shadowstrike", hits: 78, critRate: 67.9, dmg: 2450000, pct: 50.1, maxHit: 410000 },
+          { name: "Assassination", hits: 32, critRate: 75.0, dmg: 1480000, pct: 30.3, maxHit: 320000 },
+          { name: "Venomous Claw", hits: 90, critRate: 45.5, dmg: 960000, pct: 19.6, maxHit: 185000 }
+        ]
+      },
+      { 
+        id: 4, name: "Vanguard", class: "Templar", dmg: 1840000, dps: 13620, crit: 25.0, back: 3.5, perfect: 10.0, parry: 34.2, dmgTaken: 3820000, deaths: 0, maxHit: 160000, color: "from-slate-600 to-slate-800",
+        stigmas: ["Blessing of Stone", "Iron Skin", "Inquisitor's Blow", "Divine Grasp"],
+        radar: [50, 40, 70, 98, 30],
+        skills: [
+          { name: "Shield Bash", hits: 52, critRate: 26.9, dmg: 880000, pct: 47.8, maxHit: 160000 },
+          { name: "Taunt Wave", hits: 24, critRate: 16.6, dmg: 540000, pct: 29.3, maxHit: 95000 },
+          { name: "Judgment Spear", hits: 30, critRate: 30.0, dmg: 420000, pct: 22.9, maxHit: 120000 }
+        ]
+      },
+      { 
+        id: 5, name: "Aria", class: "Chanter", dmg: 1350000, dps: 10000, crit: 33.2, back: 29.0, perfect: 14.0, parry: 9.0, dmgTaken: 940000, deaths: 0, maxHit: 145000, color: "from-fuchsia-600 to-purple-900",
+        stigmas: ["Word of Wind", "Word of Life", "Soul Strike", "Mountain Fall"],
+        radar: [60, 55, 78, 75, 50],
+        skills: [
+          { name: "Meteor Strike", hits: 38, critRate: 39.4, dmg: 750000, pct: 55.6, maxHit: 145000 },
+          { name: "Mountain Fall", hits: 42, critRate: 28.5, dmg: 600000, pct: 44.4, maxHit: 110000 }
+        ]
+      },
+      { 
+        id: 6, name: "SaintHealer", class: "Cleric", dmg: 680000, dps: 5030, crit: 19.2, back: 4.5, perfect: 8.0, parry: 1.0, dmgTaken: 750000, deaths: 0, maxHit: 98000, color: "from-cyan-600 to-teal-800",
+        stigmas: ["Grace of Life", "Splendor of Recovery", "Flash of Recovery", "Holy Servitor"],
+        radar: [40, 30, 80, 80, 20],
+        skills: [
+          { name: "Holy Punishment", hits: 36, critRate: 22.2, dmg: 420000, pct: 61.8, maxHit: 98000 },
+          { name: "Thunder Storm", hits: 28, critRate: 14.2, dmg: 260000, pct: 38.2, maxHit: 65000 }
+        ]
+      }
+    ];
+
+    const activeBuffs = [
+      { name: "Word of Wind", source: "Aria (Chanter)", type: "Speed & Attack +20%", dur: "00:45", icon: "💨", color: "border-sky-500/40 text-sky-300" },
+      { name: "Empyrean Fury", source: "SrymC (Gladiator)", type: "Physical DMG +25%", dur: "00:22", icon: "⚔️", color: "border-purple-500/40 text-purple-300" },
+      { name: "Blessing of Stone", source: "Vanguard (Templar)", type: "Damage Reduction 30%", dur: "01:14", icon: "🛡️", color: "border-rose-500/40 text-rose-300" },
+      { name: "Arcane Power", source: "Yunara (Sorcerer)", type: "Magic Boost +350", dur: "00:38", icon: "✨", color: "border-indigo-500/40 text-indigo-300" },
+      { name: "Shadow Cloak", source: "DarkScythe (Assassin)", type: "Crit Multiplier +40%", dur: "00:15", icon: "🗡️", color: "border-fuchsia-500/40 text-fuchsia-300" },
+      { name: "Grace of Life", source: "SaintHealer (Cleric)", type: "Max HP +2500 & Regen", dur: "02:40", icon: "💖", color: "border-pink-500/40 text-pink-300" }
     ];
 
     const sampleSkills = [
-      { name: "Aerial Bind", crit: true, back: false, base: 142000 },
-      { name: "Heart Gore", crit: true, back: true, base: 215000 },
-      { name: "Flame Hell", crit: true, back: false, base: 280000 },
-      { name: "Shadowstrike", crit: true, back: true, base: 195000 },
-      { name: "Wrathful Wave", crit: false, back: true, base: 84000 },
-      { name: "Glacial Shard", crit: false, back: false, base: 92000 }
+      { name: "Aerial Bind", crit: true, back: false, base: 165000 },
+      { name: "Heart Gore", crit: true, back: true, base: 235000 },
+      { name: "Flame Hell", crit: true, back: false, base: 310000 },
+      { name: "Shadowstrike", crit: true, back: true, base: 220000 },
+      { name: "Wrathful Wave", crit: false, back: true, base: 95000 },
+      { name: "Glacial Shard", crit: false, back: false, base: 110000 }
     ];
 
-    let timerSec = 108;
+    let timerSec = 135;
     let isRunning = true;
+    let expandedPlayerId = null;
+    let currentSort = 'dmg';
+    let isMiniHud = false;
+    let isLiveWsMode = false;
+    let ws = null;
+
+    // Boss Mechanics Variables
+    let bossCastProgress = 1.8;
+    const bossCastMax = 4.0;
+    let bossStagger = 78.5;
+
+    // DPS Canvas graph points
+    const dpsHistory = [];
+    for(let i=0; i<30; i++) {
+      dpsHistory.push(140000 + Math.random()*40000);
+    }
 
     function renderLeaderboard() {
       const list = document.getElementById('leaderboardList');
       const maxDmg = Math.max(...combatData.map(p => p.dmg));
       const totalDmg = combatData.reduce((acc, p) => acc + p.dmg, 0);
 
+      const sorted = [...combatData].sort((a,b) => {
+        if (currentSort === 'dps') return b.dps - a.dps;
+        if (currentSort === 'crit') return b.crit - a.crit;
+        if (currentSort === 'back') return b.back - a.back;
+        return b.dmg - a.dmg;
+      });
+
       list.innerHTML = '';
-      combatData.sort((a,b) => b.dmg - a.dmg).forEach((p, index) => {
+      sorted.forEach((p, index) => {
         const topPct = ((p.dmg / maxDmg) * 100).toFixed(1);
         const sharePct = ((p.dmg / totalDmg) * 100).toFixed(1);
+        const isExpanded = expandedPlayerId === p.id;
 
         const card = document.createElement('div');
-        card.className = "relative p-3 rounded-xl bg-slate-900/60 border border-purple-950/80 hover:border-purple-600/40 transition overflow-hidden group";
-        card.innerHTML = `
-          <!-- Progress Bar Fill -->
-          <div class="absolute left-0 top-0 bottom-0 bg-gradient-to-r ${p.color} opacity-25 rounded-xl transition-all duration-300" style="width: ${topPct}%;"></div>
-          
-          <div class="relative z-10 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <span class="w-6 text-center font-fantasy font-black text-sm ${index === 0 ? 'text-purple-300 rune-glow' : 'text-slate-500'}">0${index + 1}</span>
-              <div>
-                <div class="flex items-center space-x-2">
-                  <span class="font-bold text-sm text-slate-100 group-hover:text-purple-300 transition">${p.name}</span>
-                  <span class="text-[10px] px-1.5 py-0.2 rounded bg-black/60 border border-purple-900/40 text-slate-400 font-mono-num">${p.class}</span>
-                </div>
-                <div class="flex items-center space-x-3 text-[11px] text-slate-400 font-mono-num mt-0.5">
-                  <span>Crit: <b class="text-rose-400">${p.crit}%</b></span>
-                  <span>Back: <b class="text-purple-400">${p.back}%</b></span>
-                </div>
-              </div>
-            </div>
+        card.className = `rounded-xl bg-slate-900/60 border ${
+          isExpanded ? 'border-purple-500/80 shadow-[0_0_15px_rgba(139,92,246,0.3)] bg-purple-950/20' : 'border-purple-950/80 hover:border-purple-600/50'
+        } transition overflow-hidden`;
 
-            <div class="flex items-center space-x-5 text-right font-mono-num">
-              <div>
-                <div class="text-sm font-bold text-white">${p.dps.toLocaleString()}/s</div>
-                <div class="text-[10px] text-slate-500">DPS</div>
-              </div>
-              <div class="w-20">
-                <div class="text-xs font-bold text-purple-200">${(p.dmg / 1000000).toFixed(2)}M</div>
-                <div class="text-[10px] text-rose-400 font-bold">${sharePct}%</div>
+        let skillsHtml = '';
+        if (isExpanded) {
+          skillsHtml = `
+            <div class="mt-2.5 pt-2.5 border-t border-purple-950/80 grid grid-cols-2 gap-2 text-xs font-mono-num animate-fadeIn">
+              ${p.skills.map(s => `
+                <div class="p-2 rounded bg-black/60 border border-purple-950">
+                  <div class="flex justify-between font-bold text-slate-200">
+                    <span class="text-purple-300 font-sans">${s.name}</span>
+                    <span class="text-rose-400">${s.pct}%</span>
+                  </div>
+                  <div class="flex justify-between text-[11px] text-slate-400 mt-1">
+                    <span>${(s.dmg / 1000000).toFixed(2)}M</span>
+                    <span>Hits: ${s.hits} (Crit ${s.critRate}%)</span>
+                  </div>
+                  <div class="w-full h-1 bg-black rounded-full overflow-hidden mt-1.5">
+                    <div class="h-full bg-purple-500" style="width: ${s.pct}%;"></div>
+                  </div>
+                </div>
+              `).join('')}
+              <div class="col-span-2 pt-1 flex justify-end">
+                <button onclick="event.stopPropagation(); openInspectModal(${p.id})" class="px-2.5 py-1 rounded bg-purple-950 border border-purple-500/50 text-purple-200 text-[11px] hover:bg-purple-800 transition">
+                  🔍 Chi tiết linh hồn (Deep Inspect Grimoire)
+                </button>
               </div>
             </div>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="relative p-3 cursor-pointer group" onclick="togglePlayerExpand(${p.id})">
+            <!-- Progress Bar Fill -->
+            <div class="absolute left-0 top-0 bottom-0 bg-gradient-to-r ${p.color} opacity-25 rounded-xl bar-fill" style="width: ${topPct}%;"></div>
+            
+            <div class="relative z-10 flex items-center justify-between">
+              <div class="flex items-center space-x-3 min-w-[240px]">
+                <span class="w-6 text-center font-fantasy font-black text-sm ${index === 0 ? 'text-purple-300 rune-glow' : 'text-slate-500'}">0${index + 1}</span>
+                <div>
+                  <div class="flex items-center space-x-2">
+                    <span class="font-bold text-sm text-slate-100 group-hover:text-purple-300 transition">${p.name}</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-black/60 border border-purple-900/40 text-slate-400 font-mono-num">${p.class}</span>
+                  </div>
+                  <div class="flex items-center space-x-3 text-[11px] text-slate-400 font-mono-num mt-0.5">
+                    <span>Crit: <b class="text-rose-400">${p.crit}%</b></span>
+                    <span>Back: <b class="text-purple-400">${p.back}%</b></span>
+                    <span>Perf: <b class="text-sky-400">${p.perfect}%</b></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center space-x-5 text-right font-mono-num">
+                <div>
+                  <div class="text-sm font-bold text-white">${p.dps.toLocaleString()}/s</div>
+                  <div class="text-[10px] text-slate-500">DPS</div>
+                </div>
+                <div class="w-20">
+                  <div class="text-xs font-bold text-purple-200">${(p.dmg / 1000000).toFixed(2)}M</div>
+                  <div class="text-[10px] text-rose-400 font-bold">${sharePct}%</div>
+                </div>
+                <div class="text-purple-400 text-xs transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}">
+                  ▼
+                </div>
+              </div>
+            </div>
+            ${skillsHtml}
           </div>
         `;
         list.appendChild(card);
@@ -235,6 +728,143 @@
 
       document.getElementById('teamTotalDmg').innerText = (totalDmg / 1000000).toFixed(2) + 'M';
       document.getElementById('teamDps').innerText = Math.round(totalDmg / timerSec).toLocaleString() + '/s';
+      
+      const avgCrit = (combatData.reduce((acc, p) => acc + p.crit, 0) / combatData.length).toFixed(1);
+      document.getElementById('teamCritRate').innerText = `${avgCrit}%`;
+    }
+
+    function renderDamageTakenTable() {
+      const tbody = document.getElementById('damageTakenTbody');
+      tbody.innerHTML = '';
+      combatData.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-purple-950/20 transition cursor-pointer";
+        tr.onclick = () => openInspectModal(p.id);
+        tr.innerHTML = `
+          <td class="p-3 font-bold text-slate-200">${p.name} <span class="text-slate-500 font-normal">(${p.class})</span></td>
+          <td class="p-3 text-rose-400 font-bold">${(p.dmgTaken / 1000000).toFixed(2)}M</td>
+          <td class="p-3 text-slate-300">${(p.dmgTaken * 0.45 / 1000000).toFixed(2)}M (45%)</td>
+          <td class="p-3 text-sky-400 font-bold">${p.parry}%</td>
+          <td class="p-3 ${p.deaths > 0 ? 'text-rose-500 font-bold' : 'text-slate-400'}">${p.deaths}</td>
+          <td class="p-3 text-right">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${p.deaths === 0 ? 'bg-purple-950 text-purple-300 border border-purple-700/50' : 'bg-rose-950 text-rose-300 border border-rose-700/50'}">
+              ${p.deaths === 0 ? 'SURVIVOR S+' : 'VULNERABLE B'}
+            </span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function togglePlayerExpand(id) {
+      playRuneChime(520);
+      expandedPlayerId = (expandedPlayerId === id) ? null : id;
+      renderLeaderboard();
+    }
+
+    // Modal Inspection Logic
+    function openInspectModal(playerId) {
+      playRuneChime(640);
+      const player = combatData.find(p => p.id === playerId);
+      if (!player) return;
+
+      document.getElementById('modalPlayerName').innerText = player.name;
+      document.getElementById('modalPlayerClass').innerText = player.class;
+      document.getElementById('modalClassInitial').innerText = player.class[0];
+      document.getElementById('modalMaxHit').innerText = `${player.maxHit.toLocaleString()} (CRIT)`;
+      document.getElementById('modalBackRatio').innerText = `${player.back}%`;
+      document.getElementById('modalDeaths').innerText = `${player.deaths} lần`;
+
+      // Stigmas
+      const stigmasContainer = document.getElementById('modalStigmas');
+      stigmasContainer.innerHTML = player.stigmas.map(s => `
+        <span class="px-2 py-0.5 rounded bg-purple-950/80 border border-purple-500/40 text-purple-200 text-[10px]">${s}</span>
+      `).join('');
+
+      // Skill Table
+      const skillTbody = document.getElementById('modalSkillTableBody');
+      skillTbody.innerHTML = player.skills.map(s => `
+        <tr class="hover:bg-purple-950/30">
+          <td class="p-2.5 font-bold text-purple-300 font-sans">${s.name}</td>
+          <td class="p-2.5 text-slate-300">${s.hits}</td>
+          <td class="p-2.5 text-rose-400 font-bold">${s.critRate}%</td>
+          <td class="p-2.5 text-slate-200">${(s.dmg / 1000000).toFixed(2)}M</td>
+          <td class="p-2.5 text-right font-bold text-purple-400">${s.pct}%</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('playerInspectModal').classList.remove('hidden');
+      drawRadarChart(player.radar);
+    }
+
+    document.getElementById('closeModalBtn').onclick = () => {
+      document.getElementById('playerInspectModal').classList.add('hidden');
+    };
+
+    // Radar Canvas Drawing
+    function drawRadarChart(scores = [85, 80, 90, 70, 75]) {
+      const canvas = document.getElementById('radarCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const r = 68;
+      const labels = ["ATK", "CRIT", "ROT", "DEF", "POS"];
+      const n = 5;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw background rings
+      for (let ring = 1; ring <= 4; ring++) {
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+          const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+          const currR = (r / 4) * ring;
+          const x = cx + currR * Math.cos(angle);
+          const y = cy + currR * Math.sin(angle);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(139, 92, 246, 0.2)';
+        ctx.stroke();
+      }
+
+      // Draw Axes
+      for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+        ctx.strokeStyle = 'rgba(139, 92, 246, 0.3)';
+        ctx.stroke();
+
+        // Label
+        const lx = cx + (r + 14) * Math.cos(angle);
+        const ly = cy + (r + 14) * Math.sin(angle);
+        ctx.fillStyle = '#c084fc';
+        ctx.font = '9px "JetBrains Mono"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labels[i], lx, ly);
+      }
+
+      // Draw Radar Fill Shape
+      ctx.beginPath();
+      scores.forEach((val, i) => {
+        const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+        const currentRadius = (val / 100) * r;
+        const x = cx + currentRadius * Math.cos(angle);
+        const y = cy + currentRadius * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(225, 29, 72, 0.4)';
+      ctx.fill();
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 2;
+      ctx.stroke();
     }
 
     function addCombatLog() {
@@ -245,7 +875,7 @@
       const dmg = Math.round(randomSkill.base * variance);
 
       const logItem = document.createElement('div');
-      logItem.className = "p-1.5 rounded bg-black/40 border border-slate-900 flex items-center justify-between text-[11px] animate-fadeIn";
+      logItem.className = "p-1.5 rounded bg-black/50 border border-purple-950/60 flex items-center justify-between text-[11px] hover:border-purple-800 transition";
       logItem.innerHTML = `
         <div class="truncate">
           <span class="text-purple-300 font-bold">${randomPlayer.name}</span>
@@ -259,12 +889,83 @@
         </div>
       `;
       feed.prepend(logItem);
-      if (feed.children.length > 15) {
+      if (feed.children.length > 18) {
         feed.removeChild(feed.lastChild);
       }
     }
 
-    // Loop
+    // Render Buff Cards
+    function renderBuffs() {
+      const container = document.getElementById('buffCardsContainer');
+      container.innerHTML = '';
+      activeBuffs.forEach(b => {
+        const div = document.createElement('div');
+        div.className = `p-3 rounded-xl bg-black/50 border ${b.color} flex items-center space-x-3 shadow-lg`;
+        div.innerHTML = `
+          <div class="w-10 h-10 rounded-lg bg-black/60 border border-white/10 flex items-center justify-center text-xl">
+            ${b.icon}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between items-center">
+              <h4 class="font-bold text-slate-100 text-xs truncate">${b.name}</h4>
+              <span class="text-[10px] font-mono-num font-bold text-rose-400">${b.dur}</span>
+            </div>
+            <p class="text-[10px] text-slate-400 truncate mt-0.5">${b.type}</p>
+            <p class="text-[9px] text-purple-400/80 font-mono-num mt-0.5">${b.source}</p>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Draw Real-time Chart
+    function drawChart() {
+      const canvas = document.getElementById('dpsCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth - 32;
+      canvas.height = canvas.parentElement.clientHeight - 32;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const maxVal = Math.max(...dpsHistory, 220000);
+      const minVal = 100000;
+      const stepX = canvas.width / (dpsHistory.length - 1);
+
+      // Area gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, 'rgba(168, 85, 247, 0.45)');
+      grad.addColorStop(1, 'rgba(168, 85, 247, 0.0)');
+
+      ctx.beginPath();
+      dpsHistory.forEach((val, i) => {
+        const x = i * stepX;
+        const y = canvas.height - ((val - minVal) / (maxVal - minVal)) * canvas.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+
+      // Close path for fill
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      // Stroke Line
+      ctx.beginPath();
+      dpsHistory.forEach((val, i) => {
+        const x = i * stepX;
+        const y = canvas.height - ((val - minVal) / (maxVal - minVal)) * canvas.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    }
+
+    // Main 1s Simulation Loop
     setInterval(() => {
       if (!isRunning) return;
       timerSec++;
@@ -273,9 +974,12 @@
       document.getElementById('fightDuration').innerText = `${m}:${s}`;
 
       combatData.forEach(p => {
-        p.dmg += Math.round(p.dps * (0.85 + Math.random() * 0.3));
+        const gainedDmg = Math.round(p.dps * (0.85 + Math.random() * 0.3));
+        p.dmg += gainedDmg;
+        p.dmgTaken += Math.round(gainedDmg * 0.22);
       });
 
+      // Boss HP logic & Phase update
       const maxBossHp = 60000000;
       const totalDmg = combatData.reduce((acc, p) => acc + p.dmg, 0);
       const curHp = Math.max(0, maxBossHp - totalDmg);
@@ -285,23 +989,165 @@
       document.getElementById('bossHpDisplay').innerText = `${curHp.toLocaleString()} / ${maxBossHp.toLocaleString()}`;
       document.getElementById('bossHpFill').style.width = hpPct + '%';
 
+      // Dynamic Phases
+      const phaseTag = document.getElementById('phaseTag');
+      if (hpPct > 70) {
+        phaseTag.innerText = "PHASE I: AWAKENED";
+        phaseTag.className = "text-[11px] font-mono-num font-bold px-2 py-0.5 rounded bg-black/60 border border-purple-900/60 text-purple-300";
+      } else if (hpPct > 30) {
+        phaseTag.innerText = "PHASE II: BERSERK";
+        phaseTag.className = "text-[11px] font-mono-num font-bold px-2 py-0.5 rounded bg-rose-950/60 border border-rose-700/60 text-rose-300 animate-pulse";
+      } else {
+        phaseTag.innerText = "PHASE III: CATACLYSM ENRAGE";
+        phaseTag.className = "text-[11px] font-mono-num font-bold px-2 py-0.5 rounded bg-red-950 border border-red-500 text-red-200 animate-bounce";
+      }
+
+      // Boss Cast Bar Progression
+      bossCastProgress += 1.0;
+      if (bossCastProgress >= bossCastMax) {
+        bossCastProgress = 0.0;
+        addCombatLog();
+      }
+      const castPct = ((bossCastProgress / bossCastMax) * 100).toFixed(0);
+      document.getElementById('bossCastTime').innerText = `${bossCastProgress.toFixed(1)}s / ${bossCastMax.toFixed(1)}s`;
+      document.getElementById('bossCastFill').style.width = `${castPct}%`;
+
+      // Boss Stagger Progression
+      bossStagger = Math.min(100, bossStagger + 0.8);
+      if (bossStagger >= 100) {
+        bossStagger = 15; // Reset after break
+      }
+      document.getElementById('bossStaggerText').innerText = `${bossStagger.toFixed(1)}% ${bossStagger > 75 ? '(Weakness Ready)' : ''}`;
+      document.getElementById('bossStaggerFill').style.width = `${bossStagger}%`;
+
+      // Record chart spike
+      const currentTeamDps = Math.round(totalDmg / timerSec);
+      dpsHistory.push(currentTeamDps * (0.95 + Math.random() * 0.15));
+      if (dpsHistory.length > 40) dpsHistory.shift();
+
       renderLeaderboard();
+      renderDamageTakenTable();
       addCombatLog();
+      drawChart();
     }, 1000);
 
+    // Tab Switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        playRuneChime(480);
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        const targetId = btn.dataset.tab;
+        document.getElementById(targetId).classList.remove('hidden');
+
+        if (targetId === 'tab-graph') {
+          setTimeout(drawChart, 50);
+        } else if (targetId === 'tab-damage-taken') {
+          renderDamageTakenTable();
+        }
+      };
+    });
+
+    // Sort select
+    document.getElementById('sortSelect').onchange = (e) => {
+      currentSort = e.target.value;
+      renderLeaderboard();
+    };
+
+    // Pause toggle
     document.getElementById('pauseToggleBtn').onclick = () => {
+      playRuneChime(420);
       isRunning = !isRunning;
       document.getElementById('pauseToggleBtn').innerText = isRunning ? '❚❚ Tạm dừng' : '▶ Tiếp tục';
     };
 
+    // Reset
     document.getElementById('resetSessionBtn').onclick = () => {
+      playRuneChime(380);
       timerSec = 0;
-      combatData.forEach(p => { p.dmg = 1000; });
+      combatData.forEach(p => { p.dmg = 1000; p.dmgTaken = 0; });
       document.getElementById('combatLogFeed').innerHTML = '';
       renderLeaderboard();
+      renderDamageTakenTable();
+      drawChart();
+    };
+
+    // Mini HUD Mode Toggle (Streamer Overlay)
+    document.getElementById('miniHudToggleBtn').onclick = () => {
+      playRuneChime(560);
+      isMiniHud = !isMiniHud;
+      const container = document.getElementById('mainChronicleContainer');
+      const bossBanner = document.getElementById('bossBanner');
+      if (isMiniHud) {
+        container.classList.remove('max-w-5xl');
+        container.classList.add('max-w-md');
+        bossBanner.classList.add('hidden');
+        document.getElementById('miniHudToggleBtn').innerText = '⤢ Full Chronicle';
+      } else {
+        container.classList.remove('max-w-md');
+        container.classList.add('max-w-5xl');
+        bossBanner.classList.remove('hidden');
+        document.getElementById('miniHudToggleBtn').innerText = '⤢ Mini HUD';
+      }
+      setTimeout(drawChart, 60);
+    };
+
+    // Sound FX Toggle
+    document.getElementById('sfxToggleBtn').onclick = () => {
+      sfxEnabled = !sfxEnabled;
+      document.getElementById('sfxToggleBtn').innerText = sfxEnabled ? '🔔 SFX: ON' : '🔕 SFX: OFF';
+    };
+
+    // WebSocket Daemon Connection Toggle
+    document.getElementById('wsModeToggleBtn').onclick = () => {
+      playRuneChime(600);
+      isLiveWsMode = !isLiveWsMode;
+      const statusText = document.getElementById('wsStatusText');
+      const dot = document.getElementById('wsStatusDot');
+
+      if (isLiveWsMode) {
+        statusText.innerText = "CONNECTING...";
+        dot.className = "w-2 h-2 rounded-full bg-sky-400 animate-ping";
+        try {
+          ws = new WebSocket("ws://127.0.0.1:28888/ws");
+          ws.onopen = () => {
+            statusText.innerText = "LIVE (127.0.0.1)";
+            dot.className = "w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]";
+          };
+          ws.onmessage = (event) => {
+            try {
+              const liveData = JSON.parse(event.data);
+              // If live daemon emits combat stats, we ingest them dynamically
+              if (liveData && liveData.players) {
+                // Ingest live daemon players
+              }
+            } catch(err) {}
+          };
+          ws.onerror = () => {
+            statusText.innerText = "DAEMON OFFLINE";
+            dot.className = "w-2 h-2 rounded-full bg-rose-500";
+            setTimeout(() => {
+              isLiveWsMode = false;
+              statusText.innerText = "SIMULATION";
+              dot.className = "w-2 h-2 rounded-full bg-purple-400 animate-pulse";
+            }, 3000);
+          };
+        } catch(e) {
+          statusText.innerText = "ERROR";
+        }
+      } else {
+        if (ws) { ws.close(); ws = null; }
+        statusText.innerText = "SIMULATION";
+        dot.className = "w-2 h-2 rounded-full bg-purple-400 animate-pulse";
+      }
     };
 
     renderLeaderboard();
+    renderDamageTakenTable();
+    renderBuffs();
+    setTimeout(drawChart, 100);
   </script>
 </body>
 </html>
