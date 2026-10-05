@@ -20,7 +20,7 @@ import webbrowser
 import webview
 
 # Security & Update Configuration
-CURRENT_VERSION = "1.0.8"
+CURRENT_VERSION = "1.0.9"
 SECURITY_KEY = "fearAion2Tran-key"
 SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
 GITHUB_REPO = "srymcfear/Aion2Viet"
@@ -391,11 +391,70 @@ class ModApi:
                                 pct = int((downloaded / total_size) * 90) + 5
                                 self.update_progress(pct, f"Đang tải: {downloaded // 1024} KB / {total_size // 1024} KB ({pct}%)")
 
-                self.update_progress(100, "Tải bản mới thành công!")
-                self.log(f"✔ Đã tải bản mới: {dest_path}", "success")
-                self.log("Khởi chạy bản cập nhật...", "blue")
-                time.sleep(1)
-                os.startfile(dest_path)
+                self.update_progress(98, "Đang chuẩn bị tự động cài đặt...")
+                self.log(f"✔ Đã tải xong bản mới: v{self.security_info['latestVersion']}", "success")
+
+                # In-place auto update: Replace current running .exe at user's location
+                if getattr(sys, "frozen", False):
+                    target_exe = os.path.abspath(sys.executable)
+                    self.log(f"Tự động cập nhật vào vị trí hiện tại: {target_exe}", "blue")
+
+                    old_bak = target_exe + ".bak"
+                    try:
+                        if os.path.isfile(old_bak):
+                            os.remove(old_bak)
+                        os.rename(target_exe, old_bak)
+                        shutil.copy2(dest_path, target_exe)
+                    except Exception:
+                        pass
+
+                    updater_bat = os.path.join(tempfile.gettempdir(), f"fear_updater_{os.getpid()}.bat")
+                    bat_content = f"""@echo off
+chcp 65001 >nul
+setlocal
+set "TARGET={target_exe}"
+set "SOURCE={dest_path}"
+set "BAK={old_bak}"
+
+timeout /t 1 /nobreak >nul
+for /l %%i in (1,1,20) do (
+    if exist "%BAK%" del /f /q "%BAK%" >nul 2>&1
+    del /f /q "%TARGET%" >nul 2>&1
+    if not exist "%TARGET%" goto :copy_new
+    timeout /t 1 /nobreak >nul
+)
+
+:copy_new
+copy /y "%SOURCE%" "%TARGET%" >nul 2>&1
+if exist "%TARGET%" (
+    start "" "%TARGET%"
+)
+if exist "%BAK%" del /f /q "%BAK%" >nul 2>&1
+del "%~f0" >nul 2>&1
+exit
+"""
+                    try:
+                        with open(updater_bat, "w", encoding="utf-8", errors="ignore") as bf:
+                            bf.write(bat_content)
+                    except Exception:
+                        pass
+
+                    self.update_progress(100, "Cập nhật thành công! Đang khởi động lại...")
+                    self.log("Khởi động lại phần mềm phiên bản mới...", "success")
+                    time.sleep(1)
+
+                    import subprocess
+                    subprocess.Popen(
+                        ["cmd.exe", "/c", updater_bat],
+                        creationflags=0x08000000 | 0x00000200,
+                        close_fds=True
+                    )
+                else:
+                    self.update_progress(100, "Tải bản mới thành công!")
+                    self.log(f"Môi trường Dev: Khởi chạy file vừa tải tại {dest_path}", "blue")
+                    time.sleep(1)
+                    os.startfile(dest_path)
+
                 with self._lock:
                     self.state["isBusy"] = False
                 self.close_window()

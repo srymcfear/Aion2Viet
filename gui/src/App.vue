@@ -465,8 +465,8 @@ const progressStep = ref('Sẵn sàng');
 const logContainer = ref<HTMLDivElement | null>(null);
 
 // Security & Update State
-const currentVersion = ref('1.0.8');
-const latestVersion = ref('1.0.8');
+const currentVersion = ref('1.0.9');
+const latestVersion = ref('1.0.9');
 const hasUpdate = ref(false);
 const securityKey = ref('fearAion2Tran-key');
 const securityStatus = ref('active');
