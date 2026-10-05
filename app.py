@@ -191,6 +191,42 @@ DUMMY_PAK_BYTES = bytes([0x47, 0x55, 0x20, 0x32, 0x30, 0x32, 0x36, 0x30, 0x39, 0
 _main_window = None
 _dps_window = None
 _dps_process = None
+_dps_meter_process = None
+
+def is_npcap_installed():
+    sys32 = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+    return (os.path.isfile(os.path.join(sys32, "wpcap.dll")) or 
+            os.path.isfile(os.path.join(sys32, "Npcap", "wpcap.dll")))
+
+def get_dps_meter_executable():
+    # 1. Local directory next to app.py / ROOT_DIR
+    local_path = os.path.join(ROOT_DIR, "dps_meter", "AionDpsMeter.UI.exe")
+    if os.path.isfile(local_path):
+        return local_path
+
+    # 2. PyInstaller bundle directory (_MEIPASS)
+    b_dir = get_bundle_dir()
+    bundle_path = os.path.join(b_dir, "dps_meter", "AionDpsMeter.UI.exe")
+    if os.path.isfile(bundle_path):
+        persistent_dir = os.path.join(get_app_storage_dir(), "dps_meter")
+        os.makedirs(persistent_dir, exist_ok=True)
+        persistent_exe = os.path.join(persistent_dir, "AionDpsMeter.UI.exe")
+        bundle_dir = os.path.join(b_dir, "dps_meter")
+        try:
+            if not os.path.isfile(persistent_exe) or os.path.getmtime(bundle_path) > os.path.getmtime(persistent_exe):
+                for item in os.listdir(bundle_dir):
+                    s = os.path.join(bundle_dir, item)
+                    d = os.path.join(persistent_dir, item)
+                    if os.path.isdir(s):
+                        if not os.path.exists(d):
+                            shutil.copytree(s, d)
+                    else:
+                        shutil.copy2(s, d)
+        except Exception:
+            pass
+        return persistent_exe if os.path.isfile(persistent_exe) else bundle_path
+
+    return None
 
 class ModApi:
     def __init__(self):
@@ -402,60 +438,45 @@ class ModApi:
         threading.Thread(target=_close, daemon=True).start()
         return True
 
-    def launch_dps_overlay(self):
-        global _dps_window
-        # 1. Start Daemon if not already running
-        self.start_dps_daemon()
+    def launch_dps_meter(self):
+        global _dps_meter_process
+        if _dps_meter_process and _dps_meter_process.poll() is None:
+            self.log("AION 2 DPS Meter đang hoạt động.", "blue")
+            return True
 
-        # 2. Check overlay HTML
-        b_dir = get_bundle_dir()
-        overlay_paths = [
-            os.path.join(b_dir, "dps_overlay.html"),
-            os.path.join(ROOT_DIR, "dps_overlay.html"),
-            os.path.join(b_dir, "demo_dps_dark_fantasy.html"),
-            os.path.join(ROOT_DIR, "demo_dps_dark_fantasy.html")
-        ]
-        overlay_path = None
-        for p in overlay_paths:
-            if os.path.isfile(p):
-                overlay_path = p
-                break
-        
-        if not overlay_path:
-            self.log("Không tìm thấy file giao diện dps_overlay.html", "red")
+        if not is_npcap_installed():
+            self.log("⚠️ Lưu ý: Chưa phát hiện Npcap trên hệ thống. Cần cài Npcap (WinPcap mode) để bắt gói tin mạng.", "gray")
+
+        dps_exe = get_dps_meter_executable()
+        if not dps_exe or not os.path.isfile(dps_exe):
+            self.log("❌ Không tìm thấy AionDpsMeter.UI.exe trong thư mục dps_meter.", "red")
             return False
 
-        target_url = f"file:///{os.path.abspath(overlay_path).replace(os.sep, '/')}"
+        try:
+            import subprocess
+            dps_dir = os.path.dirname(dps_exe)
+            _dps_meter_process = subprocess.Popen(
+                [dps_exe],
+                cwd=dps_dir
+            )
+            self.log("✔ Đã kích hoạt AION 2 DPS Meter (Source gốc - Full tính năng: DPS Tracking, Party, Combat History, Calc).", "success")
+            return True
+        except Exception as e:
+            self.log(f"Lỗi khởi chạy AION 2 DPS Meter: {e}", "red")
+            return False
 
-        def _open():
-            global _dps_window
-            if _dps_window:
-                try:
-                    _dps_window.restore()
-                    _dps_window.show()
-                    return
-                except Exception:
-                    _dps_window = None
-
+    def stop_dps_meter(self):
+        global _dps_meter_process
+        if _dps_meter_process and _dps_meter_process.poll() is None:
             try:
-                _dps_window = webview.create_window(
-                    title="FEΔR Combat Chronicle & HUD",
-                    url=target_url,
-                    js_api=self,
-                    width=980,
-                    height=650,
-                    resizable=True,
-                    frameless=True,
-                    easy_drag=False,
-                    shadow=True,
-                    background_color="#040508"
-                )
-            except Exception as e:
-                self.log(f"Lỗi khởi chạy cửa sổ Overlay: {e}", "red")
-
-        threading.Thread(target=_open, daemon=True).start()
-        self.log("Đã khởi chạy cửa sổ FEΔR DPS Overlay HUD.", "blue")
+                _dps_meter_process.terminate()
+            except Exception:
+                pass
+            _dps_meter_process = None
         return True
+
+    def launch_dps_overlay(self):
+        return self.launch_dps_meter()
 
     def set_dps_always_on_top(self, is_on_top):
         global _dps_window

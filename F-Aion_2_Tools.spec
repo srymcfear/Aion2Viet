@@ -10,10 +10,7 @@ a = Analysis(
     datas=[
         ('release/AION2_VietHoa_Standalone/Data', 'Data'),
         ('gui/dist/index.html', 'gui/dist'),
-        ('dps_overlay.html', '.'),
-        ('dps_daemon/publish/Aion2DpsDaemon.exe', 'dps_daemon/publish'),
-        ('dps_daemon/publish/e_sqlite3.dll', 'dps_daemon/publish'),
-        ('dps_daemon/publish/GameData', 'dps_daemon/publish/GameData'),
+        ('dps_meter', 'dps_meter'),
         ('fear_logo.ico', '.'),
         ('fear_logo.png', '.')
     ],

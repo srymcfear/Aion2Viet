@@ -287,7 +287,7 @@
             </div>
             <div v-if="tool.active" class="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-purple-900/30 text-purple-300">
               <span class="flex items-center gap-1">
-                <span>Nhấn để mở Overlay HUD</span>
+                <span>Nhấn để khởi chạy DPS Meter</span>
               </span>
               <span class="text-xs group-hover:translate-x-0.5 transition-transform text-purple-300">➔</span>
             </div>
@@ -489,8 +489,8 @@ const toolsList = [
   {
     id: 'dps',
     title: 'AION 2 DPS Meter',
-    badge: 'KÍCH HOẠT',
-    desc: 'Bảng thống kê sát thương thời gian thực, đo lường DPS Party, Skill Breakdown không giảm FPS.',
+    badge: 'TÍCH HỢP',
+    desc: 'Bộ đo DPS thời gian thực, Target Tracking, Lịch sử chiến đấu & Giả lập chỉ số (Source gốc tích hợp đầy đủ tính năng).',
     active: true
   },
   {
@@ -518,19 +518,22 @@ const toolsList = [
 
 function handleToolClick(tool: any) {
   if (tool.id === 'dps') {
-    handleLaunchDpsOverlay();
+    handleLaunchDpsMeter();
   } else {
     addLog(`Công cụ [${tool.title}] đang trong lộ trình phát triển của Team FEΔR.`, 'blue');
   }
 }
 
-function handleLaunchDpsOverlay() {
-  addLog('Đang khởi chạy cửa sổ AION 2 DPS Overlay...', 'blue');
-  if ((window as any).pywebview?.api?.launch_dps_overlay) {
-    (window as any).pywebview.api.launch_dps_overlay();
+function handleLaunchDpsMeter() {
+  addLog('Đang khởi chạy AION 2 DPS Meter (Source gốc)...', 'blue');
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.launch_dps_meter) {
+    pyApi.launch_dps_meter();
+  } else if (pyApi && pyApi.launch_dps_overlay) {
+    pyApi.launch_dps_overlay();
   } else {
     window.open('dps_overlay.html', '_blank', 'width=1000,height=660');
-    addLog('Mở cửa sổ DPS Overlay trong trình duyệt.', 'success');
+    addLog('Mở cửa sổ DPS trong trình duyệt.', 'success');
   }
 }
 

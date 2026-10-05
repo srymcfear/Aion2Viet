@@ -109,8 +109,16 @@ class TestModApi(unittest.TestCase):
         self.assertTrue(self.api.minimize_dps_window())
         self.assertTrue(self.api.close_dps_window())
         self.assertTrue(self.api.stop_dps_daemon())
-        self.assertTrue(os.path.isfile(os.path.join(app.ROOT_DIR, "dps_overlay.html")))
+        self.assertTrue(self.api.stop_dps_meter())
         print("[PASS] DPS overlay methods and overlay template verified.")
+
+    def test_dps_meter_integration(self):
+        npcap = app.is_npcap_installed()
+        self.assertIsInstance(npcap, bool)
+        dps_exe = app.get_dps_meter_executable()
+        self.assertIsNotNone(dps_exe)
+        self.assertTrue(os.path.isfile(dps_exe), f"DPS Meter executable must exist at: {dps_exe}")
+        print(f"[PASS] DPS Meter native executable verified: {dps_exe}, Npcap={npcap}")
 
 if __name__ == "__main__":
     unittest.main()
