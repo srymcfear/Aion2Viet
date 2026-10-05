@@ -20,7 +20,7 @@ import webbrowser
 import webview
 
 # Security & Update Configuration
-CURRENT_VERSION = "1.0.7"
+CURRENT_VERSION = "1.0.8"
 SECURITY_KEY = "fearAion2Tran-key"
 SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
 GITHUB_REPO = "srymcfear/Aion2Viet"
@@ -408,10 +408,23 @@ class ModApi:
         self.start_dps_daemon()
 
         # 2. Check overlay HTML
-        overlay_path = os.path.join(ROOT_DIR, "dps_overlay.html")
-        if not os.path.isfile(overlay_path):
-            overlay_path = os.path.join(ROOT_DIR, "demo_dps_dark_fantasy.html")
+        b_dir = get_bundle_dir()
+        overlay_paths = [
+            os.path.join(b_dir, "dps_overlay.html"),
+            os.path.join(ROOT_DIR, "dps_overlay.html"),
+            os.path.join(b_dir, "demo_dps_dark_fantasy.html"),
+            os.path.join(ROOT_DIR, "demo_dps_dark_fantasy.html")
+        ]
+        overlay_path = None
+        for p in overlay_paths:
+            if os.path.isfile(p):
+                overlay_path = p
+                break
         
+        if not overlay_path:
+            self.log("Không tìm thấy file giao diện dps_overlay.html", "red")
+            return False
+
         target_url = f"file:///{os.path.abspath(overlay_path).replace(os.sep, '/')}"
 
         def _open():
@@ -477,7 +490,10 @@ class ModApi:
         if _dps_process and _dps_process.poll() is None:
             return True
 
+        b_dir = get_bundle_dir()
         daemon_paths = [
+            os.path.join(b_dir, "dps_daemon", "publish", "Aion2DpsDaemon.exe"),
+            os.path.join(b_dir, "Aion2DpsDaemon.exe"),
             os.path.join(ROOT_DIR, "dps_daemon", "publish", "Aion2DpsDaemon.exe"),
             os.path.join(ROOT_DIR, "dps_daemon", "bin", "Release", "net10.0", "win-x64", "Aion2DpsDaemon.exe"),
             os.path.join(ROOT_DIR, "dps_daemon", "bin", "Release", "net10.0", "Aion2DpsDaemon.exe"),
