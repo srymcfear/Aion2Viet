@@ -1,0 +1,396 @@
+/* ========================================================
+   FEAR Twitch Drops Miner - Game HUD Dark Aesthetic
+   Strict Palette: Deep Dark, Electric Cyan (#00f0ff), Neon Purple (#a855f7)
+   No Green. No Yellow.
+   ======================================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 360px;
+  background-color: #07070d;
+  color: #e2e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-size: 13px;
+  user-select: none;
+  overflow-x: hidden;
+}
+
+.hud-container {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Header */
+.hud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #1a1a2e;
+  padding-bottom: 10px;
+}
+
+.hud-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-glitch-badge {
+  background: linear-gradient(135deg, #a855f7, #6366f1);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 1px;
+}
+
+.hud-title {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, #ffffff, #00f0ff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.hud-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #0f101d;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid #1f2038;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #00f0ff;
+  box-shadow: 0 0 8px #00f0ff;
+  animation: pulse 2s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); box-shadow: 0 0 12px #00f0ff; }
+}
+
+.status-text {
+  font-size: 10px;
+  font-weight: 700;
+  color: #00f0ff;
+  letter-spacing: 0.5px;
+}
+
+/* Section styling */
+.hud-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* Controls & Toggles */
+.toggles-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.toggle-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #0d0e19;
+  border: 1px solid #1a1a2e;
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggle-card:hover {
+  border-color: #2e3052;
+  background: #111222;
+}
+
+.toggle-info {
+  margin-bottom: 8px;
+}
+
+.toggle-name {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.toggle-desc {
+  display: block;
+  font-size: 9.5px;
+  color: #64748b;
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+.toggle-card input[type="checkbox"] {
+  display: none;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 32px;
+  height: 16px;
+  background: #1e2035;
+  border-radius: 10px;
+  transition: background 0.25s ease;
+}
+
+.toggle-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  background: #94a3b8;
+  border-radius: 50%;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.25s;
+}
+
+.toggle-card input[type="checkbox"]:checked + .toggle-switch {
+  background: #00f0ff;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.toggle-card input[type="checkbox"]:checked + .toggle-switch::after {
+  transform: translateX(16px);
+  background: #07070d;
+}
+
+/* Campaign Cards */
+.campaigns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.campaign-card {
+  background: #0d0e19;
+  border: 1px solid #1a1a2e;
+  border-radius: 6px;
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.camp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.camp-game {
+  font-size: 11px;
+  font-weight: 700;
+  color: #00f0ff;
+}
+
+.camp-status-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #1e1e38;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.camp-status-badge.farming {
+  background: rgba(0, 240, 255, 0.15);
+  color: #00f0ff;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+}
+
+.camp-status-badge.ready {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
+}
+
+.drop-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drop-name-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: #cbd5e1;
+}
+
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background: #161829;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #00f0ff, #a855f7);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* History logs */
+.logs-list {
+  background: #090a12;
+  border: 1px solid #161726;
+  border-radius: 6px;
+  padding: 6px 8px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.log-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid #131422;
+}
+
+.log-item:last-child {
+  border-bottom: none;
+}
+
+.log-name {
+  color: #a855f7;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 230px;
+}
+
+.log-time {
+  color: #64748b;
+  font-family: monospace;
+}
+
+/* Empty states */
+.empty-state {
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+  padding: 16px 0;
+  background: #0d0e19;
+  border: 1px dashed #1a1a2e;
+  border-radius: 6px;
+}
+
+.empty-state-sm {
+  font-size: 10px;
+  color: #475569;
+  text-align: center;
+  padding: 6px 0;
+}
+
+/* Buttons & Footer */
+.hud-btn {
+  background: #16182a;
+  border: 1px solid #282a47;
+  color: #00f0ff;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.hud-btn:hover {
+  background: #00f0ff;
+  color: #07070d;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.hud-btn-sm {
+  padding: 2px 7px;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+
+.hud-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #1a1a2e;
+  padding-top: 10px;
+}
+
+.hud-link {
+  color: #a855f7;
+  text-decoration: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: color 0.2s ease;
+}
+
+.hud-link:hover {
+  color: #00f0ff;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+}
+
+.version-tag {
+  color: #475569;
+  font-size: 9.5px;
+  font-family: monospace;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #07070d;
+}
+::-webkit-scrollbar-thumb {
+  background: #1f2038;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00f0ff;
+}

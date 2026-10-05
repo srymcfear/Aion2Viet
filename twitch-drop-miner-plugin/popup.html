@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Twitch Drops Miner</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="hud-container">
+    <!-- Header -->
+    <header class="hud-header">
+      <div class="hud-title-wrap">
+        <span class="hud-glitch-badge">FEΔR</span>
+        <h1 class="hud-title">DROPS MINER</h1>
+      </div>
+      <div class="hud-status-indicator">
+        <span class="status-dot"></span>
+        <span class="status-text">ACTIVE</span>
+      </div>
+    </header>
+
+    <!-- Controls Panel -->
+    <section class="hud-section">
+      <div class="section-title">CONTROL MODULES</div>
+      <div class="toggles-grid">
+        <label class="toggle-card">
+          <div class="toggle-info">
+            <span class="toggle-name">Auto Claim</span>
+            <span class="toggle-desc">Tự động nhận thưởng khi đạt 100%</span>
+          </div>
+          <input type="checkbox" id="toggleAutoClaim">
+          <span class="toggle-switch"></span>
+        </label>
+
+        <label class="toggle-card">
+          <div class="toggle-info">
+            <span class="toggle-name">Anti-AFK</span>
+            <span class="toggle-desc">Bỏ qua popup dừng phát stream</span>
+          </div>
+          <input type="checkbox" id="toggleAntiAfk">
+          <span class="toggle-switch"></span>
+        </label>
+
+        <label class="toggle-card">
+          <div class="toggle-info">
+            <span class="toggle-name">Eco AFK Mode</span>
+            <span class="toggle-desc">Giảm tối đa tải CPU/GPU video</span>
+          </div>
+          <input type="checkbox" id="toggleEcoMode">
+          <span class="toggle-switch"></span>
+        </label>
+
+        <label class="toggle-card">
+          <div class="toggle-info">
+            <span class="toggle-name">Auto Mute</span>
+            <span class="toggle-desc">Tắt tiếng stream khi chạy ngầm</span>
+          </div>
+          <input type="checkbox" id="toggleAutoMute">
+          <span class="toggle-switch"></span>
+        </label>
+      </div>
+    </section>
+
+    <!-- Drop Campaigns -->
+    <section class="hud-section">
+      <div class="section-header-row">
+        <div class="section-title">ACTIVE CAMPAIGNS</div>
+        <button id="btnRefresh" class="hud-btn hud-btn-sm" title="Quét tiến độ ngay">SCAN</button>
+      </div>
+      <div id="campaignsContainer" class="campaigns-list">
+        <div class="empty-state">Đang quét tiến độ từ Twitch...</div>
+      </div>
+    </section>
+
+    <!-- Recent Logs -->
+    <section class="hud-section">
+      <div class="section-title">CLAIM HISTORY</div>
+      <div id="logsContainer" class="logs-list">
+        <div class="empty-state-sm">Chưa có phần thưởng nào vừa nhận.</div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="hud-footer">
+      <a href="https://www.twitch.tv/drops/inventory" target="_blank" class="hud-link">MỞ TWITCH INVENTORY ↗</a>
+      <span class="version-tag">v1.0.0</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
