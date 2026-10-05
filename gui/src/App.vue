@@ -257,7 +257,44 @@
       </div>
 
       <!-- Tab 2: Tools (Extended) -->
-      <div v-show="activeTab === 'tools'" class="flex-1 p-3.5 overflow-y-auto">
+      <div v-show="activeTab === 'tools'" class="flex-1 p-3.5 overflow-y-auto space-y-2.5">
+        <!-- Featured Tool Card: AION 2 DPS Meter & HUD (Dark Fantasy) -->
+        <div class="p-3.5 rounded-xl border border-purple-500/40 bg-gradient-to-r from-purple-950/40 via-[#0d121f] to-black/70 shadow-lg space-y-2.5">
+          <div class="flex justify-between items-center">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse shadow-[0_0_8px_#a855f7]"></span>
+              <span class="font-bold text-white text-xs tracking-wider">AION 2 DPS CHRONICLE & HUD OVERLAY</span>
+              <span class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono">
+                v1.1 DARK FANTASY
+              </span>
+            </div>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-400/40">
+              SẴN SÀNG
+            </span>
+          </div>
+
+          <div class="text-[11px] text-slate-300 leading-relaxed">
+            Đo lường sát thương thời gian thực, tự động nhận diện Boss & Thanh máu, biểu đồ biến thiên DPS, phân tích kỹ năng & chỉ số chi tiết, giám sát Buff/Cooldown, lưu trữ lịch sử chiến đấu và chế độ thu nhỏ Mini HUD cho Streamer.
+          </div>
+
+          <div class="flex items-center justify-between pt-1 border-t border-purple-900/40">
+            <div class="flex items-center gap-2 text-[10px] font-mono text-slate-400">
+              <span>Driver: Npcap WinPcap</span>
+              <span>•</span>
+              <span>Always-On-Top: Có</span>
+              <span>•</span>
+              <span>Chống drop FPS</span>
+            </div>
+            <button
+              @click="handleLaunchDpsOverlay"
+              class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-600 hover:to-indigo-600 text-white font-bold text-xs shadow-md shadow-purple-900/40 border border-purple-400/40 transition-all duration-200 cursor-pointer active:scale-95 flex items-center gap-1.5"
+            >
+              <span>⚔️ KHỞI CHẠY OVERLAY HUD</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Other Tools Grid -->
         <div class="grid grid-cols-2 gap-2.5">
           <div 
             v-for="tool in toolsList" 
@@ -469,11 +506,6 @@ const logs = ref<LogItem[]>([
 
 const toolsList = [
   {
-    title: 'AION 2 DPS Meter',
-    badge: 'PHÁT TRIỂN',
-    desc: 'Bảng thống kê sát thương thời gian thực, đo lường DPS Party, Skill Breakdown không giảm FPS.'
-  },
-  {
     title: 'TCP/UDP Optimizer',
     badge: 'PHÁT TRIỂN',
     desc: 'Cấu hình Reg TCPNoDelay và MTU Packet Size tối ưu cho máy chủ AION 2 Global & TW.'
@@ -487,8 +519,23 @@ const toolsList = [
     title: 'Quick Macro Controller',
     badge: 'PHÁT TRIỂN',
     desc: 'Xâu chuỗi kỹ năng luồng bất đồng bộ chuẩn FEΔR, hỗ trợ phím dừng khẩn cấp.'
+  },
+  {
+    title: 'DirectX & Shader Cache Boost',
+    badge: 'PHÁT TRIỂN',
+    desc: 'Dọn dẹp và tối ưu hóa bộ nhớ đệm đồ họa shader của Unreal Engine 5.'
   }
 ];
+
+function handleLaunchDpsOverlay() {
+  addLog('Đang khởi chạy cửa sổ AION 2 DPS Overlay...', 'blue');
+  if ((window as any).pywebview?.api?.launch_dps_overlay) {
+    (window as any).pywebview.api.launch_dps_overlay();
+  } else {
+    window.open('dps_overlay.html', '_blank', 'width=1000,height=660');
+    addLog('Mở cửa sổ DPS Overlay trong trình duyệt.', 'success');
+  }
+}
 
 function addLog(text: string, type: string = '') {
   logs.value.push({

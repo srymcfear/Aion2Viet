@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEΔR Combat Chronicle - Dark Fantasy HUD</title>
+  <!-- Google Fonts: Cinzel & Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <style>
+    :root {
+      --amethyst: #8b5cf6;
+      --amethyst-dark: #6d28d9;
+      --ruby: #e11d48;
+      --ruby-dark: #9f1239;
+      --ice-cyan: #38bdf8;
+      --obsidian-bg: #040508;
+      --card-bg: rgba(12, 15, 24, 0.94);
+      --overlay-opacity: 0.96;
+    }
+
+    body {
+      background: var(--obsidian-bg);
+      color: #cbd5e1;
+      font-family: 'Outfit', sans-serif;
+      user-select: none;
+      overflow-x: hidden;
+      margin: 0;
+      padding: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .font-fantasy { font-family: 'Cinzel', serif; }
+    .font-mono-num { font-family: 'JetBrains Mono', monospace; }
+
+    /* Drag region for pywebview frameless window */
+    .drag-region {
+      -webkit-app-region: drag;
+    }
+    .no-drag {
+      -webkit-app-region: no-drag;
+    }
+
+    /* Ambient Ember Canvas */
+    #emberCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .obsidian-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      box-shadow: 0 20px 60px -10px rgba(0, 0, 0, 0.95), 0 0 35px rgba(124, 58, 237, 0.18);
+      position: relative;
+    }
+
+    .obsidian-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 8%; right: 8%; height: 1.5px;
+      background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.85), rgba(225, 29, 72, 0.75), transparent);
+    }
+
+    .rune-glow { text-shadow: 0 0 14px rgba(168, 85, 247, 0.85); }
+    .ruby-glow { text-shadow: 0 0 14px rgba(225, 29, 72, 0.85); }
+    .cyan-glow { text-shadow: 0 0 14px rgba(56, 189, 248, 0.85); }
+
+    .tab-btn {
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      color: #f1f5f9;
+      background: rgba(139, 92, 246, 0.22);
+      border-color: rgba(168, 85, 247, 0.55);
+    }
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; left: 15%; right: 15%; height: 2px;
+      background: #c084fc;
+      box-shadow: 0 0 10px #c084fc;
+    }
+
+    .bar-fill {
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes castGlow {
+      0%, 100% { box-shadow: 0 0 10px rgba(225, 29, 72, 0.6); }
+      50% { box-shadow: 0 0 24px rgba(225, 29, 72, 0.95); }
+    }
+    .cast-active { animation: castGlow 1.2s infinite; }
+
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(6, 8, 12, 0.7); }
+    ::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.45); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
+
+    .modal-backdrop {
+      background: rgba(2, 3, 6, 0.88);
+      backdrop-filter: blur(14px);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col p-2.5 relative select-none">
+
+  <!-- Ambient Ember Canvas -->
+  <canvas id="emberCanvas"></canvas>
+
+  <!-- Main HUD / Chronicle Window Container -->
+  <div id="mainContainer" class="w-full h-full max-w-6xl mx-auto obsidian-card rounded-2xl overflow-hidden flex flex-col shadow-2xl relative z-10 transition-all duration-300 flex-1 border border-purple-500/30">
+    
+    <!-- Top Drag & Control Bar -->
+    <div class="h-11 px-4 border-b border-purple-500/25 bg-black/75 flex items-center justify-between shrink-0 drag-region">
+      <!-- Title & Branding -->
+      <div class="flex items-center space-x-3 no-drag">
+        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-800 to-black border border-purple-400/50 flex items-center justify-center shadow-[0_0_12px_rgba(139,92,246,0.6)]">
+          <span class="font-fantasy font-black text-sm text-purple-200">𝔉</span>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="font-fantasy font-bold text-xs tracking-wider text-purple-100 rune-glow">FEΔR COMBAT CHRONICLE</span>
+          <span class="text-[9px] font-mono-num px-1.5 py-0.2 rounded bg-purple-900/60 border border-purple-500/40 text-purple-300">OVERLAY</span>
+        </div>
+      </div>
+
+      <!-- Quick Controls / Toggles -->
+      <div class="flex items-center space-x-2 no-drag">
+        <!-- Live Ping Monitor (Colour Coded: Cyan <60ms, Amethyst 60-99ms, Rose 100-199ms, Crimson >=200ms) -->
+        <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-black/80 border border-purple-950 text-[11px] font-mono-num" id="pingContainer" title="Ping Monitor thời gian thực">
+          <span id="pingDot" class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+          <span class="text-slate-400">PING:</span>
+          <span id="pingValue" class="text-sky-300 font-bold">18ms</span>
+        </div>
+
+        <!-- Daemon Connection Badge -->
+        <button id="daemonBtn" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-black/80 border border-purple-950 text-[11px] font-mono-num hover:border-purple-600 transition" title="Kết nối trực tiếp Daemon C# Npcap (ws://127.0.0.1:28888)">
+          <span id="daemonDot" class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+          <span id="daemonText" class="text-purple-300 font-bold">SIMULATION</span>
+        </button>
+
+        <!-- Nickname Hiding Toggle (Streamer Mode) -->
+        <button id="hideNickBtn" class="px-2 py-1 rounded-lg bg-black/80 border border-purple-950 text-[11px] font-mono-num text-slate-300 hover:text-purple-300 transition" title="Ẩn tên người chơi khi Livestream/Chụp màn hình">
+          🎭 Ẩn tên: <strong id="hideNickStatus" class="text-slate-400">TẮT</strong>
+        </button>
+
+        <!-- Mini HUD / Chronicle Toggle -->
+        <button id="viewModeBtn" class="px-2.5 py-1 rounded-lg bg-indigo-950/60 border border-indigo-500/40 text-indigo-200 text-[11px] font-mono-num hover:bg-indigo-900 transition" title="Thu nhỏ thành thanh HUD Game">
+          ⤢ Mini HUD
+        </button>
+
+        <!-- Always on top toggle -->
+        <button id="pinBtn" class="px-2 py-1 rounded-lg bg-black/80 border border-purple-950 text-[11px] text-slate-300 hover:text-purple-300 transition" title="Ghim cửa sổ trên cùng đè lên Game AION 2">
+          📌 Ghim: <strong id="pinStatus" class="text-slate-400">TẮT</strong>
+        </button>
+
+        <!-- Opacity Slider -->
+        <div class="flex items-center space-x-1 bg-black/80 px-2 py-1 rounded-lg border border-purple-950 text-[10px] font-mono-num">
+          <span class="text-slate-400">MỜ:</span>
+          <input type="range" id="opacitySlider" min="30" max="100" value="96" class="w-14 h-1 bg-purple-900 rounded cursor-pointer accent-purple-500">
+          <span id="opacityVal" class="text-purple-300 w-6">96%</span>
+        </div>
+
+        <!-- Window Actions -->
+        <div class="flex items-center space-x-1 pl-1 border-l border-purple-900/40">
+          <button id="winMinBtn" class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition text-xs font-bold" title="Thu nhỏ">
+            ─
+          </button>
+          <button id="winCloseBtn" class="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-white hover:bg-rose-600 transition text-xs font-bold" title="Đóng">
+            ✕
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Smart Target Tracking & Boss Mechanics Banner -->
+    <div id="smartTargetBanner" class="px-5 py-3 bg-gradient-to-r from-rose-950/40 via-purple-950/30 to-black/70 border-b border-purple-500/20 shrink-0">
+      <div class="flex items-center justify-between mb-1.5">
+        <div class="flex items-center space-x-3">
+          <span class="px-2 py-0.5 rounded bg-rose-900/80 border border-rose-500/60 text-rose-300 text-[9px] font-bold tracking-widest uppercase" id="targetBadge">SMART TARGET</span>
+          <h2 class="text-sm font-bold text-slate-100 tracking-wide font-fantasy truncate max-w-md" id="targetName">Stormwing • The Cataclysm</h2>
+          <span class="text-[10px] font-mono-num font-bold px-2 py-0.2 rounded bg-black/60 border border-rose-900/60 text-rose-300" id="phaseTag">
+            PHASE II: BERSERK
+          </span>
+          <span class="text-xs text-rose-400 font-mono-num font-bold">ENRAGE: <span id="enrageTimer">03:45</span></span>
+        </div>
+        <div class="font-mono-num text-xs">
+          <span class="text-rose-400 font-bold text-sm" id="targetHpPercent">64.2%</span>
+          <span class="text-slate-500 mx-2">|</span>
+          <span class="text-slate-300" id="targetHpDisplay">38,520,000 / 60,000,000</span>
+        </div>
+      </div>
+
+      <!-- Boss HP Bar -->
+      <div class="w-full h-3 bg-black/90 rounded-full p-0.5 border border-purple-900/60 overflow-hidden shadow-inner">
+        <div id="targetHpFill" class="h-full rounded-full bg-gradient-to-r from-purple-600 via-rose-600 to-rose-400 transition-all duration-300 shadow-[0_0_12px_rgba(225,29,72,0.8)]" style="width: 64.2%;"></div>
+      </div>
+
+      <!-- Boss Cast Bar & Stagger Gauge -->
+      <div class="grid grid-cols-12 gap-2.5 mt-2" id="bossMechanicsRow">
+        <div class="col-span-7 bg-black/60 rounded-lg p-1.5 border border-rose-950 flex flex-col justify-center">
+          <div class="flex justify-between items-center text-[10px] font-mono-num mb-0.5">
+            <span class="text-rose-300 font-bold flex items-center space-x-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+              <span id="castSkillName">Stormwing is casting [Cataclysmic Tempest]</span>
+            </span>
+            <span class="text-rose-400 font-bold" id="castTimeText">1.8s / 4.0s</span>
+          </div>
+          <div class="w-full h-1.5 bg-black rounded-full overflow-hidden border border-rose-900/50">
+            <div id="castFill" class="h-full bg-gradient-to-r from-rose-700 via-rose-500 to-purple-400 cast-active" style="width: 45%;"></div>
+          </div>
+        </div>
+
+        <div class="col-span-5 bg-black/60 rounded-lg p-1.5 border border-purple-950 flex flex-col justify-center">
+          <div class="flex justify-between items-center text-[10px] font-mono-num mb-0.5">
+            <span class="text-sky-300 font-bold">ABYSSAL STAGGER</span>
+            <span class="text-sky-400 font-bold" id="staggerText">78.5% (Weakness Ready)</span>
+          </div>
+          <div class="w-full h-1.5 bg-black rounded-full overflow-hidden border border-sky-900/50">
+            <div id="staggerFill" class="h-full bg-gradient-to-r from-sky-700 via-indigo-500 to-sky-400 transition-all duration-300" style="width: 78.5%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Combat Stats Ribbon -->
+      <div class="grid grid-cols-4 gap-2.5 mt-2 font-mono-num text-xs">
+        <div class="p-1.5 rounded-lg bg-black/50 border border-purple-950 flex items-center justify-between">
+          <span class="text-slate-400 text-[11px]">Thời gian:</span>
+          <span class="text-purple-300 font-bold" id="fightDuration">02:15</span>
+        </div>
+        <div class="p-1.5 rounded-lg bg-black/50 border border-purple-950 flex items-center justify-between">
+          <span class="text-slate-400 text-[11px]">Tổng Sát Thương:</span>
+          <span class="text-slate-100 font-bold" id="teamTotalDmg">21.48M</span>
+        </div>
+        <div class="p-1.5 rounded-lg bg-black/50 border border-purple-950 flex items-center justify-between">
+          <span class="text-slate-400 text-[11px]">Party DPS:</span>
+          <span class="text-sky-300 font-bold" id="teamDps">159,110/s</span>
+        </div>
+        <div class="p-1.5 rounded-lg bg-black/50 border border-purple-950 flex items-center justify-between">
+          <span class="text-slate-400 text-[11px]">Bạo Kích Đội:</span>
+          <span class="text-rose-400 font-bold" id="teamCritRate">51.4%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs & Sort Bar -->
+    <div id="navTabBar" class="px-5 py-1.5 bg-black/80 border-b border-purple-950/60 flex items-center justify-between text-xs shrink-0">
+      <div class="flex items-center space-x-1.5">
+        <button class="tab-btn active px-3 py-1 rounded-lg border border-transparent font-medium" data-tab="tab-leaderboard">
+          ⚔️ Bảng Xếp Hạng & Kỹ Năng
+        </button>
+        <button class="tab-btn px-3 py-1 rounded-lg border border-transparent font-medium text-slate-400 hover:text-slate-200" data-tab="tab-graph">
+          📊 Biểu Đồ DPS Thời Gian Thực
+        </button>
+        <button class="tab-btn px-3 py-1 rounded-lg border border-transparent font-medium text-slate-400 hover:text-slate-200" data-tab="tab-buffs-cooldowns">
+          🔔 Buff & Cooldown Overlays
+        </button>
+        <button class="tab-btn px-3 py-1 rounded-lg border border-transparent font-medium text-slate-400 hover:text-slate-200" data-tab="tab-history">
+          📜 Lịch Sử Chiến Đấu (History)
+        </button>
+        <button class="tab-btn px-3 py-1 rounded-lg border border-transparent font-medium text-slate-400 hover:text-slate-200" data-tab="tab-damage-taken">
+          🛡️ Sát Thương Nhận & Tử Vong
+        </button>
+      </div>
+
+      <!-- Sorting Filter & Session Controls -->
+      <div class="flex items-center space-x-2 text-[11px] font-mono-num text-slate-400">
+        <span>Sắp xếp:</span>
+        <select id="sortSelect" class="bg-black/90 border border-purple-900/60 rounded px-2 py-0.5 text-purple-200 outline-none cursor-pointer">
+          <option value="dmg">Tổng Sát Thương (DMG)</option>
+          <option value="dps">Tốc độ (DPS)</option>
+          <option value="crit">Tỉ lệ Bạo Kích (Crit %)</option>
+          <option value="back">Đòn Sau Lưng (Back %)</option>
+        </select>
+        <button id="pauseBtn" class="px-2 py-0.5 rounded bg-purple-950 border border-purple-600/40 text-purple-200 hover:bg-purple-900 transition">
+          ❚❚ Dừng
+        </button>
+        <button id="resetBtn" class="px-2 py-0.5 rounded bg-rose-950 border border-rose-600/40 text-rose-200 hover:bg-rose-900 transition">
+          ↺ Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 1: Main Split View (Leaderboard + Combat Log Feed) -->
+    <div id="tab-leaderboard" class="tab-content grid grid-cols-12 gap-0 flex-1 min-h-[380px] overflow-hidden">
+      <!-- Left: Player Leaderboard (8 cols) -->
+      <div class="col-span-8 p-3.5 border-r border-purple-950/60 flex flex-col space-y-2 overflow-y-auto max-h-[460px]" id="leaderboardList">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Right: Realtime Combat Log Feed (4 cols) -->
+      <div class="col-span-4 p-3.5 bg-black/40 flex flex-col space-y-2.5 overflow-hidden">
+        <div class="flex items-center justify-between border-b border-purple-900/40 pb-1.5">
+          <div class="flex items-center space-x-2">
+            <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+            <span class="text-xs font-bold text-purple-300 font-fantasy tracking-wider">LIVE COMBAT LOG</span>
+          </div>
+          <span class="text-[10px] font-mono-num text-slate-500">PACKET FEED</span>
+        </div>
+
+        <div class="flex-1 overflow-y-auto space-y-1 text-xs font-mono-num pr-1 max-h-[390px]" id="combatLogFeed">
+          <!-- Combat log items injected dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Live DPS Graph Timeline -->
+    <div id="tab-graph" class="tab-content hidden p-5 flex flex-col space-y-3 flex-1 min-h-[380px]">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-fantasy font-bold text-purple-200 text-sm tracking-wider">TIMELINE SÁT THƯƠNG ĐỘI (PARTY DPS SPIKES)</h3>
+          <p class="text-xs text-slate-400">Biểu đồ nhịp biến động sát thương theo thời gian thực</p>
+        </div>
+        <div class="flex items-center space-x-3 text-xs font-mono-num">
+          <span class="flex items-center space-x-1.5"><span class="w-3 h-1.5 rounded-full bg-purple-500"></span><span class="text-slate-300">Top 1</span></span>
+          <span class="flex items-center space-x-1.5"><span class="w-3 h-1.5 rounded-full bg-sky-400"></span><span class="text-slate-300">Top 2</span></span>
+          <span class="flex items-center space-x-1.5"><span class="w-3 h-1.5 rounded-full bg-rose-500"></span><span class="text-slate-300">Top 3</span></span>
+        </div>
+      </div>
+
+      <div class="w-full flex-1 min-h-[220px] bg-black/70 rounded-xl border border-purple-950 p-3 relative overflow-hidden flex items-end">
+        <canvas id="dpsCanvas" class="w-full h-full"></canvas>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 text-xs font-mono-num">
+        <div class="p-2.5 rounded-xl bg-black/50 border border-purple-950">
+          <div class="text-slate-400">Peak DPS (Đỉnh đột biến):</div>
+          <div class="text-base font-bold text-purple-300 mt-0.5">214,500/s (01:24)</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-black/50 border border-purple-950">
+          <div class="text-slate-400">Thời gian đánh liên tục:</div>
+          <div class="text-base font-bold text-sky-400 mt-0.5" id="graphDuration">02:15</div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-black/50 border border-purple-950">
+          <div class="text-slate-400">Tốc độ gửi gói tin:</div>
+          <div class="text-base font-bold text-rose-400 mt-0.5">60 Packet/s (Npcap 0% Drop)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Buff & Skill Cooldown Overlays -->
+    <div id="tab-buffs-cooldowns" class="tab-content hidden p-5 flex flex-col space-y-4 flex-1 min-h-[380px]">
+      <div class="flex items-center justify-between border-b border-purple-900/40 pb-2">
+        <div>
+          <h3 class="font-fantasy font-bold text-purple-200 text-sm tracking-wider">FLOATING BUFF & SKILL COOLDOWN OVERLAYS</h3>
+          <p class="text-xs text-slate-400">Giám sát lên đến 10 Buffs + 10 Kỹ năng hồi chiêu, tự động sắp xếp theo thời gian còn lại</p>
+        </div>
+        <!-- Overlay Settings Controls -->
+        <div class="flex items-center space-x-3 text-xs font-mono-num">
+          <span class="text-slate-400">Cỡ biểu tượng:</span>
+          <input type="range" id="buffIconSizeSlider" min="24" max="50" value="36" class="w-16 h-1 bg-purple-900 rounded cursor-pointer accent-purple-500">
+          <span id="buffIconSizeText" class="text-purple-300 w-8">36px</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 flex-1 overflow-y-auto">
+        <!-- Left: Active Buffs (10 max) -->
+        <div class="bg-black/50 rounded-xl p-3 border border-purple-950 flex flex-col space-y-2">
+          <div class="flex justify-between items-center text-xs font-bold font-fantasy text-sky-300">
+            <span>ACTIVE BUFF OVERLAY (<span id="buffCount">6</span>/10)</span>
+            <span class="text-[10px] text-slate-500 font-mono-num">SORTED BY TIME</span>
+          </div>
+          <div class="space-y-1.5 flex-1 overflow-y-auto pr-1" id="buffListContainer">
+            <!-- Buff cards injected by JS -->
+          </div>
+        </div>
+
+        <!-- Right: Skill Cooldowns (10 max) -->
+        <div class="bg-black/50 rounded-xl p-3 border border-purple-950 flex flex-col space-y-2">
+          <div class="flex justify-between items-center text-xs font-bold font-fantasy text-rose-300">
+            <span>SKILL COOLDOWN OVERLAY (<span id="cdCount">4</span>/10)</span>
+            <span class="text-[10px] text-slate-500 font-mono-num">READY PROGRESS</span>
+          </div>
+          <div class="space-y-1.5 flex-1 overflow-y-auto pr-1" id="cooldownListContainer">
+            <!-- Cooldown cards injected by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Combat History (Auto-saved Sessions) -->
+    <div id="tab-history" class="tab-content hidden p-5 flex flex-col space-y-3 flex-1 min-h-[380px]">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-fantasy font-bold text-purple-200 text-sm tracking-wider">LỊCH SỬ TRẬN ĐÁNH (COMBAT HISTORY SNAPSHOTS)</h3>
+          <p class="text-xs text-slate-400">Tự động lưu trữ thông số của từng lần chiến đấu, có thể xem lại bất kỳ lúc nào</p>
+        </div>
+        <div class="flex items-center space-x-2 text-xs font-mono-num text-slate-400">
+          <span>Thời gian lưu trữ:</span>
+          <select id="historyRetention" class="bg-black/90 border border-purple-900/60 rounded px-2 py-0.5 text-purple-200 outline-none">
+            <option value="20">20 Trận gần nhất</option>
+            <option value="50">50 Trận gần nhất</option>
+            <option value="100">100 Trận gần nhất</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-purple-950 bg-black/40 flex-1">
+        <table class="w-full text-left text-xs font-mono-num">
+          <thead class="bg-black/80 text-purple-300 border-b border-purple-950">
+            <tr>
+              <th class="p-2.5 font-fantasy">Thời điểm</th>
+              <th class="p-2.5">Mục tiêu (Target)</th>
+              <th class="p-2.5">Thời lượng</th>
+              <th class="p-2.5">Tổng Sát Thương</th>
+              <th class="p-2.5">Party DPS</th>
+              <th class="p-2.5">Top DPS</th>
+              <th class="p-2.5 text-right">Chi tiết</th>
+            </tr>
+          </thead>
+          <tbody id="historyTbody" class="divide-y divide-purple-950/40">
+            <!-- Injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 5: Damage Taken & Deaths -->
+    <div id="tab-damage-taken" class="tab-content hidden p-5 flex flex-col space-y-3 flex-1 min-h-[380px]">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="font-fantasy font-bold text-purple-200 text-sm tracking-wider">SÁT THƯƠNG GÁNH CHỊU & PHÒNG THỦ</h3>
+          <p class="text-xs text-slate-400">Bảng phân tích mức chống chịu, đỡ đòn (Parry) và số lần tử vong của thành viên</p>
+        </div>
+        <span class="text-xs font-mono-num text-rose-400">Tổng sát thương gánh: 8.92M</span>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-purple-950 bg-black/40 flex-1">
+        <table class="w-full text-left text-xs font-mono-num">
+          <thead class="bg-black/80 text-purple-300 border-b border-purple-950">
+            <tr>
+              <th class="p-3 font-fantasy">Thành viên</th>
+              <th class="p-3">Sát thương nhận</th>
+              <th class="p-3">Giảm trừ / Né tránh</th>
+              <th class="p-3">Đỡ đòn (Parry %)</th>
+              <th class="p-3">Tử vong (Deaths)</th>
+              <th class="p-3 text-right">Đánh giá sinh tồn</th>
+            </tr>
+          </thead>
+          <tbody id="damageTakenTbody" class="divide-y divide-purple-950/40">
+            <!-- Injected by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Footer Bar -->
+    <div class="px-5 py-2 bg-black/85 border-t border-purple-950/60 flex items-center justify-between text-xs text-slate-400 font-mono-num shrink-0">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_#a855f7]"></span>
+        <span>AION 2 Combat Engine: <strong class="text-slate-200">Active</strong></span>
+        <span class="text-slate-600">|</span>
+        <span>Driver: Npcap WinPcap API</span>
+      </div>
+      <div>
+        <span class="text-purple-300 font-bold">Team FEΔR</span> • Dark Fantasy Streamer HUD
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Deep Inspect Grimoire Modal -->
+  <div id="playerInspectModal" class="fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4 hidden">
+    <div class="w-full max-w-2xl obsidian-card rounded-2xl overflow-hidden border border-purple-500/50 shadow-[0_0_50px_rgba(139,92,246,0.35)] animate-fadeIn">
+      <!-- Modal Header -->
+      <div class="px-5 py-3 bg-black/80 border-b border-purple-900/60 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-purple-950 border border-purple-500/60 flex items-center justify-center">
+            <span class="font-fantasy text-base font-bold text-purple-300" id="modalClassInitial">G</span>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h3 class="font-bold text-sm text-slate-100 font-fantasy" id="modalPlayerName">SrymC</h3>
+              <span class="text-[9px] px-1.5 py-0.2 rounded bg-purple-900/60 border border-purple-500/40 text-purple-200 font-mono-num" id="modalPlayerClass">Gladiator</span>
+            </div>
+            <p class="text-[10px] text-slate-400">Combat Soul & Stigma Resonance Analysis</p>
+          </div>
+        </div>
+        <button id="closeModalBtn" class="w-7 h-7 rounded-lg bg-black/60 border border-purple-900/60 text-slate-400 hover:text-white hover:border-purple-500 transition flex items-center justify-center font-bold">
+          ✕
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+        <div class="grid grid-cols-12 gap-3">
+          <!-- Canvas Radar (5 cols) -->
+          <div class="col-span-5 bg-black/60 rounded-xl p-2.5 border border-purple-950 flex flex-col items-center justify-center">
+            <div class="text-[10px] font-mono-num text-purple-300 font-bold mb-1">BIỂU ĐỒ NĂNG LỰC (RADAR)</div>
+            <canvas id="radarCanvas" width="160" height="160"></canvas>
+          </div>
+
+          <!-- Key Metrics Badges (7 cols) -->
+          <div class="col-span-7 grid grid-cols-2 gap-2 text-xs font-mono-num">
+            <div class="p-2 rounded-lg bg-black/50 border border-purple-950">
+              <span class="text-slate-400 text-[9px]">Đòn lớn nhất (Max Hit):</span>
+              <div class="text-xs font-bold text-rose-400 mt-0.5" id="modalMaxHit">485,200</div>
+            </div>
+            <div class="p-2 rounded-lg bg-black/50 border border-purple-950">
+              <span class="text-slate-400 text-[9px]">Độ xoay chiêu chuẩn:</span>
+              <div class="text-xs font-bold text-purple-300 mt-0.5" id="modalRotationSync">98.4%</div>
+            </div>
+            <div class="p-2 rounded-lg bg-black/50 border border-purple-950">
+              <span class="text-slate-400 text-[9px]">Đòn sau lưng (Back %):</span>
+              <div class="text-xs font-bold text-sky-400 mt-0.5" id="modalBackRatio">68.2%</div>
+            </div>
+            <div class="p-2 rounded-lg bg-black/50 border border-purple-950">
+              <span class="text-slate-400 text-[9px]">Tử vong (Deaths):</span>
+              <div class="text-xs font-bold text-slate-200 mt-0.5" id="modalDeaths">0 lần</div>
+            </div>
+            <div class="col-span-2 p-2 rounded-lg bg-black/50 border border-purple-950">
+              <span class="text-slate-400 text-[9px] block mb-1">Stigma & Daevanion Trang Bị:</span>
+              <div class="flex flex-wrap gap-1" id="modalStigmas"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full Skill Distribution Table -->
+        <div>
+          <h4 class="text-xs font-bold text-purple-300 font-fantasy tracking-wider mb-1.5">CHI TIẾT KỸ NĂNG THI TRIỂN</h4>
+          <div class="rounded-xl border border-purple-950 bg-black/50 overflow-hidden">
+            <table class="w-full text-left text-xs font-mono-num">
+              <thead class="bg-black/70 text-slate-400 border-b border-purple-950">
+                <tr>
+                  <th class="p-2">Kỹ năng</th>
+                  <th class="p-2">Số lần</th>
+                  <th class="p-2">Bạo kích</th>
+                  <th class="p-2">Tổng DMG</th>
+                  <th class="p-2 text-right">Tỉ trọng %</th>
+                </tr>
+              </thead>
+              <tbody id="modalSkillTableBody" class="divide-y divide-purple-950/40"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Particle Background System (Ember Canvas)
+    const emberCanvas = document.getElementById('emberCanvas');
+    const emberCtx = emberCanvas.getContext('2d');
+    let embers = [];
+
+    function resizeEmberCanvas() {
+      emberCanvas.width = window.innerWidth;
+      emberCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeEmberCanvas);
+    resizeEmberCanvas();
+
+    function initEmbers() {
+      embers = [];
+      const count = Math.floor(window.innerWidth / 40);
+      for (let i = 0; i < count; i++) {
+        embers.push({
+          x: Math.random() * emberCanvas.width,
+          y: Math.random() * emberCanvas.height,
+          radius: 1 + Math.random() * 2,
+          speedY: 0.25 + Math.random() * 0.6,
+          speedX: (Math.random() - 0.5) * 0.35,
+          opacity: 0.1 + Math.random() * 0.55,
+          color: Math.random() > 0.45 ? '168, 85, 247' : '225, 29, 72'
+        });
+      }
+    }
+    initEmbers();
+
+    function drawEmbers() {
+      emberCtx.clearRect(0, 0, emberCanvas.width, emberCanvas.height);
+      embers.forEach(p => {
+        emberCtx.beginPath();
+        emberCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        emberCtx.fillStyle = `rgba(${p.color}, ${p.opacity})`;
+        emberCtx.fill();
+
+        p.y -= p.speedY;
+        p.x += p.speedX;
+        if (p.y < -10) {
+          p.y = emberCanvas.height + 10;
+          p.x = Math.random() * emberCanvas.width;
+        }
+      });
+      requestAnimationFrame(drawEmbers);
+    }
+    requestAnimationFrame(drawEmbers);
+
+    // Audio Chime
+    const audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+    function playRuneChime(freq = 460) {
+      if (!audioCtx) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      } catch(e) {}
+    }
+
+    // Combat Data Model
+    const combatData = [
+      { 
+        id: 1, name: "SrymC (Bạn)", class: "Gladiator", dmg: 7650000, dps: 56660, crit: 53.4, back: 68.2, perfect: 22.0, parry: 4.1, dmgTaken: 1420000, deaths: 0, maxHit: 485200, color: "from-purple-600 to-indigo-700",
+        stigmas: ["Empyrean Fury", "Daevanion: Berserk Edge", "Lockdown", "Crippling Cut"],
+        radar: [90, 85, 95, 70, 75],
+        skills: [
+          { name: "Aerial Bind", hits: 42, critRate: 64.2, dmg: 2750000, pct: 35.9, maxHit: 485200 },
+          { name: "Heart Gore", hits: 55, critRate: 49.0, dmg: 2180000, pct: 28.5, maxHit: 395000 },
+          { name: "Wrathful Wave", hits: 36, critRate: 52.7, dmg: 1520000, pct: 19.9, maxHit: 280000 },
+          { name: "Crushing Blow", hits: 44, critRate: 40.9, dmg: 1200000, pct: 15.7, maxHit: 210000 }
+        ]
+      },
+      { 
+        id: 2, name: "Yunara", class: "Sorcerer", dmg: 6180000, dps: 45770, crit: 65.8, back: 12.0, perfect: 24.5, parry: 0.0, dmgTaken: 890000, deaths: 0, maxHit: 540000, color: "from-sky-600 to-blue-700",
+        stigmas: ["Arcane Power", "Inferno Mastery", "Boon of Iron-Clad", "Lumiel's Wisdom"],
+        radar: [95, 90, 88, 45, 40],
+        skills: [
+          { name: "Flame Hell", hits: 28, critRate: 71.4, dmg: 2850000, pct: 46.1, maxHit: 540000 },
+          { name: "Glacial Shard", hits: 36, critRate: 61.1, dmg: 1950000, pct: 31.6, maxHit: 360000 },
+          { name: "Inferno", hits: 50, critRate: 54.0, dmg: 1380000, pct: 22.3, maxHit: 290000 }
+        ]
+      },
+      { 
+        id: 3, name: "DarkScythe", class: "Assassin", dmg: 4890000, dps: 36220, crit: 62.0, back: 91.5, perfect: 31.0, parry: 2.5, dmgTaken: 1100000, deaths: 1, maxHit: 410000, color: "from-rose-600 to-pink-800",
+        stigmas: ["Shadow Cloak", "Sensory Boost", "Quickening Gloom", "Venomous Strike"],
+        radar: [88, 92, 85, 55, 98],
+        skills: [
+          { name: "Shadowstrike", hits: 78, critRate: 67.9, dmg: 2450000, pct: 50.1, maxHit: 410000 },
+          { name: "Assassination", hits: 32, critRate: 75.0, dmg: 1480000, pct: 30.3, maxHit: 320000 },
+          { name: "Venomous Claw", hits: 90, critRate: 45.5, dmg: 960000, pct: 19.6, maxHit: 185000 }
+        ]
+      },
+      { 
+        id: 4, name: "Vanguard", class: "Templar", dmg: 1840000, dps: 13620, crit: 25.0, back: 3.5, perfect: 10.0, parry: 34.2, dmgTaken: 3820000, deaths: 0, maxHit: 160000, color: "from-slate-600 to-slate-800",
+        stigmas: ["Blessing of Stone", "Iron Skin", "Inquisitor's Blow", "Divine Grasp"],
+        radar: [50, 40, 70, 98, 30],
+        skills: [
+          { name: "Shield Bash", hits: 52, critRate: 26.9, dmg: 880000, pct: 47.8, maxHit: 160000 },
+          { name: "Taunt Wave", hits: 24, critRate: 16.6, dmg: 540000, pct: 29.3, maxHit: 95000 },
+          { name: "Judgment Spear", hits: 30, critRate: 30.0, dmg: 420000, pct: 22.9, maxHit: 120000 }
+        ]
+      },
+      { 
+        id: 5, name: "Aria", class: "Chanter", dmg: 1350000, dps: 10000, crit: 33.2, back: 29.0, perfect: 14.0, parry: 9.0, dmgTaken: 940000, deaths: 0, maxHit: 145000, color: "from-fuchsia-600 to-purple-900",
+        stigmas: ["Word of Wind", "Word of Life", "Soul Strike", "Mountain Fall"],
+        radar: [60, 55, 78, 75, 50],
+        skills: [
+          { name: "Meteor Strike", hits: 38, critRate: 39.4, dmg: 750000, pct: 55.6, maxHit: 145000 },
+          { name: "Mountain Fall", hits: 42, critRate: 28.5, dmg: 600000, pct: 44.4, maxHit: 110000 }
+        ]
+      },
+      { 
+        id: 6, name: "SaintHealer", class: "Cleric", dmg: 680000, dps: 5030, crit: 19.2, back: 4.5, perfect: 8.0, parry: 1.0, dmgTaken: 750000, deaths: 0, maxHit: 98000, color: "from-cyan-600 to-teal-800",
+        stigmas: ["Grace of Life", "Splendor of Recovery", "Flash of Recovery", "Holy Servitor"],
+        radar: [40, 30, 80, 80, 20],
+        skills: [
+          { name: "Holy Punishment", hits: 36, critRate: 22.2, dmg: 420000, pct: 61.8, maxHit: 98000 },
+          { name: "Thunder Storm", hits: 28, critRate: 14.2, dmg: 260000, pct: 38.2, maxHit: 65000 }
+        ]
+      }
+    ];
+
+    // Active Buffs
+    const activeBuffs = [
+      { id: 101, name: "Word of Wind", source: "Aria", timeLeft: 45, maxDuration: 60, icon: "💨", color: "border-sky-500/40 text-sky-300" },
+      { id: 102, name: "Empyrean Fury", source: "SrymC", timeLeft: 22, maxDuration: 30, icon: "⚔️", color: "border-purple-500/40 text-purple-300" },
+      { id: 103, name: "Blessing of Stone", source: "Vanguard", timeLeft: 74, maxDuration: 120, icon: "🛡️", color: "border-rose-500/40 text-rose-300" },
+      { id: 104, name: "Arcane Power", source: "Yunara", timeLeft: 38, maxDuration: 45, icon: "✨", color: "border-indigo-500/40 text-indigo-300" },
+      { id: 105, name: "Shadow Cloak", source: "DarkScythe", timeLeft: 15, maxDuration: 20, icon: "🗡️", color: "border-fuchsia-500/40 text-fuchsia-300" },
+      { id: 106, name: "Grace of Life", source: "SaintHealer", timeLeft: 160, maxDuration: 180, icon: "💖", color: "border-pink-500/40 text-pink-300" }
+    ];
+
+    // Skill Cooldowns
+    const activeCooldowns = [
+      { id: 201, name: "Aerial Bind", timeLeft: 14, maxDuration: 45, icon: "⛓️", color: "border-purple-500/40" },
+      { id: 202, name: "Flame Hell", timeLeft: 8, maxDuration: 30, icon: "🔥", color: "border-rose-500/40" },
+      { id: 203, name: "Shadowstrike", timeLeft: 4, maxDuration: 18, icon: "⚡", color: "border-fuchsia-500/40" },
+      { id: 204, name: "Iron Skin", timeLeft: 55, maxDuration: 120, icon: "🛡️", color: "border-slate-500/40" }
+    ];
+
+    // Combat History Snapshots (Auto-saved sessions)
+    const combatHistory = [
+      { id: "sess-01", time: "10:14 05/10", target: "Stormwing (Cataclysm)", duration: "03:42", dmg: "38.5M", dps: "173,420/s", topPlayer: "SrymC (13.8M)" },
+      { id: "sess-02", time: "09:48 05/10", target: "Rudra of Frigid Frost", duration: "04:15", dmg: "42.1M", dps: "165,100/s", topPlayer: "Yunara (14.5M)" },
+      { id: "sess-03", time: "09:12 05/10", target: "Abyssal Gatekeeper", duration: "01:58", dmg: "24.6M", dps: "208,470/s", topPlayer: "DarkScythe (9.8M)" }
+    ];
+
+    const sampleSkills = [
+      { name: "Aerial Bind", crit: true, back: false, base: 165000 },
+      { name: "Heart Gore", crit: true, back: true, base: 235000 },
+      { name: "Flame Hell", crit: true, back: false, base: 310000 },
+      { name: "Shadowstrike", crit: true, back: true, base: 220000 },
+      { name: "Wrathful Wave", crit: false, back: true, base: 95000 },
+      { name: "Glacial Shard", crit: false, back: false, base: 110000 }
+    ];
+
+    let timerSec = 135;
+    let isRunning = true;
+    let expandedPlayerId = null;
+    let currentSort = 'dmg';
+    let isMiniHud = false;
+    let isHideNick = false;
+    let isPinned = false;
+    let isLiveWsMode = false;
+    let ws = null;
+    let pingMs = 18;
+
+    // Load persistent settings
+    try {
+      const savedOpacity = localStorage.getItem('fear_dps_opacity');
+      if (savedOpacity) {
+        document.getElementById('opacitySlider').value = savedOpacity;
+        document.getElementById('opacityVal').innerText = savedOpacity + '%';
+        document.body.style.opacity = savedOpacity / 100;
+      }
+      isHideNick = localStorage.getItem('fear_dps_hide_nick') === 'true';
+      updateNickDisplay();
+    } catch(e) {}
+
+    // Ping update (colour-coded: Cyan <60ms, Amethyst 60-99ms, Rose 100-199ms, Crimson >=200ms)
+    function updatePing(ms) {
+      pingMs = ms;
+      const val = document.getElementById('pingValue');
+      const dot = document.getElementById('pingDot');
+      val.innerText = `${ms}ms`;
+      if (ms < 60) {
+        dot.className = "w-2 h-2 rounded-full bg-sky-400 animate-pulse";
+        val.className = "text-sky-300 font-bold";
+      } else if (ms < 100) {
+        dot.className = "w-2 h-2 rounded-full bg-purple-400";
+        val.className = "text-purple-300 font-bold";
+      } else if (ms < 200) {
+        dot.className = "w-2 h-2 rounded-full bg-rose-400";
+        val.className = "text-rose-300 font-bold";
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-red-600 animate-ping";
+        val.className = "text-red-400 font-bold";
+      }
+    }
+
+    function formatPlayerName(player, index) {
+      if (!isHideNick) return player.name;
+      return `${player.class} #${index + 1}`;
+    }
+
+    function updateNickDisplay() {
+      const status = document.getElementById('hideNickStatus');
+      if (isHideNick) {
+        status.innerText = 'BẬT';
+        status.className = 'text-purple-300 font-bold';
+      } else {
+        status.innerText = 'TẮT';
+        status.className = 'text-slate-400';
+      }
+      renderLeaderboard();
+      renderDamageTakenTable();
+    }
+
+    // DPS Canvas graph points
+    const dpsHistory = [];
+    for(let i=0; i<30; i++) {
+      dpsHistory.push(140000 + Math.random()*40000);
+    }
+
+    function renderLeaderboard() {
+      const list = document.getElementById('leaderboardList');
+      const maxDmg = Math.max(...combatData.map(p => p.dmg));
+      const totalDmg = combatData.reduce((acc, p) => acc + p.dmg, 0);
+
+      const sorted = [...combatData].sort((a,b) => {
+        if (currentSort === 'dps') return b.dps - a.dps;
+        if (currentSort === 'crit') return b.crit - a.crit;
+        if (currentSort === 'back') return b.back - a.back;
+        return b.dmg - a.dmg;
+      });
+
+      list.innerHTML = '';
+      sorted.forEach((p, index) => {
+        const topPct = ((p.dmg / maxDmg) * 100).toFixed(1);
+        const sharePct = ((p.dmg / totalDmg) * 100).toFixed(1);
+        const isExpanded = expandedPlayerId === p.id;
+        const displayName = formatPlayerName(p, index);
+
+        const card = document.createElement('div');
+        card.className = `rounded-xl bg-slate-900/60 border ${
+          isExpanded ? 'border-purple-500/80 shadow-[0_0_15px_rgba(139,92,246,0.3)] bg-purple-950/20' : 'border-purple-950/80 hover:border-purple-600/50'
+        } transition overflow-hidden`;
+
+        let skillsHtml = '';
+        if (isExpanded) {
+          skillsHtml = `
+            <div class="mt-2 pt-2 border-t border-purple-950/80 grid grid-cols-2 gap-2 text-xs font-mono-num animate-fadeIn">
+              ${p.skills.map(s => `
+                <div class="p-1.5 rounded bg-black/60 border border-purple-950">
+                  <div class="flex justify-between font-bold text-slate-200">
+                    <span class="text-purple-300 font-sans">${s.name}</span>
+                    <span class="text-rose-400">${s.pct}%</span>
+                  </div>
+                  <div class="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                    <span>${(s.dmg / 1000000).toFixed(2)}M</span>
+                    <span>Hits: ${s.hits} (Crit ${s.critRate}%)</span>
+                  </div>
+                  <div class="w-full h-1 bg-black rounded-full overflow-hidden mt-1">
+                    <div class="h-full bg-purple-500" style="width: ${s.pct}%;"></div>
+                  </div>
+                </div>
+              `).join('')}
+              <div class="col-span-2 pt-0.5 flex justify-end">
+                <button onclick="event.stopPropagation(); openInspectModal(${p.id})" class="px-2.5 py-0.5 rounded bg-purple-950 border border-purple-500/50 text-purple-200 text-[10px] hover:bg-purple-800 transition">
+                  🔍 Chi tiết linh hồn (Deep Inspect Grimoire)
+                </button>
+              </div>
+            </div>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="relative p-2.5 cursor-pointer group" onclick="togglePlayerExpand(${p.id})">
+            <div class="absolute left-0 top-0 bottom-0 bg-gradient-to-r ${p.color} opacity-25 rounded-xl bar-fill" style="width: ${topPct}%;"></div>
+            
+            <div class="relative z-10 flex items-center justify-between">
+              <div class="flex items-center space-x-2.5 min-w-[220px]">
+                <span class="w-5 text-center font-fantasy font-black text-sm ${index === 0 ? 'text-purple-300 rune-glow' : 'text-slate-500'}">0${index + 1}</span>
+                <div>
+                  <div class="flex items-center space-x-2">
+                    <span class="font-bold text-xs text-slate-100 group-hover:text-purple-300 transition">${displayName}</span>
+                    <span class="text-[9px] px-1 py-0.2 rounded bg-black/60 border border-purple-900/40 text-slate-400 font-mono-num">${p.class}</span>
+                  </div>
+                  <div class="flex items-center space-x-2.5 text-[10px] text-slate-400 font-mono-num mt-0.5">
+                    <span>Crit: <b class="text-rose-400">${p.crit}%</b></span>
+                    <span>Back: <b class="text-purple-400">${p.back}%</b></span>
+                    <span>Perf: <b class="text-sky-400">${p.perfect}%</b></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center space-x-4 text-right font-mono-num">
+                <div>
+                  <div class="text-xs font-bold text-white">${p.dps.toLocaleString()}/s</div>
+                  <div class="text-[9px] text-slate-500">DPS</div>
+                </div>
+                <div class="w-16">
+                  <div class="text-[11px] font-bold text-purple-200">${(p.dmg / 1000000).toFixed(2)}M</div>
+                  <div class="text-[9px] text-rose-400 font-bold">${sharePct}%</div>
+                </div>
+                <div class="text-purple-400 text-xs transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}">
+                  ▼
+                </div>
+              </div>
+            </div>
+            ${skillsHtml}
+          </div>
+        `;
+        list.appendChild(card);
+      });
+
+      document.getElementById('teamTotalDmg').innerText = (totalDmg / 1000000).toFixed(2) + 'M';
+      document.getElementById('teamDps').innerText = Math.round(totalDmg / timerSec).toLocaleString() + '/s';
+      
+      const avgCrit = (combatData.reduce((acc, p) => acc + p.crit, 0) / combatData.length).toFixed(1);
+      document.getElementById('teamCritRate').innerText = `${avgCrit}%`;
+    }
+
+    function renderDamageTakenTable() {
+      const tbody = document.getElementById('damageTakenTbody');
+      tbody.innerHTML = '';
+      combatData.forEach((p, idx) => {
+        const displayName = formatPlayerName(p, idx);
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-purple-950/20 transition cursor-pointer";
+        tr.onclick = () => openInspectModal(p.id);
+        tr.innerHTML = `
+          <td class="p-2.5 font-bold text-slate-200">${displayName} <span class="text-slate-500 font-normal">(${p.class})</span></td>
+          <td class="p-2.5 text-rose-400 font-bold">${(p.dmgTaken / 1000000).toFixed(2)}M</td>
+          <td class="p-2.5 text-slate-300">${(p.dmgTaken * 0.45 / 1000000).toFixed(2)}M (45%)</td>
+          <td class="p-2.5 text-sky-400 font-bold">${p.parry}%</td>
+          <td class="p-2.5 ${p.deaths > 0 ? 'text-rose-500 font-bold' : 'text-slate-400'}">${p.deaths}</td>
+          <td class="p-2.5 text-right">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${p.deaths === 0 ? 'bg-purple-950 text-purple-300 border border-purple-700/50' : 'bg-rose-950 text-rose-300 border border-rose-700/50'}">
+              ${p.deaths === 0 ? 'SURVIVOR S+' : 'VULNERABLE B'}
+            </span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderBuffsAndCooldowns() {
+      // Buff list
+      const buffContainer = document.getElementById('buffListContainer');
+      buffContainer.innerHTML = '';
+      activeBuffs.sort((a,b) => a.timeLeft - b.timeLeft);
+      document.getElementById('buffCount').innerText = activeBuffs.length;
+
+      activeBuffs.forEach(b => {
+        const pct = Math.round((b.timeLeft / b.maxDuration) * 100);
+        const div = document.createElement('div');
+        div.className = `p-2 rounded-lg bg-black/60 border ${b.color} flex items-center justify-between text-xs font-mono-num`;
+        div.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <span class="text-base">${b.icon}</span>
+            <div>
+              <div class="font-bold text-slate-100 text-xs">${b.name}</div>
+              <div class="text-[9px] text-slate-400">${b.source}</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="font-bold text-sky-300">${b.timeLeft}s</span>
+            <div class="w-16 h-1 bg-black rounded-full overflow-hidden mt-1">
+              <div class="h-full bg-sky-400" style="width: ${pct}%;"></div>
+            </div>
+          </div>
+        `;
+        buffContainer.appendChild(div);
+      });
+
+      // Cooldown list
+      const cdContainer = document.getElementById('cooldownListContainer');
+      cdContainer.innerHTML = '';
+      activeCooldowns.sort((a,b) => a.timeLeft - b.timeLeft);
+      document.getElementById('cdCount').innerText = activeCooldowns.length;
+
+      activeCooldowns.forEach(c => {
+        const pct = Math.round(((c.maxDuration - c.timeLeft) / c.maxDuration) * 100);
+        const div = document.createElement('div');
+        div.className = `p-2 rounded-lg bg-black/60 border ${c.color} flex items-center justify-between text-xs font-mono-num`;
+        div.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <span class="text-base">${c.icon}</span>
+            <span class="font-bold text-slate-100 text-xs">${c.name}</span>
+          </div>
+          <div class="text-right">
+            <span class="font-bold text-rose-400">${c.timeLeft}s</span>
+            <div class="w-16 h-1 bg-black rounded-full overflow-hidden mt-1">
+              <div class="h-full bg-rose-500" style="width: ${pct}%;"></div>
+            </div>
+          </div>
+        `;
+        cdContainer.appendChild(div);
+      });
+    }
+
+    function renderCombatHistory() {
+      const tbody = document.getElementById('historyTbody');
+      tbody.innerHTML = '';
+      combatHistory.forEach(h => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-purple-950/20 transition";
+        tr.innerHTML = `
+          <td class="p-2.5 text-slate-400">${h.time}</td>
+          <td class="p-2.5 font-bold text-purple-200">${h.target}</td>
+          <td class="p-2.5 text-sky-300">${h.duration}</td>
+          <td class="p-2.5 text-slate-100 font-bold">${h.dmg}</td>
+          <td class="p-2.5 text-rose-400 font-bold">${h.dps}</td>
+          <td class="p-2.5 text-purple-300">${h.topPlayer}</td>
+          <td class="p-2.5 text-right">
+            <button class="px-2 py-0.5 rounded bg-purple-950 border border-purple-700/50 text-[10px] text-purple-200 hover:bg-purple-800 transition">
+              Xem
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function togglePlayerExpand(id) {
+      playRuneChime(520);
+      expandedPlayerId = (expandedPlayerId === id) ? null : id;
+      renderLeaderboard();
+    }
+
+    function openInspectModal(playerId) {
+      playRuneChime(640);
+      const player = combatData.find(p => p.id === playerId);
+      if (!player) return;
+
+      document.getElementById('modalPlayerName').innerText = player.name;
+      document.getElementById('modalPlayerClass').innerText = player.class;
+      document.getElementById('modalClassInitial').innerText = player.class[0];
+      document.getElementById('modalMaxHit').innerText = `${player.maxHit.toLocaleString()} (CRIT)`;
+      document.getElementById('modalBackRatio').innerText = `${player.back}%`;
+      document.getElementById('modalDeaths').innerText = `${player.deaths} lần`;
+
+      const stigmasContainer = document.getElementById('modalStigmas');
+      stigmasContainer.innerHTML = player.stigmas.map(s => `
+        <span class="px-2 py-0.5 rounded bg-purple-950/80 border border-purple-500/40 text-purple-200 text-[9px]">${s}</span>
+      `).join('');
+
+      const skillTbody = document.getElementById('modalSkillTableBody');
+      skillTbody.innerHTML = player.skills.map(s => `
+        <tr class="hover:bg-purple-950/30">
+          <td class="p-2 font-bold text-purple-300 font-sans">${s.name}</td>
+          <td class="p-2 text-slate-300">${s.hits}</td>
+          <td class="p-2 text-rose-400 font-bold">${s.critRate}%</td>
+          <td class="p-2 text-slate-200">${(s.dmg / 1000000).toFixed(2)}M</td>
+          <td class="p-2 text-right font-bold text-purple-400">${s.pct}%</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('playerInspectModal').classList.remove('hidden');
+      drawRadarChart(player.radar);
+    }
+
+    document.getElementById('closeModalBtn').onclick = () => {
+      document.getElementById('playerInspectModal').classList.add('hidden');
+    };
+
+    function drawRadarChart(scores = [85, 80, 90, 70, 75]) {
+      const canvas = document.getElementById('radarCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const r = 60;
+      const labels = ["ATK", "CRIT", "ROT", "DEF", "POS"];
+      const n = 5;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let ring = 1; ring <= 4; ring++) {
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+          const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+          const currR = (r / 4) * ring;
+          const x = cx + currR * Math.cos(angle);
+          const y = cy + currR * Math.sin(angle);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(139, 92, 246, 0.2)';
+        ctx.stroke();
+      }
+
+      for (let i = 0; i < n; i++) {
+        const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+        ctx.strokeStyle = 'rgba(139, 92, 246, 0.3)';
+        ctx.stroke();
+
+        const lx = cx + (r + 12) * Math.cos(angle);
+        const ly = cy + (r + 12) * Math.sin(angle);
+        ctx.fillStyle = '#c084fc';
+        ctx.font = '8px "JetBrains Mono"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(labels[i], lx, ly);
+      }
+
+      ctx.beginPath();
+      scores.forEach((val, i) => {
+        const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+        const currentRadius = (val / 100) * r;
+        const x = cx + currentRadius * Math.cos(angle);
+        const y = cy + currentRadius * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(225, 29, 72, 0.4)';
+      ctx.fill();
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    function addCombatLog() {
+      const feed = document.getElementById('combatLogFeed');
+      const randomPlayer = combatData[Math.floor(Math.random() * combatData.length)];
+      const randomSkill = sampleSkills[Math.floor(Math.random() * sampleSkills.length)];
+      const variance = (0.9 + Math.random() * 0.25);
+      const dmg = Math.round(randomSkill.base * variance);
+      const pName = isHideNick ? `${randomPlayer.class} #1` : randomPlayer.name;
+
+      const logItem = document.createElement('div');
+      logItem.className = "p-1 rounded bg-black/50 border border-purple-950/60 flex items-center justify-between text-[10px] hover:border-purple-800 transition";
+      logItem.innerHTML = `
+        <div class="truncate">
+          <span class="text-purple-300 font-bold">${pName}</span>
+          <span class="text-slate-500 mx-1">▸</span>
+          <span class="text-slate-300">${randomSkill.name}</span>
+        </div>
+        <div class="flex items-center space-x-1 flex-shrink-0">
+          ${randomSkill.crit ? '<span class="text-[8px] px-1 bg-rose-950 text-rose-400 border border-rose-800 rounded font-bold">CRIT</span>' : ''}
+          ${randomSkill.back ? '<span class="text-[8px] px-1 bg-purple-950 text-purple-400 border border-purple-800 rounded font-bold">BACK</span>' : ''}
+          <span class="font-bold ${randomSkill.crit ? 'text-rose-400' : 'text-slate-200'}">${dmg.toLocaleString()}</span>
+        </div>
+      `;
+      feed.prepend(logItem);
+      if (feed.children.length > 20) {
+        feed.removeChild(feed.lastChild);
+      }
+    }
+
+    function drawChart() {
+      const canvas = document.getElementById('dpsCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = canvas.parentElement.clientWidth - 24;
+      canvas.height = canvas.parentElement.clientHeight - 24;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const maxVal = Math.max(...dpsHistory, 220000);
+      const minVal = 100000;
+      const stepX = canvas.width / (dpsHistory.length - 1);
+
+      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      grad.addColorStop(0, 'rgba(168, 85, 247, 0.45)');
+      grad.addColorStop(1, 'rgba(168, 85, 247, 0.0)');
+
+      ctx.beginPath();
+      dpsHistory.forEach((val, i) => {
+        const x = i * stepX;
+        const y = canvas.height - ((val - minVal) / (maxVal - minVal)) * canvas.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.beginPath();
+      dpsHistory.forEach((val, i) => {
+        const x = i * stepX;
+        const y = canvas.height - ((val - minVal) / (maxVal - minVal)) * canvas.height;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = '#c084fc';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Mechanics & Boss Engine
+    let castProgress = 1.8;
+    const castMax = 4.0;
+    let staggerVal = 78.5;
+
+    setInterval(() => {
+      if (!isRunning) return;
+      timerSec++;
+      const m = String(Math.floor(timerSec / 60)).padStart(2, '0');
+      const s = String(timerSec % 60).padStart(2, '0');
+      document.getElementById('fightDuration').innerText = `${m}:${s}`;
+      document.getElementById('graphDuration').innerText = `${m}:${s}`;
+
+      // Simulate ping jitter
+      updatePing(16 + Math.floor(Math.random() * 8));
+
+      combatData.forEach(p => {
+        const gainedDmg = Math.round(p.dps * (0.85 + Math.random() * 0.3));
+        p.dmg += gainedDmg;
+        p.dmgTaken += Math.round(gainedDmg * 0.2);
+      });
+
+      // Target HP
+      const maxBossHp = 60000000;
+      const totalDmg = combatData.reduce((acc, p) => acc + p.dmg, 0);
+      const curHp = Math.max(0, maxBossHp - totalDmg);
+      const hpPct = ((curHp / maxBossHp) * 100).toFixed(1);
+
+      document.getElementById('targetHpPercent').innerText = hpPct + '%';
+      document.getElementById('targetHpDisplay').innerText = `${curHp.toLocaleString()} / ${maxBossHp.toLocaleString()}`;
+      document.getElementById('targetHpFill').style.width = hpPct + '%';
+
+      // Dynamic Phases
+      const phaseTag = document.getElementById('phaseTag');
+      if (hpPct > 70) {
+        phaseTag.innerText = "PHASE I: AWAKENED";
+        phaseTag.className = "text-[10px] font-mono-num font-bold px-2 py-0.2 rounded bg-black/60 border border-purple-900/60 text-purple-300";
+      } else if (hpPct > 30) {
+        phaseTag.innerText = "PHASE II: BERSERK";
+        phaseTag.className = "text-[10px] font-mono-num font-bold px-2 py-0.2 rounded bg-rose-950/60 border border-rose-700/60 text-rose-300 animate-pulse";
+      } else {
+        phaseTag.innerText = "PHASE III: CATACLYSM ENRAGE";
+        phaseTag.className = "text-[10px] font-mono-num font-bold px-2 py-0.2 rounded bg-red-950 border border-red-500 text-red-200 animate-bounce";
+      }
+
+      // Cast bar
+      castProgress += 1.0;
+      if (castProgress >= castMax) castProgress = 0.0;
+      document.getElementById('castTimeText').innerText = `${castProgress.toFixed(1)}s / ${castMax.toFixed(1)}s`;
+      document.getElementById('castFill').style.width = `${((castProgress / castMax) * 100).toFixed(0)}%`;
+
+      // Stagger
+      staggerVal = Math.min(100, staggerVal + 0.8);
+      if (staggerVal >= 100) staggerVal = 15;
+      document.getElementById('staggerText').innerText = `${staggerVal.toFixed(1)}% ${staggerVal > 75 ? '(Weakness Ready)' : ''}`;
+      document.getElementById('staggerFill').style.width = `${staggerVal}%`;
+
+      // Buffs decay
+      activeBuffs.forEach(b => {
+        b.timeLeft = Math.max(0, b.timeLeft - 1);
+        if (b.timeLeft === 0) b.timeLeft = b.maxDuration;
+      });
+      activeCooldowns.forEach(c => {
+        c.timeLeft = Math.max(0, c.timeLeft - 1);
+        if (c.timeLeft === 0) c.timeLeft = c.maxDuration;
+      });
+
+      const currentTeamDps = Math.round(totalDmg / timerSec);
+      dpsHistory.push(currentTeamDps * (0.95 + Math.random() * 0.15));
+      if (dpsHistory.length > 40) dpsHistory.shift();
+
+      renderLeaderboard();
+      renderDamageTakenTable();
+      renderBuffsAndCooldowns();
+      addCombatLog();
+      drawChart();
+    }, 1000);
+
+    // Tab Switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.onclick = () => {
+        playRuneChime(480);
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+        const targetId = btn.dataset.tab;
+        document.getElementById(targetId).classList.remove('hidden');
+
+        if (targetId === 'tab-graph') {
+          setTimeout(drawChart, 50);
+        } else if (targetId === 'tab-damage-taken') {
+          renderDamageTakenTable();
+        } else if (targetId === 'tab-buffs-cooldowns') {
+          renderBuffsAndCooldowns();
+        } else if (targetId === 'tab-history') {
+          renderCombatHistory();
+        }
+      };
+    });
+
+    // Sort select
+    document.getElementById('sortSelect').onchange = (e) => {
+      currentSort = e.target.value;
+      renderLeaderboard();
+    };
+
+    // Pause
+    document.getElementById('pauseBtn').onclick = () => {
+      playRuneChime(420);
+      isRunning = !isRunning;
+      document.getElementById('pauseBtn').innerText = isRunning ? '❚❚ Dừng' : '▶ Tiếp';
+    };
+
+    // Reset
+    document.getElementById('resetBtn').onclick = () => {
+      playRuneChime(380);
+      timerSec = 0;
+      combatData.forEach(p => { p.dmg = 1000; p.dmgTaken = 0; });
+      document.getElementById('combatLogFeed').innerHTML = '';
+      renderLeaderboard();
+      renderDamageTakenTable();
+      drawChart();
+    };
+
+    // Hide Nick Toggle
+    document.getElementById('hideNickBtn').onclick = () => {
+      isHideNick = !isHideNick;
+      try { localStorage.setItem('fear_dps_hide_nick', isHideNick); } catch(e) {}
+      updateNickDisplay();
+      playRuneChime(540);
+    };
+
+    // Mini HUD Mode Toggle
+    document.getElementById('viewModeBtn').onclick = () => {
+      playRuneChime(560);
+      isMiniHud = !isMiniHud;
+      const mainContainer = document.getElementById('mainContainer');
+      const bossRow = document.getElementById('bossMechanicsRow');
+      const navTabs = document.getElementById('navTabBar');
+
+      if (isMiniHud) {
+        mainContainer.classList.remove('max-w-6xl');
+        mainContainer.classList.add('max-w-md');
+        bossRow.classList.add('hidden');
+        document.getElementById('viewModeBtn').innerText = '⤢ Chronicle';
+      } else {
+        mainContainer.classList.remove('max-w-md');
+        mainContainer.classList.add('max-w-6xl');
+        bossRow.classList.remove('hidden');
+        document.getElementById('viewModeBtn').innerText = '⤢ Mini HUD';
+      }
+      setTimeout(drawChart, 60);
+    };
+
+    // Always-on-top Pin toggle
+    document.getElementById('pinBtn').onclick = () => {
+      isPinned = !isPinned;
+      document.getElementById('pinStatus').innerText = isPinned ? 'BẬT' : 'TẮT';
+      document.getElementById('pinStatus').className = isPinned ? 'text-sky-300 font-bold' : 'text-slate-400';
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.set_dps_always_on_top(isPinned);
+      }
+    };
+
+    // Opacity Slider
+    document.getElementById('opacitySlider').oninput = (e) => {
+      const val = e.target.value;
+      document.getElementById('opacityVal').innerText = val + '%';
+      document.body.style.opacity = val / 100;
+      try { localStorage.setItem('fear_dps_opacity', val); } catch(e) {}
+    };
+
+    // Window controls
+    document.getElementById('winMinBtn').onclick = () => {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.minimize_dps_window();
+      }
+    };
+    document.getElementById('winCloseBtn').onclick = () => {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.close_dps_window();
+      } else {
+        window.close();
+      }
+    };
+
+    // WebSocket Daemon Connection
+    document.getElementById('daemonBtn').onclick = () => {
+      playRuneChime(600);
+      isLiveWsMode = !isLiveWsMode;
+      const daemonText = document.getElementById('daemonText');
+      const daemonDot = document.getElementById('daemonDot');
+
+      if (isLiveWsMode) {
+        daemonText.innerText = "CONNECTING...";
+        daemonDot.className = "w-2 h-2 rounded-full bg-sky-400 animate-ping";
+        try {
+          ws = new WebSocket("ws://127.0.0.1:28888/ws");
+          ws.onopen = () => {
+            daemonText.innerText = "LIVE NPCAP";
+            daemonDot.className = "w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]";
+          };
+          ws.onmessage = (event) => {
+            try {
+              const liveData = JSON.parse(event.data);
+              if (liveData.ping) updatePing(liveData.ping);
+              if (liveData.target && liveData.target.hasTarget) {
+                document.getElementById('targetName').innerText = liveData.target.name;
+                document.getElementById('targetHpPercent').innerText = liveData.target.hpPercent + '%';
+                document.getElementById('targetHpFill').style.width = liveData.target.hpPercent + '%';
+              }
+            } catch(e) {}
+          };
+          ws.onerror = () => {
+            daemonText.innerText = "OFFLINE";
+            daemonDot.className = "w-2 h-2 rounded-full bg-rose-500";
+            setTimeout(() => {
+              isLiveWsMode = false;
+              daemonText.innerText = "SIMULATION";
+              daemonDot.className = "w-2 h-2 rounded-full bg-purple-400 animate-pulse";
+            }, 2500);
+          };
+        } catch(e) {
+          daemonText.innerText = "SIMULATION";
+        }
+      } else {
+        if (ws) { ws.close(); ws = null; }
+        daemonText.innerText = "SIMULATION";
+        daemonDot.className = "w-2 h-2 rounded-full bg-purple-400 animate-pulse";
+      }
+    };
+
+    // Initial render
+    renderLeaderboard();
+    renderDamageTakenTable();
+    renderBuffsAndCooldowns();
+    renderCombatHistory();
+    setTimeout(drawChart, 100);
+  </script>
+</body>
+</html>

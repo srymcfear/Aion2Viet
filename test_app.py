@@ -102,6 +102,16 @@ class TestModApi(unittest.TestCase):
         self.assertIsInstance(installed, bool)
         print(f"[PASS] is_webview2_installed returned: {installed}")
 
+    def test_dps_overlay_methods(self):
+        # Verify DPS overlay management methods operate safely without crashing
+        self.assertTrue(self.api.set_dps_always_on_top(True))
+        self.assertTrue(self.api.set_dps_always_on_top(False))
+        self.assertTrue(self.api.minimize_dps_window())
+        self.assertTrue(self.api.close_dps_window())
+        self.assertTrue(self.api.stop_dps_daemon())
+        self.assertTrue(os.path.isfile(os.path.join(app.ROOT_DIR, "dps_overlay.html")))
+        print("[PASS] DPS overlay methods and overlay template verified.")
+
 if __name__ == "__main__":
     unittest.main()
 

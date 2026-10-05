@@ -189,6 +189,8 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 DUMMY_PAK_BYTES = bytes([0x47, 0x55, 0x20, 0x32, 0x30, 0x32, 0x36, 0x30, 0x39, 0x32, 0x39, 0x31, 0x37, 0x35, 0x37])
 
 _main_window = None
+_dps_window = None
+_dps_process = None
 
 class ModApi:
     def __init__(self):
@@ -389,6 +391,8 @@ class ModApi:
         global _main_window
         def _close():
             time.sleep(0.02)
+            self.stop_dps_daemon()
+            self.close_dps_window()
             if _main_window:
                 try:
                     _main_window.destroy()
@@ -396,6 +400,121 @@ class ModApi:
                     pass
             os._exit(0)
         threading.Thread(target=_close, daemon=True).start()
+        return True
+
+    def launch_dps_overlay(self):
+        global _dps_window
+        # 1. Start Daemon if not already running
+        self.start_dps_daemon()
+
+        # 2. Check overlay HTML
+        overlay_path = os.path.join(ROOT_DIR, "dps_overlay.html")
+        if not os.path.isfile(overlay_path):
+            overlay_path = os.path.join(ROOT_DIR, "demo_dps_dark_fantasy.html")
+        
+        target_url = f"file:///{os.path.abspath(overlay_path).replace(os.sep, '/')}"
+
+        def _open():
+            global _dps_window
+            if _dps_window:
+                try:
+                    _dps_window.restore()
+                    _dps_window.show()
+                    return
+                except Exception:
+                    _dps_window = None
+
+            try:
+                _dps_window = webview.create_window(
+                    title="FEΔR Combat Chronicle & HUD",
+                    url=target_url,
+                    js_api=self,
+                    width=980,
+                    height=650,
+                    resizable=True,
+                    frameless=True,
+                    easy_drag=False,
+                    shadow=True,
+                    background_color="#040508"
+                )
+            except Exception as e:
+                self.log(f"Lỗi khởi chạy cửa sổ Overlay: {e}", "red")
+
+        threading.Thread(target=_open, daemon=True).start()
+        self.log("Đã khởi chạy cửa sổ FEΔR DPS Overlay HUD.", "blue")
+        return True
+
+    def set_dps_always_on_top(self, is_on_top):
+        global _dps_window
+        if _dps_window:
+            try:
+                _dps_window.on_top = bool(is_on_top)
+            except Exception:
+                pass
+        return True
+
+    def minimize_dps_window(self):
+        global _dps_window
+        if _dps_window:
+            try:
+                _dps_window.minimize()
+            except Exception:
+                pass
+        return True
+
+    def close_dps_window(self):
+        global _dps_window
+        if _dps_window:
+            try:
+                _dps_window.destroy()
+            except Exception:
+                pass
+            _dps_window = None
+        return True
+
+    def start_dps_daemon(self):
+        global _dps_process
+        if _dps_process and _dps_process.poll() is None:
+            return True
+
+        daemon_paths = [
+            os.path.join(ROOT_DIR, "dps_daemon", "publish", "Aion2DpsDaemon.exe"),
+            os.path.join(ROOT_DIR, "dps_daemon", "bin", "Release", "net10.0", "win-x64", "Aion2DpsDaemon.exe"),
+            os.path.join(ROOT_DIR, "dps_daemon", "bin", "Release", "net10.0", "Aion2DpsDaemon.exe"),
+            os.path.join(ROOT_DIR, "dps_daemon", "bin", "Debug", "net10.0", "Aion2DpsDaemon.exe"),
+            os.path.join(ROOT_DIR, "Aion2DpsDaemon.exe")
+        ]
+        daemon_exe = None
+        for p in daemon_paths:
+            if os.path.isfile(p):
+                daemon_exe = p
+                break
+
+        if not daemon_exe:
+            self.log("Chưa tìm thấy file Aion2DpsDaemon.exe. Sử dụng chế độ mô phỏng.", "gray")
+            return False
+
+        try:
+            import subprocess
+            _dps_process = subprocess.Popen(
+                [daemon_exe],
+                cwd=os.path.dirname(daemon_exe),
+                creationflags=0x08000000 | 0x00000200
+            )
+            self.log("Daemon bắt gói tin AION 2 (Npcap C#) đã kích hoạt ngầm.", "success")
+            return True
+        except Exception as e:
+            self.log(f"Lỗi khởi động DPS Daemon: {e}", "red")
+            return False
+
+    def stop_dps_daemon(self):
+        global _dps_process
+        if _dps_process:
+            try:
+                _dps_process.terminate()
+            except Exception:
+                pass
+            _dps_process = None
         return True
 
     def open_github(self):
