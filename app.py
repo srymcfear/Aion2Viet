@@ -600,7 +600,7 @@ exit
             import subprocess
             dps_dir = os.path.dirname(dps_exe)
             _dps_meter_process = subprocess.Popen(
-                [dps_exe],
+                [dps_exe, "--fear-launcher", SECURITY_KEY_HASH],
                 cwd=dps_dir
             )
             self.log(f"✔ Đã kích hoạt Plugin AION 2 DPS Meter (Vị trí: {dps_dir}).", "success")
