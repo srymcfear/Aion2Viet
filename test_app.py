@@ -85,7 +85,17 @@ class TestModApi(unittest.TestCase):
         # is_game_running should return a boolean
         running = app.is_game_running()
         self.assertIsInstance(running, bool)
-        print(f"[PASS] browse_folder returned gracefully ({res}), is_game_running: {running}")
+    def test_storage_and_cache_dirs(self):
+        s_dir = app.get_app_storage_dir()
+        c_dir = app.get_cache_dir()
+        u_dir = app.get_updates_dir()
+        self.assertTrue(os.path.isdir(s_dir))
+        self.assertTrue(os.path.isdir(c_dir))
+        self.assertTrue(os.path.isdir(u_dir))
+        self.assertIn("Aion2_Tools", s_dir)
+        self.assertIn("Cache", c_dir)
+        self.assertIn("Updates", u_dir)
+        print(f"[PASS] Storage directories verified: {s_dir}, {c_dir}, {u_dir}")
 
 if __name__ == "__main__":
     unittest.main()

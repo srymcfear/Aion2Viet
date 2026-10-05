@@ -20,12 +20,28 @@ import webbrowser
 import webview
 
 # Security & Update Configuration
-CURRENT_VERSION = "1.0.5"
+CURRENT_VERSION = "1.0.6"
 SECURITY_KEY = "fearAion2Tran-key"
 SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
 GITHUB_REPO = "srymcfear/Aion2Viet"
 RELEASE_URL = f"https://github.com/{GITHUB_REPO}/releases"
 API_RELEASE_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
+
+def get_app_storage_dir():
+    pdata = os.environ.get("ProgramData", r"C:\ProgramData")
+    base_dir = os.path.join(pdata, "FEAR", "Aion2_Tools")
+    os.makedirs(base_dir, exist_ok=True)
+    return base_dir
+
+def get_cache_dir():
+    cache_dir = os.path.join(get_app_storage_dir(), "Cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    return cache_dir
+
+def get_updates_dir():
+    updates_dir = os.path.join(get_app_storage_dir(), "Updates")
+    os.makedirs(updates_dir, exist_ok=True)
+    return updates_dir
 
 def is_game_running():
     try:
@@ -294,9 +310,9 @@ class ModApi:
                 with urllib.request.urlopen(req, timeout=30) as resp:
                     total_size = int(resp.headers.get("content-length", 0))
                     downloaded = 0
-                    temp_dir = tempfile.gettempdir()
+                    updates_dir = get_updates_dir()
                     new_file_name = f"F-Aion_2_Tools_v{self.security_info['latestVersion']}.exe"
-                    dest_path = os.path.join(temp_dir, new_file_name)
+                    dest_path = os.path.join(updates_dir, new_file_name)
 
                     with open(dest_path, "wb") as f:
                         while True:
@@ -726,7 +742,8 @@ def main():
     )
     global _main_window
     _main_window = window
-    webview.start(debug=False)
+    cache_dir = get_cache_dir()
+    webview.start(debug=False, private_mode=False, storage_path=cache_dir)
 
 if __name__ == "__main__":
     main()
