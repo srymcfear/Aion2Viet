@@ -500,8 +500,8 @@ const toolsList = [
   {
     id: 'dps',
     title: 'AION 2 DPS Meter',
-    badge: 'TÍCH HỢP',
-    desc: 'Bộ đo DPS thời gian thực, Target Tracking, Lịch sử chiến đấu & Giả lập chỉ số (Source gốc tích hợp đầy đủ tính năng).',
+    badge: 'PLUGIN',
+    desc: 'Plugin đo DPS thời gian thực, Target Tracking, Lịch sử chiến đấu & Giả lập chỉ số (Lưu trữ độc lập tại ProgramData).',
     active: true
   },
   {
@@ -536,7 +536,7 @@ function handleToolClick(tool: any) {
 }
 
 function handleLaunchDpsMeter() {
-  addLog('Đang khởi chạy AION 2 DPS Meter (Source gốc)...', 'blue');
+  addLog('Đang kích hoạt Plugin AION 2 DPS Meter (ProgramData)...', 'blue');
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.launch_dps_meter) {
     pyApi.launch_dps_meter();

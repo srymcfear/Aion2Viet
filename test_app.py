@@ -1,4 +1,5 @@
 import os
+import json
 import unittest
 import app
 from app import ModApi, is_admin, parse_release_security, is_newer_version, SECURITY_KEY
@@ -132,10 +133,21 @@ class TestModApi(unittest.TestCase):
     def test_dps_meter_integration(self):
         npcap = app.is_npcap_installed()
         self.assertIsInstance(npcap, bool)
+        p_dir = app.get_plugins_dir()
+        dps_dir = app.get_dps_plugin_dir()
+        self.assertTrue(os.path.isdir(p_dir))
+        self.assertTrue(os.path.isdir(dps_dir))
+        self.assertIn(r"C:\ProgramData\FEAR\Aion2_Tools", dps_dir)
         dps_exe = app.get_dps_meter_executable()
         self.assertIsNotNone(dps_exe)
         self.assertTrue(os.path.isfile(dps_exe), f"DPS Meter executable must exist at: {dps_exe}")
-        print(f"[PASS] DPS Meter native executable verified: {dps_exe}, Npcap={npcap}")
+        manifest_file = os.path.join(dps_dir, "plugin.json")
+        self.assertTrue(os.path.isfile(manifest_file), f"plugin.json manifest must exist at: {manifest_file}")
+        with open(manifest_file, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+            self.assertEqual(meta.get("id"), "aion2_dps_meter")
+            self.assertEqual(meta.get("entry"), "AionDpsMeter.UI.exe")
+        print(f"[PASS] DPS Meter plugin verified at: {dps_dir}, Exe: {dps_exe}, Npcap={npcap}")
 
 if __name__ == "__main__":
     unittest.main()

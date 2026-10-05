@@ -47,17 +47,17 @@ def is_webview2_installed():
     return False
 
 def get_app_storage_dir():
-    # Prefer LOCALAPPDATA to guarantee full read/write permissions for all users
-    local_app_data = os.environ.get("LOCALAPPDATA")
-    if local_app_data and os.path.isdir(local_app_data):
-        base_dir = os.path.join(local_app_data, "FEAR", "Aion2_Tools")
-    else:
-        pdata = os.environ.get("ProgramData", r"C:\ProgramData")
-        base_dir = os.path.join(pdata, "FEAR", "Aion2_Tools")
+    # ProgramData (C:\ProgramData\FEAR\Aion2_Tools) is the primary root for all data, cache, and plugins
+    pdata = os.environ.get("ProgramData", r"C:\ProgramData")
+    base_dir = os.path.join(pdata, "FEAR", "Aion2_Tools")
     try:
         os.makedirs(base_dir, exist_ok=True)
     except Exception:
-        base_dir = os.path.join(os.path.expanduser("~"), ".fear_aion2")
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data and os.path.isdir(local_app_data):
+            base_dir = os.path.join(local_app_data, "FEAR", "Aion2_Tools")
+        else:
+            base_dir = os.path.join(os.path.expanduser("~"), ".fear_aion2")
         os.makedirs(base_dir, exist_ok=True)
     return base_dir
 
@@ -70,6 +70,16 @@ def get_updates_dir():
     updates_dir = os.path.join(get_app_storage_dir(), "Updates")
     os.makedirs(updates_dir, exist_ok=True)
     return updates_dir
+
+def get_plugins_dir():
+    plugins_dir = os.path.join(get_app_storage_dir(), "plugins")
+    os.makedirs(plugins_dir, exist_ok=True)
+    return plugins_dir
+
+def get_dps_plugin_dir():
+    dps_dir = os.path.join(get_plugins_dir(), "dps_meter")
+    os.makedirs(dps_dir, exist_ok=True)
+    return dps_dir
 
 def is_game_running():
     try:
@@ -211,35 +221,95 @@ def is_npcap_installed():
     return (os.path.isfile(os.path.join(sys32, "wpcap.dll")) or 
             os.path.isfile(os.path.join(sys32, "Npcap", "wpcap.dll")))
 
-def get_dps_meter_executable():
-    # 1. Local directory next to app.py / ROOT_DIR
+def sync_dps_meter_plugin():
+    """
+    Deploys and synchronizes the DPS Meter plugin into C:\\ProgramData\\FEAR\\Aion2_Tools\\plugins\\dps_meter.
+    Returns the absolute path to AionDpsMeter.UI.exe inside the plugin folder.
+    """
+    target_plugin_dir = get_dps_plugin_dir()
+    target_exe = os.path.join(target_plugin_dir, "AionDpsMeter.UI.exe")
+    
+    # 1. Search for source publish files to sync
+    b_dir = get_bundle_dir()
+    candidates = [
+        os.path.join(b_dir, "dps_meter"),
+        os.path.join(ROOT_DIR, "dps_meter"),
+        os.path.join(ROOT_DIR, "dps_core_src", "publish")
+    ]
+    source_dir = None
+    for c in candidates:
+        if os.path.isdir(c) and os.path.isfile(os.path.join(c, "AionDpsMeter.UI.exe")):
+            source_dir = c
+            break
+
+    if source_dir:
+        src_exe = os.path.join(source_dir, "AionDpsMeter.UI.exe")
+        should_sync = False
+        if not os.path.isfile(target_exe):
+            should_sync = True
+        else:
+            try:
+                if os.path.getmtime(src_exe) > os.path.getmtime(target_exe):
+                    should_sync = True
+            except Exception:
+                pass
+
+        if should_sync:
+            try:
+                for item in os.listdir(source_dir):
+                    s = os.path.join(source_dir, item)
+                    d = os.path.join(target_plugin_dir, item)
+                    if os.path.isdir(s):
+                        os.makedirs(d, exist_ok=True)
+                        for sub_root, _, sub_files in os.walk(s):
+                            rel_path = os.path.relpath(sub_root, s)
+                            dest_sub = os.path.join(d, rel_path) if rel_path != "." else d
+                            os.makedirs(dest_sub, exist_ok=True)
+                            for f in sub_files:
+                                sf = os.path.join(sub_root, f)
+                                df = os.path.join(dest_sub, f)
+                                if not os.path.isfile(df) or os.path.getmtime(sf) > os.path.getmtime(df):
+                                    shutil.copy2(sf, df)
+                    else:
+                        # Avoid overwriting user database or custom config if already present
+                        if item in ["combat-history.db", "appsettings.user.json"] and os.path.isfile(d):
+                            continue
+                        if not os.path.isfile(d) or os.path.getmtime(s) > os.path.getmtime(d):
+                            shutil.copy2(s, d)
+            except Exception as e:
+                print(f"[WARN] Error deploying DPS meter plugin: {e}")
+
+    # 2. Ensure plugin manifest plugin.json is present
+    manifest_path = os.path.join(target_plugin_dir, "plugin.json")
+    if not os.path.isfile(manifest_path):
+        try:
+            manifest_info = {
+                "id": "aion2_dps_meter",
+                "name": "AION 2 DPS Meter",
+                "version": "1.0.0",
+                "type": "plugin",
+                "author": "FEΔR",
+                "entry": "AionDpsMeter.UI.exe",
+                "description": "Plugin đo lường DPS, Party Tracking, Combat History và phân tích kỹ năng chuẩn gốc cho AION 2.",
+                "storage": target_plugin_dir
+            }
+            with open(manifest_path, "w", encoding="utf-8") as mf:
+                json.dump(manifest_info, mf, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    if os.path.isfile(target_exe):
+        return target_exe
+
+    # Fallback to local dev path if somehow target_exe is missing
     local_path = os.path.join(ROOT_DIR, "dps_meter", "AionDpsMeter.UI.exe")
     if os.path.isfile(local_path):
         return local_path
 
-    # 2. PyInstaller bundle directory (_MEIPASS)
-    b_dir = get_bundle_dir()
-    bundle_path = os.path.join(b_dir, "dps_meter", "AionDpsMeter.UI.exe")
-    if os.path.isfile(bundle_path):
-        persistent_dir = os.path.join(get_app_storage_dir(), "dps_meter")
-        os.makedirs(persistent_dir, exist_ok=True)
-        persistent_exe = os.path.join(persistent_dir, "AionDpsMeter.UI.exe")
-        bundle_dir = os.path.join(b_dir, "dps_meter")
-        try:
-            if not os.path.isfile(persistent_exe) or os.path.getmtime(bundle_path) > os.path.getmtime(persistent_exe):
-                for item in os.listdir(bundle_dir):
-                    s = os.path.join(bundle_dir, item)
-                    d = os.path.join(persistent_dir, item)
-                    if os.path.isdir(s):
-                        if not os.path.exists(d):
-                            shutil.copytree(s, d)
-                    else:
-                        shutil.copy2(s, d)
-        except Exception:
-            pass
-        return persistent_exe if os.path.isfile(persistent_exe) else bundle_path
-
     return None
+
+def get_dps_meter_executable():
+    return sync_dps_meter_plugin()
 
 class ModApi:
     def __init__(self):
@@ -523,7 +593,7 @@ exit
 
         dps_exe = get_dps_meter_executable()
         if not dps_exe or not os.path.isfile(dps_exe):
-            self.log("❌ Không tìm thấy AionDpsMeter.UI.exe trong thư mục dps_meter.", "red")
+            self.log(f"❌ Không tìm thấy plugin AionDpsMeter.UI.exe tại {get_dps_plugin_dir()}.", "red")
             return False
 
         try:
@@ -533,10 +603,10 @@ exit
                 [dps_exe],
                 cwd=dps_dir
             )
-            self.log("✔ Đã kích hoạt AION 2 DPS Meter (Source gốc - Full tính năng: DPS Tracking, Party, Combat History, Calc).", "success")
+            self.log(f"✔ Đã kích hoạt Plugin AION 2 DPS Meter (Vị trí: {dps_dir}).", "success")
             return True
         except Exception as e:
-            self.log(f"Lỗi khởi chạy AION 2 DPS Meter: {e}", "red")
+            self.log(f"Lỗi khởi chạy Plugin AION 2 DPS Meter: {e}", "red")
             return False
 
     def stop_dps_meter(self):
