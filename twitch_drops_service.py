@@ -50,6 +50,7 @@ class TwitchDropsService:
         self.user_id = ""
         self.current_channel = None
         self.minutes_mined = 0
+        self._notified_integrity_drops = set()
 
         # OAuth State (DevilXD Device Code Formula)
         self.oauth_state = {
@@ -368,7 +369,8 @@ class TwitchDropsService:
 
                 # Auto-claim check
                 if self.auto_claim and not claimed and curr >= req_m and drop_id:
-                    self._claim_drop_internal(drop_id, d.get("name", "Drop Item"), game_title)
+                    if drop_id not in self._notified_integrity_drops:
+                        self._claim_drop_internal(drop_id, d.get("name", "Drop Item"), game_title)
 
             campaigns.append({
                 "id": rc.get("id"),
@@ -416,10 +418,12 @@ class TwitchDropsService:
             return True
         else:
             err_msg = errors[0].get("message", "Unknown error")
-            print(f"[TwitchDrops] Claim result: {err_msg}")
-            # If Twitch requires client-integrity challenge, inform user
             if "integrity" in err_msg.lower():
-                self.log_callback(f"🛡️ Phần thưởng [{drop_name}] đã đủ 100%! Twitch yêu cầu bảo mật trình duyệt, đang mở Kho Twitch Inventory để bạn bấm nhận...", "blue")
+                with self._lock:
+                    self._notified_integrity_drops.add(drop_instance_id)
+                self.log_callback(f"🔔 Phần thưởng [{drop_name}] đã sẵn sàng nhận 100%! Hãy bấm nút 'Kho Drops' để nhận trực tiếp trên Twitch.", "blue")
+            else:
+                print(f"[TwitchDrops] Claim result: {err_msg}")
             return False
 
     def claim_drop_manual(self, drop_instance_id: str, drop_name: str = "Item"):
