@@ -18,6 +18,7 @@ import urllib.error
 import winreg
 import webbrowser
 import webview
+from twitch_drops_service import TwitchDropsService
 
 # Security & Update Configuration
 CURRENT_VERSION = "1.0.9"
@@ -336,6 +337,10 @@ class ModApi:
             "isChecking": False
         }
         self.verify_code_integrity()
+        self.twitch_service = TwitchDropsService(
+            storage_dir=get_app_storage_dir(),
+            log_callback=self.log
+        )
 
         # Initial detection in background thread so window opens instantly
         def _bg_scan():
@@ -573,6 +578,11 @@ exit
             time.sleep(0.02)
             self.stop_dps_daemon()
             self.close_dps_window()
+            try:
+                if hasattr(self, 'twitch_service'):
+                    self.twitch_service.stop()
+            except Exception:
+                pass
             if _main_window:
                 try:
                     _main_window.destroy()
@@ -649,6 +659,27 @@ exit
                 pass
             _dps_window = None
         return True
+
+    # ------------------------------------------------------------------
+    # Twitch Drops Miner Plugin APIs (Team FEΔR)
+    # ------------------------------------------------------------------
+    def get_twitch_drops_status(self):
+        return self.twitch_service.get_status()
+
+    def set_twitch_auth_token(self, token):
+        return self.twitch_service.set_auth_token(token)
+
+    def set_twitch_auto_claim(self, enabled):
+        return self.twitch_service.set_auto_claim(enabled)
+
+    def start_twitch_miner(self):
+        return self.twitch_service.start()
+
+    def stop_twitch_miner(self):
+        return self.twitch_service.stop()
+
+    def claim_twitch_drop(self, drop_instance_id, drop_name="Item"):
+        return self.twitch_service.claim_drop_manual(drop_instance_id, drop_name)
 
     def start_dps_daemon(self):
         global _dps_process

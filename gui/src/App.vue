@@ -298,7 +298,7 @@
             </div>
             <div v-if="tool.active" class="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-purple-900/30 text-purple-300">
               <span class="flex items-center gap-1">
-                <span>Khởi chạy DPS Meter</span>
+                <span>{{ tool.actionText || 'Khởi chạy' }}</span>
               </span>
               <span class="text-xs group-hover:translate-x-0.5 transition-transform text-purple-300">➔</span>
             </div>
@@ -446,6 +446,164 @@
         </button>
       </div>
 
+      <!-- Twitch Drops Miner Modal (FEAR HUD Style) -->
+      <n-modal v-model:show="showTwitchModal" :mask-closable="true">
+        <div class="w-[620px] max-w-[95vw] bg-[#080b14] border border-cyan-500/40 rounded-2xl p-5 shadow-[0_0_50px_rgba(6,182,212,0.18)] space-y-4 text-slate-200 select-none">
+          <!-- Header -->
+          <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-purple-600/30 border border-cyan-400/40 flex items-center justify-center text-cyan-300 font-extrabold text-xs shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+                FEΔR
+              </div>
+              <div>
+                <div class="text-sm font-extrabold text-white tracking-wider flex items-center gap-2">
+                  <span>TWITCH DROPS AUTO-MINER</span>
+                  <span class="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono font-bold">DAEMON</span>
+                </div>
+                <div class="text-[10.5px] text-slate-400">Tự động tích lũy phút xem & nhận thưởng ngầm (0% GPU / Siêu nhẹ máy)</div>
+              </div>
+            </div>
+
+            <!-- Status Indicator & Close Button -->
+            <div class="flex items-center gap-2.5">
+              <span 
+                class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1.5 transition-all"
+                :class="twitchStatus.isRunning 
+                  ? 'bg-cyan-500/15 border-cyan-400/50 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.35)]' 
+                  : 'bg-slate-800/80 border-slate-700 text-slate-400'"
+              >
+                <span class="w-1.5 h-1.5 rounded-full" :class="twitchStatus.isRunning ? 'bg-cyan-400 animate-pulse shadow-[0_0_8px_#22d3ee]' : 'bg-slate-500'"></span>
+                <span>{{ twitchStatus.isRunning ? 'ĐANG CÀY NGẦM' : 'TẠM DỪNG' }}</span>
+              </span>
+              <button 
+                @click="showTwitchModal = false" 
+                class="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <!-- Token Configuration & Controls -->
+          <div class="p-3.5 rounded-xl border border-slate-800/80 bg-[#0d121f] space-y-3">
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wide">Twitch OAuth Token (auth-token)</span>
+                <span class="text-[10px] text-slate-400 font-mono" v-if="twitchStatus.accountName">Tài khoản: <strong class="text-cyan-300">{{ twitchStatus.accountName }}</strong></span>
+              </div>
+              <div class="flex gap-2">
+                <n-input
+                  v-model:value="twitchTokenInput"
+                  type="password"
+                  show-password-on="click"
+                  placeholder="Dán mã auth-token từ cookie trình duyệt..."
+                  size="small"
+                  class="flex-1 font-mono text-xs"
+                />
+                <n-button secondary size="small" @click="handleSaveTwitchToken" class="!px-3 text-xs font-semibold">
+                  Lưu & Kết Nối
+                </n-button>
+              </div>
+              <div class="text-[9.5px] text-slate-500 mt-1 flex justify-between font-mono">
+                <span>Cách lấy: F12 trên Twitch.tv ➔ Application ➔ Cookies ➔ Copy giá trị <code class="text-cyan-400 font-semibold">auth-token</code>.</span>
+              </div>
+            </div>
+
+            <!-- Toggles & Action Buttons Row -->
+            <div class="flex items-center justify-between pt-2.5 border-t border-slate-800/80">
+              <div class="flex items-center gap-2">
+                <n-switch v-model:value="twitchAutoClaim" size="small" @update:value="handleToggleTwitchAutoClaim" />
+                <span class="text-[11px] text-slate-300 font-medium">Tự động Claim khi đủ 100%</span>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <n-button 
+                  size="small" 
+                  :type="twitchStatus.isRunning ? 'error' : 'primary'"
+                  @click="handleToggleTwitchMiner"
+                  class="font-bold text-xs !px-4"
+                >
+                  {{ twitchStatus.isRunning ? 'DỪNG CÀY NGẦM' : 'BẬT CÀY NGẦM' }}
+                </n-button>
+                <n-button secondary size="small" @click="refreshTwitchStatus" class="text-xs">
+                  Quét Lại
+                </n-button>
+              </div>
+            </div>
+          </div>
+
+          <!-- In-Progress Drops List -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">
+              <span>Chiến Dịch Đang Tích Lũy</span>
+              <span class="text-[10px] text-slate-500 font-normal font-mono" v-if="twitchStatus.lastChecked">Quét lúc: {{ twitchStatus.lastChecked }}</span>
+            </div>
+
+            <div class="max-h-52 overflow-y-auto space-y-2 pr-1">
+              <div v-if="!twitchStatus.campaigns || twitchStatus.campaigns.length === 0" class="p-5 text-center text-xs text-slate-400 border border-dashed border-slate-800 rounded-xl bg-[#0d121f]">
+                {{ twitchStatus.hasToken ? 'Không có chiến dịch Drop nào đang tiến hành hoặc chưa bật stream.' : 'Vui lòng nhập auth-token để kiểm tra các Drop đang hoạt động.' }}
+              </div>
+
+              <template v-else v-for="camp in twitchStatus.campaigns" :key="camp.id">
+                <div 
+                  v-for="drop in (camp.timeBasedDrops || [])" 
+                  :key="drop.id"
+                  class="p-3 rounded-xl border border-slate-800/90 bg-[#0d121f] space-y-2"
+                >
+                  <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-cyan-300">{{ camp.game?.displayName || camp.name }}</span>
+                    <span 
+                      class="text-[9.5px] font-bold px-2 py-0.5 rounded border"
+                      :class="drop.isClaimed 
+                        ? 'bg-slate-800 text-slate-400 border-slate-700' 
+                        : (drop.currentMinutesWatched >= drop.requiredMinutesWatched 
+                            ? 'bg-purple-500/20 text-purple-300 border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.35)]' 
+                            : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30')"
+                    >
+                      {{ drop.isClaimed ? 'ĐÃ NHẬN' : (drop.currentMinutesWatched >= drop.requiredMinutesWatched ? 'SẴN SÀNG NHẬN' : `${Math.min(100, Math.round((drop.currentMinutesWatched / (drop.requiredMinutesWatched || 60)) * 100))}%`) }}
+                    </span>
+                  </div>
+
+                  <div class="flex justify-between text-[11px] text-slate-300">
+                    <span class="truncate max-w-[70%] font-medium">{{ drop.name }}</span>
+                    <span class="font-mono text-[10px] text-slate-400">{{ drop.currentMinutesWatched }}/{{ drop.requiredMinutesWatched }}m</span>
+                  </div>
+
+                  <!-- Progress Bar -->
+                  <div class="h-2 w-full bg-slate-900 rounded-full overflow-hidden border border-slate-800/60 p-0.5">
+                    <div 
+                      class="h-full bg-gradient-to-r from-blue-600 via-cyan-400 to-purple-500 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(6,182,212,0.4)]"
+                      :style="{ width: `${Math.min(100, Math.round((drop.currentMinutesWatched / (drop.requiredMinutesWatched || 60)) * 100))}%` }"
+                    ></div>
+                  </div>
+
+                  <div v-if="!drop.isClaimed && drop.currentMinutesWatched >= drop.requiredMinutesWatched" class="pt-1 flex justify-end">
+                    <button 
+                      @click="handleManualClaim(drop.dropInstanceID, drop.name)"
+                      class="px-3 py-1 rounded-md bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] cursor-pointer shadow-[0_0_10px_rgba(168,85,247,0.3)] transition-all"
+                    >
+                      Nhận Quà Ngay
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- Claim History -->
+          <div v-if="twitchStatus.claimHistory && twitchStatus.claimHistory.length > 0" class="space-y-1.5 pt-1.5 border-t border-slate-800">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Lịch Sử Nhận Quà Gần Đây</div>
+            <div class="max-h-20 overflow-y-auto space-y-1 bg-[#06080e] p-2 rounded-lg border border-slate-800/70 text-[10px] font-mono">
+              <div v-for="(item, idx) in twitchStatus.claimHistory" :key="idx" class="flex justify-between text-slate-300">
+                <span class="text-purple-300 truncate max-w-[80%]">🎁 {{ item.dropName }} ({{ item.gameName }})</span>
+                <span class="text-slate-500">{{ item.time }}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </n-modal>
+
     </div>
   </n-config-provider>
 </template>
@@ -460,6 +618,8 @@ import {
   NInput, 
   NButton, 
   NProgress,
+  NModal,
+  NSwitch,
   GlobalThemeOverrides 
 } from 'naive-ui';
 
@@ -537,6 +697,15 @@ const toolsList = [
     title: 'AION 2 DPS Meter',
     badge: 'PLUGIN',
     desc: 'Đo DPS thời gian thực & Target Tracking.',
+    actionText: 'Khởi chạy DPS Meter',
+    active: true
+  },
+  {
+    id: 'twitch',
+    title: 'Twitch Drops Miner',
+    badge: 'FEΔR PLUGIN',
+    desc: 'Tự động cày & nhận Drop Twitch ngầm không tốn GPU/RAM.',
+    actionText: 'Mở Bảng Điều Khiển',
     active: true
   },
   {
@@ -544,6 +713,7 @@ const toolsList = [
     title: 'TCP/UDP Optimizer',
     badge: 'PHÁT TRIỂN',
     desc: 'Tối ưu ping & độ trễ kết nối máy chủ.',
+    actionText: 'Chi tiết',
     active: false
   },
   {
@@ -551,22 +721,101 @@ const toolsList = [
     title: 'Góc nhìn FOV Extender',
     badge: 'PHÁT TRIỂN',
     desc: 'Mở rộng tầm nhìn và khoảng cách camera.',
-    active: false
-  },
-  {
-    id: 'macro',
-    title: 'Quick Macro Controller',
-    badge: 'PHÁT TRIỂN',
-    desc: 'Tự động chuỗi kỹ năng & ngắt khẩn cấp.',
+    actionText: 'Chi tiết',
     active: false
   }
 ];
 
+// Twitch Drops Miner State & Handlers
+const showTwitchModal = ref(false);
+const twitchTokenInput = ref('');
+const twitchAutoClaim = ref(true);
+const twitchStatus = ref({
+  isRunning: false,
+  hasToken: false,
+  autoClaim: true,
+  accountName: '',
+  lastChecked: '',
+  campaigns: [] as any[],
+  claimHistory: [] as any[]
+});
+
 function handleToolClick(tool: any) {
   if (tool.id === 'dps') {
     handleLaunchDpsMeter();
+  } else if (tool.id === 'twitch') {
+    openTwitchModal();
   } else {
     addLog(`Công cụ [${tool.title}] đang trong lộ trình phát triển của Team FEΔR.`, 'blue');
+  }
+}
+
+function openTwitchModal() {
+  showTwitchModal.value = true;
+  refreshTwitchStatus();
+}
+
+function refreshTwitchStatus() {
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.get_twitch_drops_status) {
+    pyApi.get_twitch_drops_status().then((res: any) => {
+      if (res) {
+        twitchStatus.value = res;
+        twitchAutoClaim.value = res.autoClaim ?? true;
+      }
+    }).catch((e: any) => console.warn(e));
+  }
+}
+
+function handleSaveTwitchToken() {
+  if (!twitchTokenInput.value.trim()) {
+    addLog('Vui lòng nhập Twitch OAuth token.', 'red');
+    return;
+  }
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.set_twitch_auth_token) {
+    pyApi.set_twitch_auth_token(twitchTokenInput.value.trim()).then(() => {
+      addLog('Đã cập nhật token Twitch Drops Miner.', 'blue');
+      twitchTokenInput.value = '';
+      setTimeout(refreshTwitchStatus, 1200);
+    }).catch((e: any) => console.warn(e));
+  }
+}
+
+function handleToggleTwitchAutoClaim(val: boolean) {
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.set_twitch_auto_claim) {
+    pyApi.set_twitch_auto_claim(val).then(() => {
+      refreshTwitchStatus();
+    }).catch((e: any) => console.warn(e));
+  }
+}
+
+function handleToggleTwitchMiner() {
+  const pyApi = (window as any).pywebview?.api;
+  if (!pyApi) return;
+  if (twitchStatus.value.isRunning) {
+    if (pyApi.stop_twitch_miner) {
+      pyApi.stop_twitch_miner().then(() => {
+        refreshTwitchStatus();
+      }).catch((e: any) => console.warn(e));
+    }
+  } else {
+    if (pyApi.start_twitch_miner) {
+      pyApi.start_twitch_miner().then(() => {
+        refreshTwitchStatus();
+      }).catch((e: any) => console.warn(e));
+    }
+  }
+}
+
+function handleManualClaim(dropId: string, dropName: string) {
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.claim_twitch_drop) {
+    addLog(`Đang gửi yêu cầu claim: ${dropName}...`, 'blue');
+    pyApi.claim_twitch_drop(dropId, dropName).then(() => {
+      setTimeout(refreshTwitchStatus, 1000);
+    }).catch((e: any) => console.warn(e));
   }
 }
 

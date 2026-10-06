@@ -154,6 +154,29 @@ class TestModApi(unittest.TestCase):
             self.assertEqual(meta.get("entry"), "AionDpsMeter.UI.exe")
         print(f"[PASS] DPS Meter plugin verified at: {dps_dir}, Exe: {dps_exe}, Npcap={npcap}")
 
+    def test_twitch_drops_plugin(self):
+        status = self.api.get_twitch_drops_status()
+        self.assertIn("isRunning", status)
+        self.assertIn("hasToken", status)
+        self.assertIn("autoClaim", status)
+        self.assertIn("campaigns", status)
+        self.assertIn("claimHistory", status)
+
+        self.api.set_twitch_auto_claim(False)
+        self.assertFalse(self.api.get_twitch_drops_status()["autoClaim"])
+
+        self.api.set_twitch_auto_claim(True)
+        self.assertTrue(self.api.get_twitch_drops_status()["autoClaim"])
+
+        self.api.set_twitch_auth_token("OAuth test_dummy_token_123")
+        self.assertTrue(self.api.get_twitch_drops_status()["hasToken"])
+        self.assertEqual(self.api.twitch_service.auth_token, "test_dummy_token_123")
+
+        stopped = self.api.stop_twitch_miner()
+        self.assertTrue(stopped)
+        print("[PASS] Twitch Drops Miner plugin API and service verified.")
+
 if __name__ == "__main__":
     unittest.main()
+
 
