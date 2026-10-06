@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEΔR - AION 2 Twitch Drops Miner [Tactical Game HUD]</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600;700&family=Chakra+Petch:wght@500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --hud-black: #04060a;
+      --hud-panel: #080d18;
+      --hud-border: #0ea5e9;
+      --neon-cyan: #00f0ff;
+      --neon-violet: #8b5cf6;
+      --neon-pink: #ec4899;
+      --text-bright: #f1f5f9;
+      --text-dim: #64748b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: var(--hud-black);
+      color: var(--text-bright);
+      font-family: 'Chakra Petch', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(0, 240, 255, 0.4);
+      clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.2);
+    }
+
+    /* Tactical HUD Header */
+    .hud-header {
+      height: 38px;
+      background: linear-gradient(90deg, #090e1c, #0d1527);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      -webkit-app-region: drag;
+    }
+    .hud-title {
+      font-family: 'Teko', sans-serif;
+      font-size: 18px;
+      letter-spacing: 2px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hud-title span { color: var(--neon-cyan); }
+    .hud-controls {
+      display: flex;
+      gap: 6px;
+      -webkit-app-region: no-drag;
+    }
+    .hud-ctrl-btn {
+      width: 24px;
+      height: 22px;
+      background: rgba(0, 240, 255, 0.08);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--neon-cyan);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .hud-ctrl-btn:hover {
+      background: var(--neon-cyan);
+      color: #000;
+    }
+
+    /* Content Area */
+    .hud-body {
+      flex: 1;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+    }
+
+    /* Tactical Stat Matrix */
+    .stat-matrix {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .stat-box {
+      background: var(--hud-panel);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 8px 10px;
+      position: relative;
+    }
+    .stat-box::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 4px; height: 100%;
+      background: var(--neon-cyan);
+    }
+    .stat-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .stat-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    /* Live Mission Streamer Banner */
+    .streamer-mission {
+      background: rgba(14, 165, 233, 0.08);
+      border: 1px solid rgba(14, 165, 233, 0.35);
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+    .target-badge {
+      color: var(--neon-cyan);
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .target-pulse {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--neon-cyan);
+      box-shadow: 0 0 8px var(--neon-cyan);
+    }
+
+    /* Primary HUD Controls */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 8px;
+    }
+    .hud-btn {
+      height: 36px;
+      background: linear-gradient(90deg, rgba(0, 240, 255, 0.2), rgba(139, 92, 246, 0.2));
+      border: 1px solid var(--neon-cyan);
+      color: #fff;
+      font-family: 'Teko', sans-serif;
+      font-size: 16px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .hud-btn:hover {
+      background: var(--neon-cyan);
+      color: #000;
+      box-shadow: 0 0 15px var(--neon-cyan);
+    }
+    .hud-btn.sec {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: var(--neon-violet);
+      color: #d8b4fe;
+    }
+    .hud-btn.sec:hover {
+      background: var(--neon-violet);
+      color: #fff;
+    }
+
+    /* Tactical Drops Table */
+    .drops-matrix {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    .matrix-item {
+      background: var(--hud-panel);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .matrix-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+    .matrix-progress {
+      height: 4px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+    .matrix-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #0284c7, var(--neon-cyan));
+    }
+
+    /* Mini Overlay Toggle Banner */
+    .mini-tip {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-align: center;
+      border-top: 1px dashed rgba(255, 255, 255, 0.1);
+      padding-top: 6px;
+    }
+
+    /* Mini HUD Overlay Mode */
+    body.mini-mode {
+      height: 90px !important;
+    }
+    body.mini-mode .hud-body { display: none; }
+    body.mini-mode .mini-hud {
+      display: flex !important;
+      padding: 8px 12px;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mini-hud { display: none; }
+  </style>
+</head>
+<body>
+  <!-- HUD Header -->
+  <div class="hud-header">
+    <div class="hud-title">
+      <span>FEΔR</span> // AION 2 DROPS HUD
+    </div>
+    <div class="hud-controls">
+      <button class="hud-ctrl-btn" title="Chuyển Mini Overlay" onclick="toggleMini()">◲</button>
+      <button class="hud-ctrl-btn" title="Thu nhỏ">─</button>
+      <button class="hud-ctrl-btn" title="Đóng">✕</button>
+    </div>
+  </div>
+
+  <!-- Regular Body -->
+  <div class="hud-body">
+    <!-- Stat Matrix -->
+    <div class="stat-matrix">
+      <div class="stat-box">
+        <div class="stat-label">OPERATOR</div>
+        <div class="stat-value" style="color: var(--neon-cyan);">srym_c</div>
+      </div>
+      <div class="stat-box" style="border-left-color: var(--neon-violet);">
+        <div class="stat-label">MINED SESSION</div>
+        <div class="stat-value" style="color: #c084fc;">+102 MINS</div>
+      </div>
+    </div>
+
+    <!-- Live Mission Streamer Banner -->
+    <div class="streamer-mission">
+      <div class="target-badge">
+        <span class="target-pulse"></span>
+        <span>TARGET: <strong>shroud</strong></span>
+      </div>
+      <div style="font-family: 'JetBrains Mono'; color: var(--text-dim); font-size: 10px;">
+        18,447 VIEWERS • AUTO-TRACKING
+      </div>
+    </div>
+
+    <!-- Main Buttons -->
+    <div class="actions-grid">
+      <button class="hud-btn" id="hudToggle" onclick="toggleHudMining()">
+        ⚡ DỪNG CÀY NGẦM
+      </button>
+      <button class="hud-btn sec" onclick="openTwitchInv()">
+        🎁 KHO DROPS
+      </button>
+    </div>
+
+    <!-- Drops Matrix -->
+    <div class="drops-matrix">
+      <div class="matrix-item">
+        <div class="matrix-top">
+          <span style="color: #fff; font-weight: 700;">Odyle Energy x4</span>
+          <span style="color: #c084fc; font-family: 'JetBrains Mono'; font-weight: 700;">READY (60/60m)</span>
+        </div>
+        <div class="matrix-progress">
+          <div class="matrix-fill" style="width: 100%; background: #c084fc;"></div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 3px;">
+          <button onclick="openTwitchInv()" style="background: rgba(139, 92, 246, 0.3); border: 1px solid var(--neon-violet); color: #fff; font-size: 9.5px; font-weight: 700; padding: 2px 6px; cursor: pointer;">
+            BẤM NHẬN TRÊN TWITCH ↗
+          </button>
+        </div>
+      </div>
+
+      <div class="matrix-item">
+        <div class="matrix-top">
+          <span style="color: #fff; font-weight: 700;">Skin Chest x1</span>
+          <span style="color: var(--neon-cyan); font-family: 'JetBrains Mono';">102/120m (85%)</span>
+        </div>
+        <div class="matrix-progress">
+          <div class="matrix-fill" style="width: 85%;"></div>
+        </div>
+      </div>
+
+      <div class="matrix-item">
+        <div class="matrix-top">
+          <span style="color: #fff; font-weight: 700;">Enhance Stone x5,000</span>
+          <span style="color: var(--neon-cyan); font-family: 'JetBrains Mono';">102/180m (56%)</span>
+        </div>
+        <div class="matrix-progress">
+          <div class="matrix-fill" style="width: 56%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mini-tip">
+      Bấm icon [◲] ở góc trên bên phải để thu gọn thành HUD Widget nổi góc màn hình khi chơi game
+    </div>
+  </div>
+
+  <!-- Mini Overlay View -->
+  <div class="mini-hud">
+    <div>
+      <div style="font-size: 10px; color: var(--text-dim);">LIVE: <strong style="color: var(--neon-cyan);">shroud</strong></div>
+      <div style="font-size: 12px; font-weight: 700; color: #fff;">Skin Chest x1: 102/120m (85%)</div>
+    </div>
+    <button class="hud-btn" style="height: 28px; font-size: 13px; padding: 0 10px;" onclick="toggleMini()">
+      Phóng to ↗
+    </button>
+  </div>
+
+  <script>
+    let isHudActive = true;
+    function toggleHudMining() {
+      isHudActive = !isHudActive;
+      const btn = document.getElementById('hudToggle');
+      if (isHudActive) {
+        btn.innerText = '⚡ DỪNG CÀY NGẦM';
+        btn.style.borderColor = 'var(--neon-cyan)';
+      } else {
+        btn.innerText = '▶ BẬT CÀY NGẦM';
+        btn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+      }
+    }
+    function toggleMini() {
+      document.body.classList.toggle('mini-mode');
+    }
+    function openTwitchInv() {
+      window.open('https://www.twitch.tv/drops/inventory', '_blank');
+    }
+  </script>
+</body>
+</html>

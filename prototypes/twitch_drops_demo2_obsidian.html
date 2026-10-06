@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEΔR - AION 2 Twitch Drops Miner [Modern Obsidian]</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #080a0f;
+      --surface-1: #0e121b;
+      --surface-2: #141a27;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(168, 85, 247, 0.4);
+      --accent-purple: #a855f7;
+      --accent-blue: #38bdf8;
+      --accent-indigo: #6366f1;
+      --text-1: #f8fafc;
+      --text-2: #94a3b8;
+      --text-3: #64748b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-1);
+      font-family: 'Inter', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+    }
+
+    /* Sleek Titlebar */
+    .titlebar {
+      height: 40px;
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      -webkit-app-region: drag;
+    }
+    .title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: linear-gradient(135deg, var(--accent-purple), var(--accent-indigo));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+    }
+    .title-text {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--text-1);
+    }
+    .win-actions {
+      display: flex;
+      gap: 6px;
+      -webkit-app-region: no-drag;
+    }
+    .action-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.15s;
+    }
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: var(--border-subtle);
+      color: #fff;
+    }
+    .action-btn.danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    /* Container */
+    .container {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+    }
+
+    /* Status Card */
+    .status-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .status-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .account-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .avatar-circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-purple);
+    }
+    .account-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .account-sub {
+      font-size: 10px;
+      color: var(--text-3);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Live Channel Strip */
+    .channel-strip {
+      background: var(--surface-2);
+      border: 1px solid rgba(168, 85, 247, 0.25);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .strip-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .live-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+      box-shadow: 0 0 10px var(--accent-blue);
+    }
+    .streamer-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-blue);
+    }
+    .streamer-stat {
+      font-size: 11px;
+      color: var(--text-2);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Buttons Row */
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-main {
+      flex: 1;
+      height: 38px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+    }
+    .btn-main:hover {
+      box-shadow: 0 6px 20px rgba(124, 58, 237, 0.5);
+      transform: translateY(-1px);
+    }
+    .btn-main.stopped {
+      background: var(--surface-2);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-2);
+      box-shadow: none;
+    }
+    .btn-sec {
+      padding: 0 16px;
+      height: 38px;
+      border-radius: 8px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-2);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-sec:hover {
+      background: var(--surface-2);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
+
+    /* Drops Cards */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .drops-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .drop-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .drop-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .drop-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .drop-pill {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .pill-ready {
+      background: rgba(168, 85, 247, 0.15);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      color: #d8b4fe;
+    }
+    .pill-active {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+    }
+
+    /* Minimal Progress Bar */
+    .progress-track {
+      height: 5px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #a855f7, #38bdf8);
+      border-radius: 999px;
+      transition: width 0.3s;
+    }
+
+    /* Compact Terminal Logs */
+    .log-box {
+      background: #05070a;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 8px 12px;
+      height: 65px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--text-2);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="title-group">
+      <div class="badge-icon">Δ</div>
+      <div class="title-text">AION 2 Drops Miner</div>
+    </div>
+    <div class="win-actions">
+      <button class="action-btn" title="Ghim cửa sổ" id="pinBtn" onclick="togglePin()">📌</button>
+      <button class="action-btn" title="Thu nhỏ">─</button>
+      <button class="action-btn danger" title="Đóng">✕</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- Status Card -->
+    <div class="status-card">
+      <div class="status-header">
+        <div class="account-pill">
+          <div class="avatar-circle">S</div>
+          <div>
+            <div class="account-name">srym_c</div>
+            <div class="account-sub">AION 2 Global • Connected</div>
+          </div>
+        </div>
+        <div style="font-size: 10px; color: var(--accent-purple); font-weight: 700; background: rgba(168, 85, 247, 0.1); padding: 4px 8px; border-radius: 6px;">
+          Auto-Claim On
+        </div>
+      </div>
+
+      <!-- Live Streamer Strip -->
+      <div class="channel-strip">
+        <div class="strip-left">
+          <span class="live-indicator"></span>
+          <span style="font-size: 11px; color: var(--text-2);">Đang xem:</span>
+          <span class="streamer-name">shroud</span>
+        </div>
+        <div class="streamer-stat">
+          18,447 viewers • <span style="color: #fff;">+102m</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="btn-row">
+      <button class="btn-main" id="minerToggle" onclick="toggleMining()">
+        <span>⚡</span>
+        <span id="minerLabel">DỪNG CÀY NGẦM</span>
+      </button>
+      <button class="btn-sec" onclick="openInventory()">
+        <span>🎁</span>
+        <span>Kho Drops</span>
+      </button>
+    </div>
+
+    <!-- Drops Section -->
+    <div class="section-label">
+      <span>Tiến Độ Phần Thưởng</span>
+      <span style="font-family: 'JetBrains Mono'; font-size: 10px; color: var(--text-3);">Sync 10s</span>
+    </div>
+
+    <div class="drops-container">
+      <div class="drop-card">
+        <div class="drop-top">
+          <span class="drop-title">Odyle Energy x4</span>
+          <span class="drop-pill pill-ready">SẴN SÀNG NHẬN (60/60m)</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width: 100%;"></div>
+        </div>
+        <div style="display: flex; justify-content: flex-end;">
+          <button onclick="openInventory()" style="background: rgba(168, 85, 247, 0.2); border: 1px solid var(--accent-purple); color: #fff; font-size: 10px; font-weight: 600; padding: 4px 10px; border-radius: 6px; cursor: pointer;">
+            Bấm Nhận Trong Kho Drops ↗
+          </button>
+        </div>
+      </div>
+
+      <div class="drop-card">
+        <div class="drop-top">
+          <span class="drop-title">Skin Chest x1</span>
+          <span class="drop-pill pill-active">102/120m (85%)</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width: 85%;"></div>
+        </div>
+      </div>
+
+      <div class="drop-card">
+        <div class="drop-top">
+          <span class="drop-title">Enhance Stone x5,000</span>
+          <span class="drop-pill pill-active">102/180m (56%)</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" style="width: 56%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Terminal Log -->
+    <div class="log-box" id="logBox">
+      <div><span style="color: var(--text-3);">[08:26]</span> <span style="color: var(--accent-blue);">✔ Đang tự động tích lũy phút xem qua telemetry Twitch...</span></div>
+      <div><span style="color: var(--text-3);">[08:27]</span> <span style="color: #c084fc;">⏱️ Tích lũy +1m thành công! Tiến độ: 102/120m</span></div>
+    </div>
+  </div>
+
+  <script>
+    let isRunning = true;
+    function toggleMining() {
+      isRunning = !isRunning;
+      const btn = document.getElementById('minerToggle');
+      const label = document.getElementById('minerLabel');
+      if (isRunning) {
+        btn.classList.remove('stopped');
+        label.innerText = 'DỪNG CÀY NGẦM';
+      } else {
+        btn.classList.add('stopped');
+        label.innerText = 'BẬT CÀY NGẦM';
+      }
+    }
+    function togglePin() {
+      const btn = document.getElementById('pinBtn');
+      btn.style.color = btn.style.color === 'rgb(168, 85, 247)' ? 'var(--text-2)' : 'var(--accent-purple)';
+    }
+    function openInventory() {
+      window.open('https://www.twitch.tv/drops/inventory', '_blank');
+    }
+  </script>
+</body>
+</html>
