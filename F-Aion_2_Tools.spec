@@ -10,6 +10,8 @@ a = Analysis(
     datas=[
         ('release/AION2_VietHoa_Standalone/Data', 'Data'),
         ('gui/dist/index.html', 'gui/dist'),
+        ('twitch_drops_window.html', '.'),
+        ('dps_overlay.html', '.'),
         ('dps_meter', 'dps_meter'),
         ('fear_logo.ico', '.'),
         ('fear_logo.png', '.')
@@ -22,7 +24,8 @@ a = Analysis(
         'PIL',
         'urllib.request',
         'urllib.error',
-        'hashlib'
+        'hashlib',
+        'twitch_drops_service'
     ],
     hookspath=[],
     hooksconfig={},
