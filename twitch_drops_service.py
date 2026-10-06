@@ -8,6 +8,8 @@ Clean, async, zero-hang daemon service based on DevilXD/TwitchDropsMiner GQL & O
 import os
 import json
 import time
+import base64
+import datetime
 import threading
 import urllib.request
 import urllib.error
@@ -15,6 +17,7 @@ import urllib.parse
 import webbrowser
 
 GQL_ENDPOINT = "https://gql.twitch.tv/gql"
+SPADE_ENDPOINT = "https://spade.twitch.tv/track"
 TWITCH_WEB_CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko"
 
 # DevilXD's Exact OAuth Formula (SmartTV Device Code Flow)
@@ -44,6 +47,9 @@ class TwitchDropsService:
         self.claim_history = []
         self.last_checked = None
         self.account_name = None
+        self.user_id = ""
+        self.current_channel = None
+        self.minutes_mined = 0
 
         # OAuth State (DevilXD Device Code Formula)
         self.oauth_state = {
@@ -70,6 +76,7 @@ class TwitchDropsService:
                     self.auth_token = data.get("auth_token", "")
                     self.auto_claim = data.get("auto_claim", True)
                     self.account_name = data.get("account_name", "")
+                    self.user_id = data.get("user_id", "")
                     self.claim_history = data.get("claim_history", [])[:30]
         except Exception as e:
             print(f"[TwitchDrops] Error loading config: {e}")
@@ -81,6 +88,7 @@ class TwitchDropsService:
                 "auth_token": self.auth_token,
                 "auto_claim": self.auto_claim,
                 "account_name": self.account_name,
+                "user_id": self.user_id,
                 "claim_history": self.claim_history[:30]
             }
             with open(self.config_file, "w", encoding="utf-8") as f:
@@ -99,8 +107,11 @@ class TwitchDropsService:
             with urllib.request.urlopen(req, timeout=8) as resp:
                 val = json.loads(resp.read().decode("utf-8"))
                 name = val.get("login") or val.get("user_id")
+                uid = str(val.get("user_id", ""))
                 with self._lock:
                     self.account_name = name
+                    if uid:
+                        self.user_id = uid
                     self._save_config()
                 return val
         except Exception as e:
@@ -282,6 +293,9 @@ class TwitchDropsService:
                 "hasToken": bool(self.auth_token),
                 "autoClaim": self.auto_claim,
                 "accountName": self.account_name,
+                "userId": self.user_id,
+                "currentChannel": dict(self.current_channel) if self.current_channel else None,
+                "minutesMined": self.minutes_mined,
                 "lastChecked": self.last_checked,
                 "campaigns": list(self.latest_campaigns),
                 "claimHistory": list(self.claim_history[:15]),
@@ -418,14 +432,177 @@ class TwitchDropsService:
                 pass
         return success
 
-    def _worker_loop(self):
-        while not self._stop_event.is_set():
-            try:
-                self._query_inventory()
-            except Exception as e:
-                print(f"[TwitchDrops] Worker loop error: {e}")
+    def _find_target_stream(self, game_slug: str = "aion-2"):
+        query = {
+            "query": """
+            query GetGameStreams($slug: String!) {
+                game(slug: $slug) {
+                    id
+                    name
+                    streams(first: 10) {
+                        edges {
+                            node {
+                                id
+                                title
+                                viewersCount
+                                broadcaster {
+                                    id
+                                    login
+                                    displayName
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            """,
+            "variables": {"slug": game_slug}
+        }
+        res = self._make_gql_request(query)
+        if not res:
+            return None
+        streams = res.get("data", {}).get("game", {}).get("streams", {}).get("edges", [])
+        if not streams:
+            return None
+        top = streams[0].get("node", {})
+        broadcaster = top.get("broadcaster", {})
+        return {
+            "login": broadcaster.get("login"),
+            "displayName": broadcaster.get("displayName") or broadcaster.get("login"),
+            "channelId": str(broadcaster.get("id")),
+            "broadcastId": str(top.get("id")),
+            "viewers": top.get("viewersCount", 0),
+            "title": top.get("title", "")
+        }
 
-            for _ in range(self.check_interval):
+    def _send_watch_tick(self, stream_info: dict) -> bool:
+        if not self.auth_token or not self.user_id or not stream_info:
+            return False
+
+        now_iso = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        streamer_login = stream_info["login"]
+        broadcast_id = stream_info["broadcastId"]
+        channel_id = stream_info["channelId"]
+        game_name = "AION 2"
+        game_id = "771448419"
+
+        watch_event = [
+            {
+                "event": "minute-watched",
+                "properties": {
+                    "broadcast_id": str(broadcast_id),
+                    "channel_id": str(channel_id),
+                    "channel": str(streamer_login),
+                    "client_time": now_iso,
+                    "game": game_name,
+                    "game_id": str(game_id),
+                    "hidden": False,
+                    "is_live": True,
+                    "live": True,
+                    "logged_in": True,
+                    "minutes_logged": 1,
+                    "muted": False,
+                    "user_id": str(self.user_id)
+                }
+            }
+        ]
+
+        json_str = json.dumps(watch_event, separators=(',', ':'))
+        b64_data = base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
+        payload = urllib.parse.urlencode({"data": b64_data}).encode("utf-8")
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Origin": "https://www.twitch.tv",
+            "Referer": f"https://www.twitch.tv/{streamer_login}",
+            "Client-Id": TWITCH_WEB_CLIENT_ID,
+            "Authorization": f"OAuth {self.auth_token}"
+        }
+
+        try:
+            req = urllib.request.Request(SPADE_ENDPOINT, data=payload, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return resp.status in (200, 204)
+        except Exception as e:
+            print(f"[TwitchDrops] Spade tick error: {e}")
+            return False
+
+    def _worker_loop(self):
+        # Initial inventory query & ensure user_id
+        if not self.user_id:
+            self.validate_token()
+        self._query_inventory()
+
+        tick_counter = 0
+
+        while not self._stop_event.is_set():
+            # 1. Ensure target stream is active
+            if not self.current_channel:
+                stream = self._find_target_stream("aion-2")
+                if stream:
+                    with self._lock:
+                        self.current_channel = stream
+                    self.log_callback(
+                        f"📺 Đang tự động xem ngầm: [{stream['displayName']}] (AION 2 - {stream['viewers']:,} viewers)",
+                        "success"
+                    )
+                else:
+                    self.log_callback("⚠️ Chưa tìm thấy kênh phát AION 2 trực tiếp. Đang thử lại sau 30s...", "red")
+                    for _ in range(30):
+                        if self._stop_event.is_set():
+                            return
+                        time.sleep(1)
+                    continue
+
+            # 2. Send 1 minute watch tick
+            succeeded = self._send_watch_tick(self.current_channel)
+            if succeeded:
+                with self._lock:
+                    self.minutes_mined += 1
+                tick_counter += 1
+
+                # Every 2 ticks, query inventory to sync live progress
+                if tick_counter % 2 == 0:
+                    self._query_inventory()
+
+                    # Find active drop in progress
+                    active_drop = None
+                    for c in self.latest_campaigns:
+                        for d in c.get("timeBasedDrops", []):
+                            if not d.get("isClaimed") and d.get("currentMinutesWatched", 0) < d.get("requiredMinutesWatched", 1):
+                                active_drop = d
+                                break
+                        if active_drop:
+                            break
+
+                    ch_name = self.current_channel["displayName"]
+                    if active_drop:
+                        cur = active_drop["currentMinutesWatched"]
+                        req = active_drop["requiredMinutesWatched"]
+                        pct = min(100, round((cur / req) * 100))
+                        self.log_callback(
+                            f"⏱️ Đang cày ngầm [{ch_name}]: {active_drop['name']} ({cur}/{req}m - {pct}%)",
+                            "blue"
+                        )
+                    else:
+                        self.log_callback(f"⏱️ Đang cày ngầm [{ch_name}]... Đã tích lũy +{self.minutes_mined}m phiên này.", "blue")
+            else:
+                print(f"[TwitchDrops] Watch tick failed, checking stream availability...")
+                new_stream = self._find_target_stream("aion-2")
+                if new_stream and new_stream.get("login") != self.current_channel.get("login"):
+                    with self._lock:
+                        self.current_channel = new_stream
+                    self.log_callback(
+                        f"🔄 Chuyển sang kênh phát sóng tiếp theo: [{new_stream['displayName']}]",
+                        "blue"
+                    )
+
+            # 3. Wait ~59s before next minute tick
+            for _ in range(59):
                 if self._stop_event.is_set():
                     break
                 time.sleep(1)
+
+        with self._lock:
+            self.current_channel = None

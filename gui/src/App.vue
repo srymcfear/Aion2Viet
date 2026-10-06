@@ -599,6 +599,22 @@
             </div>
           </div>
 
+          <!-- Active Streamer Banner when Mining -->
+          <div v-if="twitchStatus.isRunning && twitchStatus.currentChannel" class="flex items-center justify-between px-3 py-2 rounded-xl bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.15)]">
+            <div class="flex items-center gap-2">
+              <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+              </span>
+              <span class="text-xs text-slate-300">Đang cày ngầm kênh:</span>
+              <span class="text-xs font-bold font-mono text-cyan-300">{{ twitchStatus.currentChannel.displayName }}</span>
+            </div>
+            <div class="text-[10.5px] font-mono text-slate-400 flex items-center gap-1.5">
+              <span>{{ twitchStatus.currentChannel.viewers ? Number(twitchStatus.currentChannel.viewers).toLocaleString() : '' }} viewers</span>
+              <span v-if="twitchStatus.minutesMined" class="text-purple-300 font-semibold">(+{{ twitchStatus.minutesMined }}m)</span>
+            </div>
+          </div>
+
           <!-- In-Progress Drops List -->
           <div class="space-y-2">
             <div class="flex justify-between items-center text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">
@@ -806,6 +822,9 @@ const twitchStatus = ref({
   hasToken: false,
   autoClaim: true,
   accountName: '',
+  userId: '',
+  currentChannel: null as any,
+  minutesMined: 0,
   lastChecked: '',
   campaigns: [] as any[],
   claimHistory: [] as any[],
@@ -893,6 +912,8 @@ function handleToggleTwitchAutoClaim(val: boolean) {
   }
 }
 
+let minerPollTimer: any = null;
+
 function handleToggleTwitchMiner() {
   const pyApi = (window as any).pywebview?.api;
   if (!pyApi) return;
@@ -900,12 +921,19 @@ function handleToggleTwitchMiner() {
     if (pyApi.stop_twitch_miner) {
       pyApi.stop_twitch_miner().then(() => {
         refreshTwitchStatus();
+        if (minerPollTimer) {
+          clearInterval(minerPollTimer);
+          minerPollTimer = null;
+        }
       }).catch((e: any) => console.warn(e));
     }
   } else {
     if (pyApi.start_twitch_miner) {
       pyApi.start_twitch_miner().then(() => {
-        refreshTwitchStatus();
+        setTimeout(refreshTwitchStatus, 1500);
+        if (!minerPollTimer) {
+          minerPollTimer = setInterval(refreshTwitchStatus, 15000);
+        }
       }).catch((e: any) => console.warn(e));
     }
   }
