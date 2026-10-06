@@ -1007,45 +1007,15 @@ exit
     # ------------------------------------------------------------------
     # Twitch Drops Miner Plugin APIs (Team FEΔR)
     # ------------------------------------------------------------------
-    def get_twitch_drops_status(self):
-        return self.twitch_service.get_status()
-
-    def set_twitch_auth_token(self, token):
-        return self.twitch_service.set_auth_token(token)
-
     def set_twitch_auto_claim(self, enabled):
         return self.twitch_service.set_auto_claim(enabled)
-
-    def start_twitch_miner(self):
-        return self.twitch_service.start()
-
-    def stop_twitch_miner(self):
-        return self.twitch_service.stop()
 
     def claim_twitch_drop(self, drop_instance_id, drop_name="Item"):
         return self.twitch_service.claim_drop_manual(drop_instance_id, drop_name)
 
-    def start_twitch_oauth(self):
-        return self.twitch_service.start_oauth_login(auto_open_browser=True)
-
     def get_twitch_oauth_status(self):
         return self.twitch_service.get_oauth_status()
 
-    def open_twitch_inventory(self):
-        import webbrowser
-        try:
-            webbrowser.open("https://www.twitch.tv/drops/inventory")
-            return True
-        except Exception:
-            return False
-
-    def open_hub_web(self):
-        import webbrowser
-        try:
-            webbrowser.open("https://aion2-hub-bice.vercel.app/")
-            return True
-        except Exception:
-            return False
 
     def launch_twitch_window(self):
         global _twitch_process
