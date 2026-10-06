@@ -1027,6 +1027,11 @@ exit
             except Exception:
                 pass
             _twitch_process = None
+        if "--twitch-window" in sys.argv:
+            try:
+                sys.exit(0)
+            except Exception:
+                pass
         return True
 
     def minimize_twitch_window(self):
@@ -1059,6 +1064,62 @@ exit
     def move_twitch_window(self, x, y):
         global _twitch_window
         return safe_move_window(_twitch_window, x, y)
+
+    def get_twitch_drops_status(self):
+        try:
+            return self.twitch_service.get_status()
+        except Exception as e:
+            return {
+                "isRunning": False,
+                "hasToken": False,
+                "autoClaim": True,
+                "accountName": None,
+                "userId": "",
+                "currentChannel": None,
+                "minutesMined": 0,
+                "campaigns": [],
+                "claimHistory": [],
+                "oauthState": {"status": "error", "error_message": str(e)}
+            }
+
+    def start_twitch_miner(self):
+        try:
+            return self.twitch_service.start()
+        except Exception as e:
+            self.log(f"Lỗi khởi động Twitch Drops Miner: {e}", "red")
+            return False
+
+    def stop_twitch_miner(self):
+        try:
+            return self.twitch_service.stop()
+        except Exception as e:
+            self.log(f"Lỗi dừng Twitch Drops Miner: {e}", "red")
+            return False
+
+    def start_twitch_oauth(self):
+        try:
+            return self.twitch_service.start_oauth_login(auto_open_browser=True)
+        except Exception as e:
+            self.log(f"Lỗi đăng nhập Twitch: {e}", "red")
+            return {"success": False, "error": str(e)}
+
+    def set_twitch_auth_token(self, token):
+        try:
+            with self.twitch_service._lock:
+                self.twitch_service.auth_token = str(token).strip()
+                self.twitch_service._save_config()
+            self.twitch_service.validate_token()
+            return True
+        except Exception as e:
+            self.log(f"Lỗi lưu token Twitch: {e}", "red")
+            return False
+
+    def open_twitch_inventory(self):
+        try:
+            webbrowser.open("https://www.twitch.tv/drops/inventory")
+            return True
+        except Exception:
+            return False
 
     def start_dps_daemon(self):
         global _dps_process
@@ -1466,6 +1527,7 @@ exit
 
 
 def run_twitch_window():
+    global _twitch_window
     if sys.platform == "win32":
         try:
             import ctypes
@@ -1495,6 +1557,7 @@ def run_twitch_window():
         shadow=True,
         background_color="#04060a"
     )
+    _twitch_window = win
     apply_dark_titlebar(win)
     cache_dir = get_cache_dir()
     webview.start(debug=False, private_mode=False, storage_path=cache_dir)
