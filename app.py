@@ -687,6 +687,14 @@ exit
     def get_twitch_oauth_status(self):
         return self.twitch_service.get_oauth_status()
 
+    def open_twitch_inventory(self):
+        import webbrowser
+        try:
+            webbrowser.open("https://www.twitch.tv/drops/inventory")
+            return True
+        except Exception:
+            return False
+
     def start_dps_daemon(self):
         global _dps_process
         if _dps_process and _dps_process.poll() is None:

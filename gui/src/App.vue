@@ -589,6 +589,9 @@
                 >
                   {{ twitchStatus.isRunning ? 'DỪNG CÀY NGẦM' : 'BẬT CÀY NGẦM' }}
                 </n-button>
+                <n-button secondary size="small" @click="handleOpenTwitchInventory" class="text-xs text-purple-400 hover:text-purple-300">
+                  Kho Drops
+                </n-button>
                 <n-button secondary size="small" @click="refreshTwitchStatus" class="text-xs">
                   Quét Lại
                 </n-button>
@@ -905,6 +908,15 @@ function handleToggleTwitchMiner() {
         refreshTwitchStatus();
       }).catch((e: any) => console.warn(e));
     }
+  }
+}
+
+function handleOpenTwitchInventory() {
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.open_twitch_inventory) {
+    pyApi.open_twitch_inventory();
+  } else {
+    window.open('https://www.twitch.tv/drops/inventory', '_blank');
   }
 }
 

@@ -405,7 +405,7 @@ class TwitchDropsService:
             print(f"[TwitchDrops] Claim result: {err_msg}")
             # If Twitch requires client-integrity challenge, inform user
             if "integrity" in err_msg.lower():
-                self.log_callback(f"🔔 Phần thưởng [{drop_name}] đã đủ 100%! Hãy mở trang Twitch Inventory để bấm nhận.", "blue")
+                self.log_callback(f"🛡️ Phần thưởng [{drop_name}] đã đủ 100%! Twitch yêu cầu bảo mật trình duyệt, đang mở Kho Twitch Inventory để bạn bấm nhận...", "blue")
             return False
 
     def claim_drop_manual(self, drop_instance_id: str, drop_name: str = "Item"):
