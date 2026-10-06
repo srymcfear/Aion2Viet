@@ -73,14 +73,16 @@ class TwitchDropsService:
         try:
             if os.path.isfile(self.config_file):
                 with open(self.config_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self.auth_token = data.get("auth_token", "")
-                    self.auto_claim = data.get("auto_claim", True)
-                    self.account_name = data.get("account_name", "")
-                    self.user_id = data.get("user_id", "")
-                    self.claim_history = data.get("claim_history", [])[:30]
-        except Exception as e:
-            print(f"[TwitchDrops] Error loading config: {e}")
+                    content = f.read().strip()
+                    if content:
+                        data = json.loads(content)
+                        self.auth_token = data.get("auth_token", "")
+                        self.auto_claim = data.get("auto_claim", True)
+                        self.account_name = data.get("account_name", "")
+                        self.user_id = data.get("user_id", "")
+                        self.claim_history = data.get("claim_history", [])[:30]
+        except Exception:
+            pass
 
     def _save_config(self):
         try:

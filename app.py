@@ -956,18 +956,28 @@ exit
         except Exception:
             return False
 
+    def open_hub_web(self):
+        import webbrowser
+        try:
+            webbrowser.open("https://aion2-hub-bice.vercel.app/")
+            return True
+        except Exception:
+            return False
+
     def launch_twitch_window(self):
         global _twitch_window
         if _twitch_window:
             try:
-                _twitch_window.restore()
                 _twitch_window.show()
+                _twitch_window.restore()
                 hwnd = self._get_hwnd(_twitch_window)
                 if hwnd and user32:
                     user32.SetForegroundWindow(wintypes.HWND(hwnd))
+                    user32.ShowWindow(wintypes.HWND(hwnd), 9)
                 self.log("Đã kích hoạt hiển thị cửa sổ riêng Twitch Drops.", "blue")
                 return True
-            except Exception:
+            except Exception as e:
+                self.log(f"Cửa sổ Twitch Drops cần khởi tạo lại: {e}", "blue")
                 _twitch_window = None
 
         html_path = get_twitch_window_html_path()
@@ -990,14 +1000,26 @@ exit
                 shadow=True,
                 background_color="#04060a"
             )
+            def on_twitch_closing():
+                if _twitch_window:
+                    try:
+                        _twitch_window.hide()
+                    except Exception:
+                        pass
+                return False
+            try:
+                _twitch_window.events.closing += on_twitch_closing
+            except Exception:
+                pass
+
             apply_dark_titlebar(_twitch_window)
 
             def _bring_front():
-                time.sleep(0.3)
+                time.sleep(0.2)
                 try:
                     if _twitch_window:
-                        _twitch_window.restore()
                         _twitch_window.show()
+                        _twitch_window.restore()
                         hwnd = self._get_hwnd(_twitch_window)
                         if hwnd and user32:
                             user32.SetForegroundWindow(wintypes.HWND(hwnd))
@@ -1011,15 +1033,17 @@ exit
             self.log(f"Lỗi khởi chạy cửa sổ Twitch Drops: {e}", "red")
             return False
 
-    def close_twitch_window(self):
+    def hide_twitch_window(self):
         global _twitch_window
         if _twitch_window:
             try:
-                _twitch_window.destroy()
+                _twitch_window.hide()
             except Exception:
                 pass
-            _twitch_window = None
         return True
+
+    def close_twitch_window(self):
+        return self.hide_twitch_window()
 
     def minimize_twitch_window(self):
         global _twitch_window
@@ -1504,9 +1528,40 @@ def main():
         shadow=True,
         background_color="#07090e"
     )
-    global _main_window
+    global _main_window, _twitch_window
     _main_window = window
     apply_dark_titlebar(window)
+
+    # 3. Pre-create standalone Twitch Drops Miner HUD in hidden state
+    twitch_html = get_twitch_window_html_path()
+    if twitch_html and os.path.isfile(twitch_html):
+        try:
+            twitch_target_url = f"file:///{os.path.abspath(twitch_html).replace(os.sep, '/')}"
+            _twitch_window = webview.create_window(
+                title="FEΔR - AION 2 Twitch Drops Miner",
+                url=twitch_target_url,
+                js_api=api,
+                width=500,
+                height=680,
+                hidden=True,
+                resizable=False,
+                frameless=False,
+                easy_drag=False,
+                shadow=True,
+                background_color="#04060a"
+            )
+            def on_twitch_closing():
+                if _twitch_window:
+                    try:
+                        _twitch_window.hide()
+                    except Exception:
+                        pass
+                return False
+            _twitch_window.events.closing += on_twitch_closing
+            apply_dark_titlebar(_twitch_window)
+        except Exception as e:
+            print(f"[Warning] Could not pre-create Twitch window: {e}")
+
     cache_dir = get_cache_dir()
     webview.start(debug=False, private_mode=False, storage_path=cache_dir)
 

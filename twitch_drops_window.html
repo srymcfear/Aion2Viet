@@ -461,7 +461,13 @@
         try { e.stopPropagation(); e.preventDefault(); } catch {}
       }
       const api = getPyApi();
-      if (api && api.close_twitch_window) {
+      if (api && api.hide_twitch_window) {
+        try {
+          api.hide_twitch_window();
+        } catch {
+          window.close();
+        }
+      } else if (api && api.close_twitch_window) {
         try {
           api.close_twitch_window();
         } catch {
@@ -643,9 +649,20 @@
       setTimeout(() => {
         if (!cachedStatus) {
           fetchStatus();
-          setInterval(fetchStatus, 5000);
+          // If no pywebview API response, render clean standby UI
+          if (!cachedStatus) {
+            renderUI({
+              isRunning: false,
+              hasToken: false,
+              autoClaim: true,
+              accountName: null,
+              minutesMined: 0,
+              currentChannel: null,
+              campaigns: []
+            });
+          }
         }
-      }, 500);
+      }, 300);
     }
   </script>
 </body>

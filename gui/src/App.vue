@@ -257,7 +257,8 @@
             </div>
             <div v-if="tool.active" class="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-purple-900/30 text-purple-300">
               <span class="flex items-center gap-1">
-                <span>{{ tool.actionText || 'Khởi chạy' }}</span>
+                <span v-if="launchingTool === tool.id" class="text-sky-300 animate-pulse font-bold">⚡ Đang mở...</span>
+                <span v-else>{{ tool.actionText || 'Khởi chạy' }}</span>
               </span>
               <span class="text-xs group-hover:translate-x-0.5 transition-transform text-purple-300">➔</span>
             </div>
@@ -526,6 +527,8 @@ const toolsList = [
   }
 ];
 
+const launchingTool = ref<string | null>(null);
+
 function handleToolClick(tool: any) {
   if (tool.id === 'dps') {
     handleLaunchDpsMeter();
@@ -536,24 +539,39 @@ function handleToolClick(tool: any) {
   }
 }
 
-function handleLaunchTwitchWindow() {
+async function handleLaunchTwitchWindow() {
+  launchingTool.value = 'twitch';
   addLog('Đang mở cửa sổ riêng AION 2 Twitch Drops Tactical HUD...', 'blue');
-  const pyApi = (window as any).pywebview?.api;
-  if (pyApi && pyApi.launch_twitch_window) {
-    pyApi.launch_twitch_window();
-  } else {
-    let attempts = 0;
-    const timer = setInterval(() => {
-      attempts++;
-      const api = (window as any).pywebview?.api;
-      if (api && api.launch_twitch_window) {
-        clearInterval(timer);
-        api.launch_twitch_window();
-      } else if (attempts > 15) {
-        clearInterval(timer);
-        addLog('Không thể gọi API mở cửa sổ Twitch Drops.', 'red');
+  try {
+    const pyApi = (window as any).pywebview?.api;
+    if (pyApi && pyApi.launch_twitch_window) {
+      const ok = await pyApi.launch_twitch_window();
+      if (ok) {
+        addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
+      } else {
+        addLog('Không thể mở cửa sổ Twitch Drops.', 'red');
       }
-    }, 200);
+    } else {
+      let attempts = 0;
+      const timer = setInterval(async () => {
+        attempts++;
+        const api = (window as any).pywebview?.api;
+        if (api && api.launch_twitch_window) {
+          clearInterval(timer);
+          await api.launch_twitch_window();
+          addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
+        } else if (attempts > 15) {
+          clearInterval(timer);
+          addLog('Không thể gọi API mở cửa sổ Twitch Drops.', 'red');
+        }
+      }, 200);
+    }
+  } catch (e: any) {
+    addLog(`Lỗi gọi mở cửa sổ Twitch: ${e}`, 'red');
+  } finally {
+    setTimeout(() => {
+      launchingTool.value = null;
+    }, 800);
   }
 }
 
