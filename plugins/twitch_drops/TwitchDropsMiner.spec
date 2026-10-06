@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+from PyInstaller.utils.hooks import collect_data_files
 
 block_cipher = None
 
@@ -11,7 +12,7 @@ a = Analysis(
         ('twitch_drops_window.html', '.'),
         ('fear_logo.ico', '.'),
         ('fear_logo.png', '.')
-    ],
+    ] + collect_data_files('webview'),
     hiddenimports=[
         'webview',
         'clr',

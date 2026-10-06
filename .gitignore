@@ -38,3 +38,7 @@ dps_daemon/obj/
 dps_daemon/publish/
 dps_meter/
 combat-history.db*
+
+# Compiled Plugin Exe
+plugins/*/*.exe
+

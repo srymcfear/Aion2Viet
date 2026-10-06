@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+from PyInstaller.utils.hooks import collect_data_files
 
 block_cipher = None
 
@@ -16,7 +17,7 @@ a = Analysis(
         ('dps_meter', 'dps_meter'),
         ('fear_logo.ico', '.'),
         ('fear_logo.png', '.')
-    ],
+    ] + collect_data_files('webview'),
     hiddenimports=[
         'webview',
         'clr',
