@@ -542,36 +542,55 @@ function handleToolClick(tool: any) {
 async function handleLaunchTwitchWindow() {
   launchingTool.value = 'twitch';
   addLog('Đang mở cửa sổ riêng AION 2 Twitch Drops Tactical HUD...', 'blue');
+  
+  const hasPywebview = typeof (window as any).pywebview !== 'undefined';
+  const hasWebView2 = typeof (window as any).chrome?.webview !== 'undefined';
+  const pyApi = (window as any).pywebview?.api;
+
+  addLog(`[DEBUG] Môi trường: WebView2=${hasWebView2}, pywebview=${hasPywebview}, api=${!!pyApi}`, 'gray');
+
   try {
-    const pyApi = (window as any).pywebview?.api;
     if (pyApi && pyApi.launch_twitch_window) {
+      addLog('[DEBUG] Đang gọi pyApi.launch_twitch_window()...', 'gray');
       const ok = await pyApi.launch_twitch_window();
       if (ok) {
         addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
       } else {
-        addLog('Không thể mở cửa sổ riêng Twitch Drops.', 'red');
+        addLog('❌ Không thể mở cửa sổ riêng Twitch Drops (Backend trả về False).', 'red');
       }
-    } else {
+    } else if (hasPywebview || hasWebView2) {
+      addLog('[DEBUG] Chờ cầu nối pywebview.api khởi tạo...', 'gray');
       let attempts = 0;
       const timer = setInterval(async () => {
         attempts++;
         const api = (window as any).pywebview?.api;
         if (api && api.launch_twitch_window) {
           clearInterval(timer);
-          const ok = await api.launch_twitch_window();
-          if (ok) {
-            addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
-          } else {
-            addLog('Không thể mở cửa sổ riêng Twitch Drops.', 'red');
+          addLog('[DEBUG] Đã kết nối pywebview.api, đang gọi launch_twitch_window()...', 'gray');
+          try {
+            const ok = await api.launch_twitch_window();
+            if (ok) {
+              addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
+            } else {
+              addLog('❌ Không thể mở cửa sổ riêng Twitch Drops (Backend trả về False).', 'red');
+            }
+          } catch (e: any) {
+            addLog(`❌ Lỗi gọi mở cửa sổ Twitch: ${e}`, 'red');
           }
         } else if (attempts > 12) {
           clearInterval(timer);
-          addLog('Không thể kết nối API mở cửa sổ Twitch Drops.', 'red');
+          const curKeys = api ? Object.keys(api).join(', ') : 'null';
+          addLog(`❌ Hết thời gian chờ kết nối API (attempts=12, api_keys=[${curKeys}]).`, 'red');
         }
       }, 150);
+    } else {
+      // Standalone browser mode fallback
+      addLog(`[DEBUG] Đang chạy trong Web Browser (${window.location.protocol}//${window.location.host}). Mở popup HTML trực tiếp.`, 'gray');
+      window.open('twitch_drops_window.html', '_blank', 'width=520,height=700');
+      addLog('ℹ Đã mở cửa sổ Twitch Drops trong trình duyệt Web.', 'success');
     }
   } catch (e: any) {
-    addLog(`Lỗi gọi mở cửa sổ Twitch: ${e}`, 'red');
+    addLog(`❌ Lỗi ngoại lệ khi mở cửa sổ Twitch: ${e}`, 'red');
   } finally {
     setTimeout(() => {
       launchingTool.value = null;
@@ -581,12 +600,20 @@ async function handleLaunchTwitchWindow() {
 
 function handleLaunchDpsMeter() {
   addLog('Đang kích hoạt Plugin AION 2 DPS Meter (ProgramData)...', 'blue');
+  const hasPywebview = typeof (window as any).pywebview !== 'undefined';
+  const hasWebView2 = typeof (window as any).chrome?.webview !== 'undefined';
   const pyApi = (window as any).pywebview?.api;
+
+  addLog(`[DEBUG] Môi trường DPS: WebView2=${hasWebView2}, pywebview=${hasPywebview}, api=${!!pyApi}`, 'gray');
+
   if (pyApi && pyApi.launch_dps_meter) {
+    addLog('[DEBUG] Đang gọi pyApi.launch_dps_meter()...', 'gray');
     pyApi.launch_dps_meter();
   } else if (pyApi && pyApi.launch_dps_overlay) {
+    addLog('[DEBUG] Đang gọi pyApi.launch_dps_overlay()...', 'gray');
     pyApi.launch_dps_overlay();
   } else {
+    addLog(`[DEBUG] Không có pyApi (hasPywebview=${hasPywebview}). Mở dps_overlay trong browser.`, 'gray');
     window.open('dps_overlay.html', '_blank', 'width=1000,height=660');
     addLog('Mở cửa sổ DPS trong trình duyệt.', 'success');
   }
@@ -865,6 +892,34 @@ onMounted(() => {
       }, 200);
     }
   }, 20);
+
+  // Environment Diagnostic on Startup
+  const hasPywebview = typeof (window as any).pywebview !== 'undefined';
+  const hasWebView2 = typeof (window as any).chrome?.webview !== 'undefined';
+  if (!hasPywebview && !hasWebView2) {
+    addLog(`[DIAGNOSTIC] Đang chạy trong Web Browser (${window.location.protocol}//${window.location.host}).`, 'gray');
+  } else {
+    addLog(`[DIAGNOSTIC] Đang chạy trong Engine Desktop (WebView2=${hasWebView2}, pywebview=${hasPywebview}).`, 'gray');
+  }
+
+  window.addEventListener('pywebviewready', () => {
+    addLog('[DEBUG] Sự kiện pywebviewready đã kích hoạt thành công.', 'gray');
+    const pyApi = (window as any).pywebview?.api;
+    if (pyApi && pyApi.get_status) {
+      pyApi.get_status().then((status: any) => {
+        if (status) {
+          if (status.gameDir) gameDir.value = status.gameDir;
+          isInstalled.value = status.isInstalled;
+          if (status.securityInfo) applySecurityInfo(status.securityInfo);
+          if (status.logs && status.logs.length > 0) {
+            for (const item of status.logs) {
+              addLog(item.text, item.type);
+            }
+          }
+        }
+      }).catch(console.warn);
+    }
+  });
 
   let attempts = 0;
   const initInterval = setInterval(async () => {

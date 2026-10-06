@@ -1019,11 +1019,13 @@ exit
 
     def launch_twitch_window(self):
         global _twitch_process
+        self.log("[DEBUG] ModApi.launch_twitch_window() được gọi từ GUI.", "gray")
         if _twitch_process and _twitch_process.poll() is None:
-            self.log("Cửa sổ FEΔR Twitch Drops Miner đang hoạt động.", "blue")
+            self.log(f"Cửa sổ FEΔR Twitch Drops Miner đang hoạt động (PID: {_twitch_process.pid}).", "blue")
             return True
 
         twitch_exe = get_twitch_drops_executable()
+        self.log(f"[DEBUG] Đường dẫn plugin Twitch: {twitch_exe}", "gray")
         if not twitch_exe or not os.path.isfile(twitch_exe):
             self.log(f"❌ Không tìm thấy plugin TwitchDropsMiner.exe tại {get_twitch_plugin_dir()}.", "red")
             return False
@@ -1031,14 +1033,17 @@ exit
         try:
             import subprocess
             twitch_dir = os.path.dirname(twitch_exe)
+            self.log(f"[DEBUG] Đang thực thi subprocess: {twitch_exe}", "gray")
             _twitch_process = subprocess.Popen(
                 [twitch_exe, "--fear-launcher", SECURITY_KEY_HASH],
                 cwd=twitch_dir
             )
-            self.log(f"✔ Đã kích hoạt Plugin FEΔR Twitch Drops Miner (Vị trí: {twitch_dir}).", "success")
+            self.log(f"✔ Đã kích hoạt Plugin FEΔR Twitch Drops Miner (PID: {_twitch_process.pid}).", "success")
             return True
         except Exception as e:
-            self.log(f"Lỗi khởi chạy Plugin Twitch Drops Miner: {e}", "red")
+            self.log(f"❌ Lỗi khởi chạy Plugin Twitch Drops Miner: {e}", "red")
+            import traceback
+            traceback.print_exc()
             return False
 
     def hide_twitch_window(self):
