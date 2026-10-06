@@ -318,12 +318,32 @@
         <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 4px;">
           Trình duyệt đã mở <strong style="color: var(--neon-cyan); cursor: pointer; text-decoration: underline;" onclick="openActivatePage()">twitch.tv/activate</strong>. Nhập mã:
         </div>
-        <div id="authUserCode" style="font-family: 'JetBrains Mono'; font-size: 22px; font-weight: 700; letter-spacing: 5px; color: var(--neon-cyan); text-shadow: 0 0 12px var(--neon-cyan); padding: 4px 0;">
+        <div id="authUserCode" style="font-family: 'JetBrains Mono'; font-size: 24px; font-weight: 700; letter-spacing: 6px; color: var(--neon-cyan); text-shadow: 0 0 12px var(--neon-cyan); padding: 4px 0;">
           ------
         </div>
-        <div style="font-size: 10px; color: #c084fc; font-weight: 600;">
-          ⚡ Đang đợi bạn bấm nút "Kích hoạt" trên trình duyệt...
+        <div style="font-size: 11px; color: #c084fc; font-weight: 600; line-height: 1.4; margin: 4px 0;">
+          ⚡ Lưu ý: Bấm nút "Kích hoạt" xong, PHẢI BẤM TIẾP nút màu tím "Ủy quyền" (Authorize) trên Twitch!
         </div>
+        <div id="authPollCount" style="font-size: 10px; color: var(--text-dim); font-family: 'JetBrains Mono'; margin-top: 3px;">
+          🔄 Đang đợi phê duyệt từ Twitch...
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: center; margin-top: 8px;">
+          <button class="hud-btn" style="height: 26px; font-size: 10px; padding: 0 12px;" onclick="fetchStatus()">
+            🔄 Kiểm tra lại ngay
+          </button>
+          <button class="hud-btn sec" style="height: 26px; font-size: 10px; padding: 0 12px;" onclick="openActivatePage()">
+            Mở lại trang Twitch ↗
+          </button>
+        </div>
+      </div>
+
+      <div id="authErrorBlock" style="display: none; text-align: center; padding: 6px 0;">
+        <div id="authErrorMsg" style="font-size: 11px; color: #f87171; line-height: 1.4; margin-bottom: 6px;">
+          Mã xác thực đã hết hạn hoặc bị lỗi.
+        </div>
+        <button class="hud-btn" style="height: 28px; font-size: 11px; padding: 0 14px; margin: 0 auto;" onclick="startTwitchOAuth()">
+          🔑 LẤY MÃ MỚI (OAUTH)
+        </button>
       </div>
     </div>
 
@@ -528,17 +548,34 @@
       const authBox = document.getElementById('authHudBox');
       const authIdle = document.getElementById('authIdleBlock');
       const authPending = document.getElementById('authPendingBlock');
+      const authError = document.getElementById('authErrorBlock');
       const oauth = status.oauthState || {};
 
       if (oauth.status === 'pending') {
         if (authBox) authBox.style.display = 'block';
         if (authIdle) authIdle.style.display = 'none';
+        if (authError) authError.style.display = 'none';
         if (authPending) authPending.style.display = 'block';
         document.getElementById('authUserCode').innerText = oauth.user_code || '------';
+        const pollElem = document.getElementById('authPollCount');
+        if (pollElem) {
+          const cnt = oauth.poll_count || 1;
+          pollElem.innerText = `🔄 Đang đợi bạn phê duyệt (đã kiểm tra ${cnt} lần)...`;
+        }
+      } else if (oauth.status === 'error' || oauth.status === 'expired') {
+        if (authBox) authBox.style.display = 'block';
+        if (authIdle) authIdle.style.display = 'none';
+        if (authPending) authPending.style.display = 'none';
+        if (authError) {
+          authError.style.display = 'block';
+          const msgEl = document.getElementById('authErrorMsg');
+          if (msgEl) msgEl.innerText = oauth.error_message || 'Mã xác thực đã hết hạn hoặc bị từ chối.';
+        }
       } else if (!status.hasToken) {
         if (authBox) authBox.style.display = 'block';
         if (authIdle) authIdle.style.display = 'block';
         if (authPending) authPending.style.display = 'none';
+        if (authError) authError.style.display = 'none';
       } else {
         if (authBox && !forceShowAuth) {
           authBox.style.display = 'none';
@@ -651,30 +688,22 @@
     }
 
     // Auto polling loop
-    window.addEventListener('pywebviewready', () => {
+    function startStatusPolling() {
       fetchStatus();
-      setInterval(fetchStatus, 4000);
+      if (!window._statusPollTimer) {
+        window._statusPollTimer = setInterval(fetchStatus, 2000);
+      }
+    }
+
+    window.addEventListener('pywebviewready', () => {
+      startStatusPolling();
     });
 
-    // Fallback if opened in browser directly
-    if (!window.pywebview) {
-      setTimeout(() => {
-        if (!cachedStatus) {
-          fetchStatus();
-          // If no pywebview API response, render clean standby UI
-          if (!cachedStatus) {
-            renderUI({
-              isRunning: false,
-              hasToken: false,
-              autoClaim: true,
-              accountName: null,
-              minutesMined: 0,
-              currentChannel: null,
-              campaigns: []
-            });
-          }
-        }
-      }, 300);
+    if (window.pywebview && window.pywebview.api) {
+      startStatusPolling();
+    } else {
+      setTimeout(startStatusPolling, 300);
+      setTimeout(startStatusPolling, 1000);
     }
   </script>
 </body>

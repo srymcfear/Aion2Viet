@@ -50,6 +50,7 @@ class TwitchDropsService:
         self.user_id = ""
         self.current_channel = None
         self.minutes_mined = 0
+        self.client_id = DEVILXD_CLIENT_ID
         self._notified_integrity_drops = set()
 
         # OAuth State (DevilXD Device Code Formula)
@@ -60,7 +61,9 @@ class TwitchDropsService:
             "verification_uri": "https://www.twitch.tv/activate",
             "activate_url": "https://www.twitch.tv/activate",
             "expires_at": 0,
-            "error_message": ""
+            "error_message": "",
+            "poll_count": 0,
+            "last_poll_msg": ""
         }
 
         self._load_config()
@@ -77,6 +80,7 @@ class TwitchDropsService:
                     if content:
                         data = json.loads(content)
                         self.auth_token = data.get("auth_token", "")
+                        self.client_id = data.get("client_id", DEVILXD_CLIENT_ID)
                         self.auto_claim = data.get("auto_claim", True)
                         self.account_name = data.get("account_name", "")
                         self.user_id = data.get("user_id", "")
@@ -89,6 +93,7 @@ class TwitchDropsService:
             os.makedirs(self.storage_dir, exist_ok=True)
             data = {
                 "auth_token": self.auth_token,
+                "client_id": self.client_id or DEVILXD_CLIENT_ID,
                 "auto_claim": self.auto_claim,
                 "account_name": self.account_name,
                 "user_id": self.user_id,
@@ -105,17 +110,24 @@ class TwitchDropsService:
         try:
             req = urllib.request.Request(
                 OAUTH_VALIDATE_URL,
-                headers={"Authorization": f"OAuth {self.auth_token}"}
+                headers={
+                    "Authorization": f"OAuth {self.auth_token}",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                }
             )
             with urllib.request.urlopen(req, timeout=8) as resp:
                 val = json.loads(resp.read().decode("utf-8"))
                 name = val.get("login") or val.get("user_id")
                 uid = str(val.get("user_id", ""))
+                cid = val.get("client_id")
                 with self._lock:
                     self.account_name = name
                     if uid:
                         self.user_id = uid
+                    if cid:
+                        self.client_id = cid
                     self._save_config()
+                return val
         except urllib.error.HTTPError as e:
             if e.code == 401:
                 with self._lock:
@@ -214,8 +226,10 @@ class TwitchDropsService:
             "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
         }).encode("utf-8")
 
+        poll_count = 0
         while time.time() < expires_at:
             time.sleep(interval)
+            poll_count += 1
             try:
                 req = urllib.request.Request(OAUTH_TOKEN_URL, data=payload, headers=headers, method="POST")
                 with urllib.request.urlopen(req, timeout=10) as resp:
@@ -225,8 +239,12 @@ class TwitchDropsService:
                         if access_token:
                             with self._lock:
                                 self.auth_token = access_token
+                                self.client_id = DEVILXD_CLIENT_ID
                                 self.oauth_state["status"] = "idle"
                                 self.oauth_state["user_code"] = ""
+                                self.oauth_state["error_message"] = ""
+                                self.oauth_state["poll_count"] = poll_count
+                                self.oauth_state["last_poll_msg"] = "success"
                                 self._save_config()
 
                             # Immediately validate username
@@ -236,17 +254,37 @@ class TwitchDropsService:
                             self._query_inventory()
                             return
             except urllib.error.HTTPError as e:
-                # 400 means authorization_pending (user hasn't approved yet)
-                if e.code == 400:
+                err_msg = ""
+                try:
+                    raw_body = e.read().decode("utf-8")
+                    err_data = json.loads(raw_body)
+                    err_msg = err_data.get("message", "")
+                except Exception:
+                    err_msg = str(e)
+
+                with self._lock:
+                    self.oauth_state["poll_count"] = poll_count
+                    self.oauth_state["last_poll_msg"] = err_msg
+
+                if err_msg == "authorization_pending" or (e.code == 400 and not err_msg):
                     continue
+                elif err_msg == "slow_down":
+                    time.sleep(5)
+                    continue
+                elif err_msg in ("authorization_declined", "expired_token", "invalid device code"):
+                    with self._lock:
+                        self.oauth_state["status"] = "error"
+                        self.oauth_state["error_message"] = f"Mã xác thực đã hết hạn hoặc bị từ chối ({err_msg}). Vui lòng bấm [ĐĂNG NHẬP] để lấy mã mới."
+                    self.log_callback(f"❌ Twitch OAuth: {self.oauth_state['error_message']}", "red")
+                    return
                 else:
-                    print(f"[TwitchDrops] OAuth poll HTTPError {e.code}: {e}")
+                    print(f"[TwitchDrops] OAuth poll error {e.code}: {err_msg}")
             except Exception as e:
                 print(f"[TwitchDrops] OAuth poll error: {e}")
 
         with self._lock:
             self.oauth_state["status"] = "expired"
-            self.oauth_state["error_message"] = "Mã kích hoạt đã hết hạn."
+            self.oauth_state["error_message"] = "Mã kích hoạt đăng nhập Twitch đã hết hạn. Vui lòng lấy mã mới."
         self.log_callback("Mã kích hoạt đăng nhập Twitch đã hết hạn.", "red")
 
     def get_oauth_status(self):
@@ -320,7 +358,7 @@ class TwitchDropsService:
             return None
 
         headers = {
-            "Client-Id": TWITCH_WEB_CLIENT_ID,
+            "Client-Id": self.client_id or DEVILXD_CLIENT_ID,
             "Authorization": f"OAuth {self.auth_token}",
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -334,12 +372,14 @@ class TwitchDropsService:
                     return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             if e.code == 401:
-                with self._lock:
-                    self.account_name = None
-                    self.auth_token = ""
-                    self.is_running = False
-                    self._save_config()
-                self.log_callback("⚠️ Phiên đăng nhập Twitch hết hạn (401 Unauthorized). Vui lòng đăng nhập lại.", "gray")
+                # Double check with validate endpoint before destroying session
+                if not self.validate_token():
+                    with self._lock:
+                        self.account_name = None
+                        self.auth_token = ""
+                        self.is_running = False
+                        self._save_config()
+                    self.log_callback("⚠️ Phiên đăng nhập Twitch hết hạn (401 Unauthorized). Vui lòng đăng nhập lại.", "gray")
             else:
                 print(f"[TwitchDrops] GQL HTTP error: {e}")
             return None
