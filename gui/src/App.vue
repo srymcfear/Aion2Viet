@@ -549,7 +549,8 @@ async function handleLaunchTwitchWindow() {
       if (ok) {
         addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
       } else {
-        addLog('Không thể mở cửa sổ Twitch Drops.', 'red');
+        window.open('twitch_drops_window.html', '_blank', 'width=500,height=680');
+        addLog('Đã mở cửa sổ Twitch Drops trong cửa sổ phụ.', 'blue');
       }
     } else {
       let attempts = 0;
@@ -558,16 +559,31 @@ async function handleLaunchTwitchWindow() {
         const api = (window as any).pywebview?.api;
         if (api && api.launch_twitch_window) {
           clearInterval(timer);
-          await api.launch_twitch_window();
-          addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
-        } else if (attempts > 15) {
+          const ok = await api.launch_twitch_window();
+          if (ok) {
+            addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
+          } else {
+            window.open('twitch_drops_window.html', '_blank', 'width=500,height=680');
+            addLog('Đã mở cửa sổ Twitch Drops trong cửa sổ phụ.', 'blue');
+          }
+        } else if (attempts > 8) {
           clearInterval(timer);
-          addLog('Không thể gọi API mở cửa sổ Twitch Drops.', 'red');
+          try {
+            window.open('twitch_drops_window.html', '_blank', 'width=500,height=680');
+            addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner.', 'success');
+          } catch {
+            addLog('Không thể gọi API mở cửa sổ Twitch Drops.', 'red');
+          }
         }
-      }, 200);
+      }, 150);
     }
   } catch (e: any) {
-    addLog(`Lỗi gọi mở cửa sổ Twitch: ${e}`, 'red');
+    try {
+      window.open('twitch_drops_window.html', '_blank', 'width=500,height=680');
+      addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner.', 'success');
+    } catch {
+      addLog(`Lỗi gọi mở cửa sổ Twitch: ${e}`, 'red');
+    }
   } finally {
     setTimeout(() => {
       launchingTool.value = null;
