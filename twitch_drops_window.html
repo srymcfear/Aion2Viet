@@ -44,11 +44,11 @@
       padding: 0 14px;
       -webkit-app-region: drag;
     }
-    .pywebview-drag-region {
+    .app-drag-bar {
       -webkit-app-region: drag;
       cursor: grab;
     }
-    .pywebview-drag-region:active {
+    .app-drag-bar:active {
       cursor: grabbing;
     }
     .no-drag {
@@ -275,15 +275,15 @@
 </head>
 <body>
   <!-- HUD Header -->
-  <div class="hud-header pywebview-drag-region" id="dragHeader">
-    <div class="hud-title pywebview-drag-region" style="pointer-events: none;">
+  <div class="hud-header app-drag-bar" id="dragHeader" onmousedown="startTwitchDrag(event)">
+    <div class="hud-title app-drag-bar" style="pointer-events: none;">
       <span>FEΔR</span> // AION 2 DROPS HUD
     </div>
     <div class="hud-controls no-drag" onmousedown="event.stopPropagation()">
       <button class="hud-ctrl-btn no-drag" title="Ghim trên cùng" id="pinBtn" onclick="toggleAlwaysOnTop()" onmousedown="event.stopPropagation()">📌</button>
       <button class="hud-ctrl-btn no-drag" title="Chuyển Mini Overlay" onclick="toggleMini()" onmousedown="event.stopPropagation()">◲</button>
       <button class="hud-ctrl-btn no-drag" title="Thu nhỏ" onclick="minimizeWin()" onmousedown="event.stopPropagation()">─</button>
-      <button class="hud-ctrl-btn danger no-drag" title="Đóng" onclick="closeWin()" onmousedown="event.stopPropagation()">✕</button>
+      <button class="hud-ctrl-btn danger no-drag" title="Đóng" onclick="closeWin(event)" onmousedown="event.stopPropagation()">✕</button>
     </div>
   </div>
 
@@ -372,10 +372,10 @@
   </div>
 
   <!-- Mini Overlay View -->
-  <div class="mini-hud pywebview-drag-region" id="miniDragHeader">
-    <div class="pywebview-drag-region" style="pointer-events: none;">
-      <div style="font-size: 10px; color: var(--text-dim);" class="pywebview-drag-region">LIVE: <strong id="miniStreamer" style="color: var(--neon-cyan);">shroud</strong></div>
-      <div style="font-size: 12px; font-weight: 700; color: #fff;" id="miniDropText" class="pywebview-drag-region">Đang cày ngầm AION 2 Drops...</div>
+  <div class="mini-hud app-drag-bar" id="miniDragHeader" onmousedown="startTwitchDrag(event)">
+    <div class="app-drag-bar" style="pointer-events: none;">
+      <div style="font-size: 10px; color: var(--text-dim);" class="app-drag-bar">LIVE: <strong id="miniStreamer" style="color: var(--neon-cyan);">shroud</strong></div>
+      <div style="font-size: 12px; font-weight: 700; color: #fff;" id="miniDropText" class="app-drag-bar">Đang cày ngầm AION 2 Drops...</div>
     </div>
     <button class="hud-btn no-drag" style="height: 28px; font-size: 13px; padding: 0 10px;" onclick="toggleMini()" onmousedown="event.stopPropagation()">
       Phóng to ↗
@@ -447,6 +447,20 @@
           api.resize_twitch_window(360, 95);
         } else {
           api.resize_twitch_window(500, 640);
+        }
+      }
+    }
+
+    function startTwitchDrag(e) {
+      if (e.button !== 0) return;
+      const target = e.target;
+      if (target && target.closest('button, input, a, .no-drag, .hud-controls')) return;
+      const api = getPyApi();
+      if (api && api.start_twitch_drag) {
+        try {
+          api.start_twitch_drag();
+        } catch (err) {
+          console.warn("start_twitch_drag error:", err);
         }
       }
     }

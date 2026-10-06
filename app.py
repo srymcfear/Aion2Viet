@@ -652,6 +652,39 @@ exit
     def show_window(self):
         return True
 
+    def start_window_drag(self):
+        global _main_window
+        return self._do_drag(_main_window)
+
+    def start_twitch_drag(self):
+        global _twitch_window
+        return self._do_drag(_twitch_window)
+
+    def start_dps_drag(self):
+        global _dps_window
+        return self._do_drag(_dps_window)
+
+    def _do_drag(self, win):
+        if not win or sys.platform != "win32" or not user32:
+            return False
+        try:
+            hwnd = None
+            if hasattr(win, 'native') and win.native:
+                hwnd = int(win.native.Handle.ToInt64())
+            if not hwnd:
+                import webview.platforms.winforms as wf
+                uid = getattr(win, 'uid', 'master')
+                inst = wf.BrowserView.instances.get(uid)
+                if inst:
+                    hwnd = int(inst.Handle.ToInt64())
+            if hwnd:
+                user32.ReleaseCapture()
+                user32.PostMessageW(hwnd, 0x00A1, 2, 0)
+                return True
+        except Exception:
+            pass
+        return False
+
     def move_main_window(self, x, y):
         global _main_window
         return safe_move_window(_main_window, x, y)
@@ -1295,10 +1328,8 @@ def main():
             webbrowser.open("https://go.microsoft.com/fwlink/p/?LinkId=2124703")
         sys.exit(0)
 
-    # 2. Disable problematic GPU compositing on buggy drivers to eliminate black screen
-    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
-        "--disable-gpu-compositing --disable-features=msWebOOUI,msPdfOOUI"
-    )
+    # 2. Configure safe WebView2 browser arguments
+    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = "--disable-features=msWebOOUI,msPdfOOUI"
 
     api = ModApi()
     gui_path = get_gui_html_path()

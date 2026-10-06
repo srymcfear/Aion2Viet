@@ -10,7 +10,7 @@
         :class="splashFading ? 'opacity-0 pointer-events-none' : 'opacity-100'"
       >
         <!-- Top Drag Bar with Status & Window Controls -->
-        <div class="h-11 px-3.5 flex items-center justify-between pywebview-drag-region bg-transparent">
+        <div class="h-11 px-3.5 flex items-center justify-between app-drag-bar bg-transparent cursor-move" @mousedown="handleDragStart">
           <div class="flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
             <span class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Khởi tạo hệ thống</span>
@@ -89,7 +89,10 @@
       </div>
       
       <!-- Compact Header with Integrated Status Pill & Window Controls -->
-      <div class="h-11 px-3.5 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/95 shrink-0 pywebview-drag-region">
+      <div 
+        class="h-11 px-3.5 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/95 shrink-0 app-drag-bar cursor-move"
+        @mousedown="handleDragStart"
+      >
         <div class="flex items-center gap-2.5">
           <img src="./assets/logo.png" alt="FEAR" class="h-6 w-6 object-contain rounded-md border border-white/10 shadow-sm" />
           <div class="text-xs font-bold tracking-wider text-slate-200">
@@ -1050,6 +1053,22 @@ function startPolling() {
       console.error(e);
     }
   }, 120);
+}
+
+function handleDragStart(e: MouseEvent) {
+  if (e.button !== 0) return;
+  const target = e.target as HTMLElement;
+  if (!target || target.closest('button, input, a, .no-drag, svg, path, .n-base-close')) {
+    return;
+  }
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.start_window_drag) {
+    try {
+      pyApi.start_window_drag();
+    } catch (err) {
+      console.warn("start_window_drag error:", err);
+    }
+  }
 }
 
 function handleMinimize(e?: Event) {
