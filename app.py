@@ -242,25 +242,29 @@ def safe_move_window(win, x, y):
     """
     if not win:
         return True
-    if sys.platform == "win32" and user32 and hasattr(win, 'native') and win.native:
+    if sys.platform == "win32" and user32:
         try:
-            hwnd = int(win.native.Handle.ToInt64())
-            scale = getattr(win.native, '_scale', 1.0) or 1.0
-            x_phys = int(round(float(x) * scale))
-            y_phys = int(round(float(y) * scale))
-            SWP_NOSIZE = 0x0001
-            SWP_NOZORDER = 0x0004
-            SWP_NOACTIVATE = 0x0010
-            user32.SetWindowPos(
-                wintypes.HWND(hwnd),
-                wintypes.HWND(0),
-                x_phys,
-                y_phys,
-                0,
-                0,
-                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
-            )
-            return True
+            import webview.platforms.winforms as wf
+            uid = getattr(win, 'uid', 'master')
+            inst = wf.BrowserView.instances.get(uid)
+            if inst:
+                hwnd = int(inst.Handle.ToInt64())
+                scale = getattr(inst, '_scale', 1.0) or 1.0
+                x_phys = int(round(float(x) * scale))
+                y_phys = int(round(float(y) * scale))
+                SWP_NOSIZE = 0x0001
+                SWP_NOZORDER = 0x0004
+                SWP_NOACTIVATE = 0x0010
+                user32.SetWindowPos(
+                    wintypes.HWND(hwnd),
+                    wintypes.HWND(0),
+                    x_phys,
+                    y_phys,
+                    0,
+                    0,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+                )
+                return True
         except Exception:
             pass
     try:

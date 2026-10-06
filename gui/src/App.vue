@@ -1288,13 +1288,9 @@ function setupWindowDrag() {
     'a',
     '.no-drag',
     '.n-button',
-    '.n-base-select-menu',
     '.n-input',
-    '.n-tabs-tab',
-    '.n-modal',
-    '.cursor-pointer',
-    '[role="button"]',
-    '[role="tab"]'
+    '.n-switch',
+    '.n-tabs-tab'
   ];
 
   function isInteractive(target: HTMLElement | null): boolean {
