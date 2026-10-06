@@ -15,12 +15,17 @@ import urllib.parse
 import webbrowser
 
 GQL_ENDPOINT = "https://gql.twitch.tv/gql"
-TWITCH_CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko"
+TWITCH_WEB_CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko"
 
 # DevilXD's Exact OAuth Formula (SmartTV Device Code Flow)
 DEVILXD_CLIENT_ID = "ue6666qo983tsx6so1t0vnawi233wa"
 OAUTH_DEVICE_URL = "https://id.twitch.tv/oauth2/device"
 OAUTH_TOKEN_URL = "https://id.twitch.tv/oauth2/token"
+OAUTH_VALIDATE_URL = "https://id.twitch.tv/oauth2/validate"
+
+# DevilXD's Exact GQL Persisted Queries
+INVENTORY_PERSISTED_HASH = "8337eb8541b314040b0edde0c09c5c7a2783ba1960aa9edfbf3bac16d0fec404"
+CLAIM_PERSISTED_HASH = "a455deea71bdc9015b78eb49f4acfbce8baa7ccbedd28e549bb025bd0f751930"
 
 class TwitchDropsService:
     def __init__(self, storage_dir: str, log_callback=None):
@@ -40,7 +45,7 @@ class TwitchDropsService:
         self.last_checked = None
         self.account_name = None
 
-        # OAuth State (Exact DevilXD Device Code Formula)
+        # OAuth State (DevilXD Device Code Formula)
         self.oauth_state = {
             "status": "idle", # "idle", "pending", "success", "error", "expired"
             "user_code": "",
@@ -53,6 +58,10 @@ class TwitchDropsService:
 
         self._load_config()
 
+        # Validate token on startup if present
+        if self.auth_token:
+            threading.Thread(target=self._validate_and_refresh, daemon=True).start()
+
     def _load_config(self):
         try:
             if os.path.isfile(self.config_file):
@@ -60,6 +69,7 @@ class TwitchDropsService:
                     data = json.load(f)
                     self.auth_token = data.get("auth_token", "")
                     self.auto_claim = data.get("auto_claim", True)
+                    self.account_name = data.get("account_name", "")
                     self.claim_history = data.get("claim_history", [])[:30]
         except Exception as e:
             print(f"[TwitchDrops] Error loading config: {e}")
@@ -70,12 +80,36 @@ class TwitchDropsService:
             data = {
                 "auth_token": self.auth_token,
                 "auto_claim": self.auto_claim,
+                "account_name": self.account_name,
                 "claim_history": self.claim_history[:30]
             }
             with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"[TwitchDrops] Error saving config: {e}")
+
+    def validate_token(self):
+        if not self.auth_token:
+            return None
+        try:
+            req = urllib.request.Request(
+                OAUTH_VALIDATE_URL,
+                headers={"Authorization": f"OAuth {self.auth_token}"}
+            )
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                val = json.loads(resp.read().decode("utf-8"))
+                name = val.get("login") or val.get("user_id")
+                with self._lock:
+                    self.account_name = name
+                    self._save_config()
+                return val
+        except Exception as e:
+            print(f"[TwitchDrops] Token validate error: {e}")
+            return None
+
+    def _validate_and_refresh(self):
+        self.validate_token()
+        self._query_inventory()
 
     # -------------------------------------------------------------------------
     # Exact DevilXD OAuth Device Code Login Formula
@@ -167,10 +201,14 @@ class TwitchDropsService:
                         if access_token:
                             with self._lock:
                                 self.auth_token = access_token
-                                self.oauth_state["status"] = "success"
+                                self.oauth_state["status"] = "idle"
+                                self.oauth_state["user_code"] = ""
                                 self._save_config()
 
-                            self.log_callback("✔ Đăng nhập Twitch thành công! Đã tự động nhận OAuth Token.", "success")
+                            # Immediately validate username
+                            self.validate_token()
+                            name_str = f": [{self.account_name}]" if self.account_name else ""
+                            self.log_callback(f"✔ Đăng nhập Twitch thành công{name_str}! Đã tự động nhận OAuth Token.", "success")
                             self._query_inventory()
                             return
             except urllib.error.HTTPError as e:
@@ -198,9 +236,11 @@ class TwitchDropsService:
         clean_token = token.replace("OAuth ", "").strip()
         with self._lock:
             self.auth_token = clean_token
+            self.oauth_state["status"] = "idle"
+            self.oauth_state["user_code"] = ""
             self._save_config()
         self.log_callback("Đã cập nhật Twitch OAuth Token.", "blue")
-        threading.Thread(target=self._query_inventory, daemon=True).start()
+        threading.Thread(target=self._validate_and_refresh, daemon=True).start()
         return True
 
     def set_auto_claim(self, enabled: bool):
@@ -253,7 +293,7 @@ class TwitchDropsService:
             return None
 
         headers = {
-            "Client-Id": TWITCH_CLIENT_ID,
+            "Client-Id": TWITCH_WEB_CLIENT_ID,
             "Authorization": f"OAuth {self.auth_token}",
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -270,82 +310,82 @@ class TwitchDropsService:
             return None
 
     def _query_inventory(self):
-        query = """
-        query Inventory {
-            currentUser {
-                id
-                login
-                displayName
-                dropCampaignsInProgress {
-                    id
-                    name
-                    status
-                    game {
-                        id
-                        displayName
-                    }
-                    timeBasedDrops {
-                        id
-                        name
-                        currentMinutesWatched
-                        requiredMinutesWatched
-                        isClaimed
-                        dropInstanceID
-                    }
+        # DevilXD Exact Inventory Persisted Query
+        payload = {
+            "operationName": "Inventory",
+            "extensions": {
+                "persistedQuery": {
+                    "version": 1,
+                    "sha256Hash": INVENTORY_PERSISTED_HASH
                 }
+            },
+            "variables": {
+                "fetchRewardCampaigns": False
             }
         }
-        """
-        payload = {"operationName": "Inventory", "query": query}
+
         res = self._make_gql_request(payload)
         if not res:
             return
 
-        user_data = res.get("data", {}).get("currentUser")
-        if not user_data:
-            self.log_callback("⚠️ Token Twitch không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.", "red")
-            return
+        raw_camps = res.get("data", {}).get("currentUser", {}).get("inventory", {}).get("dropCampaignsInProgress", [])
+        campaigns = []
 
-        account_name = user_data.get("displayName") or user_data.get("login")
-        campaigns = user_data.get("dropCampaignsInProgress") or []
+        for rc in raw_camps:
+            game_obj = rc.get("game") or {}
+            game_title = game_obj.get("name") or game_obj.get("displayName") or rc.get("name") or "AION 2"
+            timed_drops = []
+
+            for d in rc.get("timeBasedDrops", []):
+                self_edge = d.get("self") or {}
+                curr = self_edge.get("currentMinutesWatched", 0)
+                req_m = d.get("requiredMinutesWatched", 60)
+                claimed = self_edge.get("isClaimed", False)
+                drop_id = self_edge.get("dropInstanceID")
+
+                timed_drops.append({
+                    "id": d.get("id"),
+                    "name": d.get("name", "Drop Item"),
+                    "currentMinutesWatched": curr,
+                    "requiredMinutesWatched": req_m,
+                    "isClaimed": claimed,
+                    "dropInstanceID": drop_id
+                })
+
+                # Auto-claim check
+                if self.auto_claim and not claimed and curr >= req_m and drop_id:
+                    self._claim_drop_internal(drop_id, d.get("name", "Drop Item"), game_title)
+
+            campaigns.append({
+                "id": rc.get("id"),
+                "name": rc.get("name"),
+                "game": {"displayName": game_title},
+                "timeBasedDrops": timed_drops
+            })
 
         with self._lock:
-            self.account_name = account_name
             self.latest_campaigns = campaigns
             self.last_checked = time.strftime("%H:%M:%S")
 
-        # Process Auto-Claim if enabled
-        if self.auto_claim:
-            for camp in campaigns:
-                game_title = camp.get("game", {}).get("displayName", camp.get("name", "Game"))
-                for drop in camp.get("timeBasedDrops", []):
-                    drop_id = drop.get("dropInstanceID")
-                    name = drop.get("name", "Drop Item")
-                    curr = drop.get("currentMinutesWatched", 0)
-                    req = drop.get("requiredMinutesWatched", 60)
-                    claimed = drop.get("isClaimed", False)
-
-                    if not claimed and curr >= req and drop_id:
-                        self._claim_drop_internal(drop_id, name, game_title)
-
     def _claim_drop_internal(self, drop_instance_id: str, drop_name: str, game_title: str):
-        mutation = """
-        mutation ClaimDropPageReward($input: ClaimDropPageRewardInput!) {
-            claimDropPageReward(input: $input) {
-                dropInstanceID
-                __typename
+        payload = {
+            "operationName": "DropsPage_ClaimDropRewards",
+            "extensions": {
+                "persistedQuery": {
+                    "version": 1,
+                    "sha256Hash": CLAIM_PERSISTED_HASH
+                }
+            },
+            "variables": {
+                "input": {
+                    "dropInstanceID": drop_instance_id
+                }
             }
         }
-        """
-        payload = {
-            "operationName": "ClaimDropPageReward",
-            "query": mutation,
-            "variables": {"input": {"dropInstanceID": drop_instance_id}}
-        }
         res = self._make_gql_request(payload)
-        claimed_id = res.get("data", {}).get("claimDropPageReward", {}).get("dropInstanceID") if res else None
-
-        if claimed_id:
+        # Check success or errors
+        errors = res.get("errors") if res else None
+        if not errors:
             now_str = time.strftime("%H:%M:%S")
             log_item = {
                 "time": now_str,
@@ -360,10 +400,23 @@ class TwitchDropsService:
 
             self.log_callback(f"🎁 NHẬN DROP THÀNH CÔNG: [{drop_name}] - {game_title}!", "success")
             return True
-        return False
+        else:
+            err_msg = errors[0].get("message", "Unknown error")
+            print(f"[TwitchDrops] Claim result: {err_msg}")
+            # If Twitch requires client-integrity challenge, inform user
+            if "integrity" in err_msg.lower():
+                self.log_callback(f"🔔 Phần thưởng [{drop_name}] đã đủ 100%! Hãy mở trang Twitch Inventory để bấm nhận.", "blue")
+            return False
 
     def claim_drop_manual(self, drop_instance_id: str, drop_name: str = "Item"):
-        return self._claim_drop_internal(drop_instance_id, drop_name, "Twitch")
+        success = self._claim_drop_internal(drop_instance_id, drop_name, "Twitch")
+        if not success:
+            # If integrity blocked direct headless mutation, open browser inventory for 1-click claim
+            try:
+                webbrowser.open("https://www.twitch.tv/drops/inventory")
+            except Exception:
+                pass
+        return success
 
     def _worker_loop(self):
         while not self._stop_event.is_set():
@@ -372,7 +425,6 @@ class TwitchDropsService:
             except Exception as e:
                 print(f"[TwitchDrops] Worker loop error: {e}")
 
-            # Sleep in intervals so stop_event is responsive
             for _ in range(self.check_interval):
                 if self._stop_event.is_set():
                     break

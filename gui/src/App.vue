@@ -502,9 +502,9 @@
               </div>
 
               <!-- When Connected -->
-              <div v-if="twitchStatus.hasToken && twitchStatus.accountName" class="flex justify-between items-center text-xs">
+              <div v-if="twitchStatus.hasToken" class="flex justify-between items-center text-xs">
                 <div class="text-slate-300">
-                  Đã xác thực tài khoản: <strong class="text-cyan-300 font-mono">{{ twitchStatus.accountName }}</strong>
+                  Đã xác thực tài khoản: <strong class="text-cyan-300 font-mono">{{ twitchStatus.accountName || 'Đã kết nối' }}</strong>
                 </div>
                 <button 
                   @click="handleStartTwitchOAuth" 
