@@ -18,6 +18,8 @@ import urllib.error
 import winreg
 import webbrowser
 import webview
+import ctypes
+from ctypes import wintypes
 from twitch_drops_service import TwitchDropsService
 
 # Security & Update Configuration
@@ -230,6 +232,72 @@ _dps_window = None
 _twitch_window = None
 _dps_process = None
 _dps_meter_process = None
+
+user32 = ctypes.windll.user32 if sys.platform == "win32" else None
+
+def safe_move_window(win, x, y):
+    """
+    High-performance 64-bit safe window move using native Win32 SetWindowPos.
+    Prevents .NET CLR IntPtr.ToInt32() 64-bit OverflowException in pywebview and eliminates IPC lag.
+    """
+    if not win:
+        return True
+    if sys.platform == "win32" and user32 and hasattr(win, 'native') and win.native:
+        try:
+            hwnd = int(win.native.Handle.ToInt64())
+            scale = getattr(win.native, '_scale', 1.0) or 1.0
+            x_phys = int(round(float(x) * scale))
+            y_phys = int(round(float(y) * scale))
+            SWP_NOSIZE = 0x0001
+            SWP_NOZORDER = 0x0004
+            SWP_NOACTIVATE = 0x0010
+            user32.SetWindowPos(
+                wintypes.HWND(hwnd),
+                wintypes.HWND(0),
+                x_phys,
+                y_phys,
+                0,
+                0,
+                SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+            )
+            return True
+        except Exception:
+            pass
+    try:
+        win.move(int(x), int(y))
+        return True
+    except Exception:
+        return False
+
+# Monkey-patch pywebview's internal WinForms move to fix 64-bit IntPtr overflow
+if sys.platform == "win32" and user32:
+    try:
+        import webview.platforms.winforms as wf
+        def _safe_winforms_move(x, y, uid='master'):
+            inst = wf.BrowserView.instances.get(uid)
+            if inst:
+                try:
+                    hwnd = int(inst.Handle.ToInt64())
+                    scale = getattr(inst, '_scale', 1.0) or 1.0
+                    x_phys = int(round(float(x) * scale))
+                    y_phys = int(round(float(y) * scale))
+                    SWP_NOSIZE = 0x0001
+                    SWP_NOZORDER = 0x0004
+                    SWP_NOACTIVATE = 0x0010
+                    user32.SetWindowPos(
+                        wintypes.HWND(hwnd),
+                        wintypes.HWND(0),
+                        x_phys,
+                        y_phys,
+                        0,
+                        0,
+                        SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+                    )
+                except Exception:
+                    pass
+        wf.move = _safe_winforms_move
+    except Exception:
+        pass
 
 def is_npcap_installed():
     sys32 = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
@@ -574,6 +642,10 @@ exit
     def show_window(self):
         return True
 
+    def move_main_window(self, x, y):
+        global _main_window
+        return safe_move_window(_main_window, x, y)
+
     def minimize_window(self):
         global _main_window
         def _min():
@@ -783,12 +855,7 @@ exit
 
     def move_twitch_window(self, x, y):
         global _twitch_window
-        if _twitch_window:
-            try:
-                _twitch_window.move(int(x), int(y))
-            except Exception:
-                pass
-        return True
+        return safe_move_window(_twitch_window, x, y)
 
     def start_dps_daemon(self):
         global _dps_process

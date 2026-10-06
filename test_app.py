@@ -207,7 +207,9 @@ class TestModApi(unittest.TestCase):
         self.assertTrue(self.api.resize_twitch_window(360, 95))
         self.assertTrue(self.api.resize_twitch_window(500, 640))
         self.assertTrue(self.api.move_twitch_window(100, 100))
-        print("[PASS] Twitch Drops Tactical HUD window paths and lifecycle APIs verified.")
+        self.assertTrue(self.api.move_main_window(150, 150))
+        self.assertTrue(app.safe_move_window(None, 200, 200))
+        print("[PASS] Twitch Drops Tactical HUD & Main Window dragging and lifecycle APIs verified.")
 
 if __name__ == "__main__":
     unittest.main()

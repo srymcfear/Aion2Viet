@@ -1241,6 +1241,8 @@ onMounted(() => {
     }
   }, 100);
 
+  setupWindowDrag();
+
   let attempts = 0;
   const initInterval = setInterval(async () => {
     attempts++;
@@ -1268,4 +1270,83 @@ onMounted(() => {
     if (attempts > 30) clearInterval(initInterval);
   }, 200);
 });
+
+function setupWindowDrag() {
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let targetX = 0;
+  let targetY = 0;
+  let rafPending = false;
+  let isMoving = false;
+
+  const nonDraggableSelectors = [
+    'button',
+    'input',
+    'textarea',
+    'select',
+    'a',
+    '.no-drag',
+    '.n-button',
+    '.n-base-select-menu',
+    '.n-input',
+    '.n-tabs-tab',
+    '.n-modal',
+    '.cursor-pointer',
+    '[role="button"]',
+    '[role="tab"]'
+  ];
+
+  function isInteractive(target: HTMLElement | null): boolean {
+    if (!target || target === document.body || target === document.documentElement) return false;
+    for (const sel of nonDraggableSelectors) {
+      if (target.closest && target.closest(sel)) return true;
+    }
+    return false;
+  }
+
+  window.addEventListener('mousedown', (e: MouseEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (isInteractive(target)) return;
+
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+  });
+
+  window.addEventListener('mousemove', (e: MouseEvent) => {
+    if (!isDragging) return;
+    targetX = Math.round(e.screenX - startX);
+    targetY = Math.round(e.screenY - startY);
+
+    if (!rafPending) {
+      rafPending = true;
+      requestAnimationFrame(async () => {
+        rafPending = false;
+        if (!isDragging || isMoving) return;
+        isMoving = true;
+        try {
+          const curX = targetX;
+          const curY = targetY;
+          const pyApi = (window as any).pywebview?.api;
+          if (pyApi && pyApi.move_main_window) {
+            await pyApi.move_main_window(curX, curY);
+          } else if ((window as any).pywebview?._jsApiCallback) {
+            (window as any).pywebview._jsApiCallback('pywebviewMoveWindow', [curX, curY], 'move');
+          }
+        } catch {
+        } finally {
+          isMoving = false;
+        }
+      });
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    isDragging = false;
+    rafPending = false;
+    isMoving = false;
+  });
+}
 </script>
