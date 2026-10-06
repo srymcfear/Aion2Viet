@@ -148,11 +148,25 @@ def parse_release_security(body_text):
 
     return status, message, req_ver
 
+# Safe stdout/stderr redirection for windowed mode (console=False)
+if sys.stdout is None:
+    try:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr is None:
+    try:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # Force UTF-8 encoding on Windows to prevent Unicode charmap encoding freezes
 if sys.platform == "win32":
     try:
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
 
@@ -173,14 +187,16 @@ def ensure_admin():
         if getattr(sys, 'frozen', False):
             executable = sys.executable
             params = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
+            cwd = os.path.dirname(os.path.abspath(executable))
         else:
             executable = sys.executable
             params = " ".join([f'"{arg}"' for arg in sys.argv])
-        ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, None, 1)
+            cwd = ROOT_DIR
+        ret = ctypes.windll.shell32.ShellExecuteW(None, "runas", executable, params, cwd, 1)
         if int(ret) > 32:
             sys.exit(0)
     except Exception as e:
-        print(f"Failed to elevate privileges: {e}")
+        pass
     return False
 
 def get_bundle_dir():
