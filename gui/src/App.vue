@@ -549,8 +549,7 @@ async function handleLaunchTwitchWindow() {
       if (ok) {
         addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
       } else {
-        window.open('twitch_drops_window.html', '_blank', 'width=500,height=680');
-        addLog('Đã mở cửa sổ Twitch Drops trong cửa sổ phụ.', 'blue');
+        addLog('Không thể mở cửa sổ riêng Twitch Drops.', 'red');
       }
     } else {
       let attempts = 0;
@@ -563,27 +562,16 @@ async function handleLaunchTwitchWindow() {
           if (ok) {
             addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
           } else {
-            window.open('twitch_drops_window.html', '_blank', 'width=500,height=680');
-            addLog('Đã mở cửa sổ Twitch Drops trong cửa sổ phụ.', 'blue');
+            addLog('Không thể mở cửa sổ riêng Twitch Drops.', 'red');
           }
-        } else if (attempts > 8) {
+        } else if (attempts > 12) {
           clearInterval(timer);
-          try {
-            window.open('twitch_drops_window.html', '_blank', 'width=500,height=680');
-            addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner.', 'success');
-          } catch {
-            addLog('Không thể gọi API mở cửa sổ Twitch Drops.', 'red');
-          }
+          addLog('Không thể kết nối API mở cửa sổ Twitch Drops.', 'red');
         }
       }, 150);
     }
   } catch (e: any) {
-    try {
-      window.open('twitch_drops_window.html', '_blank', 'width=500,height=680');
-      addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner.', 'success');
-    } catch {
-      addLog(`Lỗi gọi mở cửa sổ Twitch: ${e}`, 'red');
-    }
+    addLog(`Lỗi gọi mở cửa sổ Twitch: ${e}`, 'red');
   } finally {
     setTimeout(() => {
       launchingTool.value = null;

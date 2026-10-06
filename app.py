@@ -284,7 +284,9 @@ def get_twitch_window_html_path():
     b_dir = get_bundle_dir()
     candidates = [
         os.path.join(b_dir, "twitch_drops_window.html"),
+        os.path.join(b_dir, "gui", "dist", "twitch_drops_window.html"),
         os.path.join(ROOT_DIR, "twitch_drops_window.html"),
+        os.path.join(ROOT_DIR, "gui", "dist", "twitch_drops_window.html"),
         os.path.join(os.path.dirname(sys.executable), "twitch_drops_window.html"),
         os.path.join(os.path.dirname(sys.executable), "trans", "twitch_drops_window.html"),
         os.path.join(ROOT_DIR, "prototypes", "twitch_drops_demo3_game_hud.html"),
@@ -302,6 +304,7 @@ _dps_window = None
 _twitch_window = None
 _dps_process = None
 _dps_meter_process = None
+_twitch_process = None
 
 user32 = ctypes.windll.user32 if sys.platform == "win32" else None
 
@@ -965,7 +968,7 @@ exit
             return False
 
     def launch_twitch_window(self):
-        global _twitch_window
+        global _twitch_process, _twitch_window
         if _twitch_window:
             try:
                 _twitch_window.show()
@@ -976,61 +979,29 @@ exit
                     user32.ShowWindow(wintypes.HWND(hwnd), 9)
                 self.log("Đã kích hoạt hiển thị cửa sổ riêng Twitch Drops.", "blue")
                 return True
-            except Exception as e:
-                self.log(f"Cửa sổ Twitch Drops cần khởi tạo lại: {e}", "blue")
+            except Exception:
                 _twitch_window = None
+
+        if _twitch_process and _twitch_process.poll() is None:
+            self.log("Cửa sổ Twitch Drops Miner đang hoạt động.", "blue")
+            return True
 
         html_path = get_twitch_window_html_path()
         if not html_path or not os.path.isfile(html_path):
             self.log("Không tìm thấy file giao diện twitch_drops_window.html", "red")
             return False
 
-        target_url = f"file:///{os.path.abspath(html_path).replace(os.sep, '/')}"
         try:
-            self.log("Đang mở cửa sổ riêng AION 2 Twitch Drops Tactical HUD...", "blue")
-            _twitch_window = webview.create_window(
-                title="FEΔR - AION 2 Twitch Drops Miner",
-                url=target_url,
-                js_api=self,
-                width=500,
-                height=680,
-                resizable=False,
-                frameless=False,
-                easy_drag=False,
-                shadow=True,
-                background_color="#04060a"
-            )
-            def on_twitch_closing():
-                if _twitch_window:
-                    try:
-                        _twitch_window.hide()
-                    except Exception:
-                        pass
-                return False
-            try:
-                _twitch_window.events.closing += on_twitch_closing
-            except Exception:
-                pass
-
-            apply_dark_titlebar(_twitch_window)
-
-            def _bring_front():
-                time.sleep(0.2)
-                try:
-                    if _twitch_window:
-                        _twitch_window.show()
-                        _twitch_window.restore()
-                        hwnd = self._get_hwnd(_twitch_window)
-                        if hwnd and user32:
-                            user32.SetForegroundWindow(wintypes.HWND(hwnd))
-                except Exception:
-                    pass
-
-            threading.Thread(target=_bring_front, daemon=True).start()
+            import subprocess
+            if getattr(sys, 'frozen', False):
+                cmd = [sys.executable, "--twitch-window"]
+            else:
+                cmd = [sys.executable, os.path.abspath(__file__), "--twitch-window"]
+            _twitch_process = subprocess.Popen(cmd, cwd=ROOT_DIR)
             self.log("✔ Đã mở cửa sổ riêng FEΔR Twitch Drops Miner thành công.", "success")
             return True
         except Exception as e:
-            self.log(f"Lỗi khởi chạy cửa sổ Twitch Drops: {e}", "red")
+            self.log(f"Lỗi khởi chạy cửa sổ riêng Twitch Drops: {e}", "red")
             return False
 
     def hide_twitch_window(self):
@@ -1043,7 +1014,20 @@ exit
         return True
 
     def close_twitch_window(self):
-        return self.hide_twitch_window()
+        global _twitch_window, _twitch_process
+        if _twitch_window:
+            try:
+                _twitch_window.destroy()
+            except Exception:
+                pass
+            _twitch_window = None
+        if _twitch_process and _twitch_process.poll() is None:
+            try:
+                _twitch_process.terminate()
+            except Exception:
+                pass
+            _twitch_process = None
+        return True
 
     def minimize_twitch_window(self):
         global _twitch_window
@@ -1481,7 +1465,46 @@ exit
         return True
 
 
+def run_twitch_window():
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.shcore.SetProcessDpiAwareness(1)
+        except Exception:
+            pass
+
+    if not is_webview2_installed():
+        sys.exit(0)
+
+    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = "--disable-features=msWebOOUI,msPdfOOUI"
+    api = ModApi()
+    html_path = get_twitch_window_html_path()
+    if not html_path or not os.path.isfile(html_path):
+        sys.exit(0)
+
+    target_url = f"file:///{os.path.abspath(html_path).replace(os.sep, '/')}"
+    win = webview.create_window(
+        title="FEΔR - AION 2 Twitch Drops Miner",
+        url=target_url,
+        js_api=api,
+        width=500,
+        height=680,
+        resizable=False,
+        frameless=False,
+        easy_drag=False,
+        shadow=True,
+        background_color="#04060a"
+    )
+    apply_dark_titlebar(win)
+    cache_dir = get_cache_dir()
+    webview.start(debug=False, private_mode=False, storage_path=cache_dir)
+
+
 def main():
+    if "--twitch-window" in sys.argv:
+        run_twitch_window()
+        return
+
     if sys.platform == "win32" and not is_admin():
         ensure_admin()
         return
@@ -1528,39 +1551,9 @@ def main():
         shadow=True,
         background_color="#07090e"
     )
-    global _main_window, _twitch_window
+    global _main_window
     _main_window = window
     apply_dark_titlebar(window)
-
-    # 3. Pre-create standalone Twitch Drops Miner HUD in hidden state
-    twitch_html = get_twitch_window_html_path()
-    if twitch_html and os.path.isfile(twitch_html):
-        try:
-            twitch_target_url = f"file:///{os.path.abspath(twitch_html).replace(os.sep, '/')}"
-            _twitch_window = webview.create_window(
-                title="FEΔR - AION 2 Twitch Drops Miner",
-                url=twitch_target_url,
-                js_api=api,
-                width=500,
-                height=680,
-                hidden=True,
-                resizable=False,
-                frameless=False,
-                easy_drag=False,
-                shadow=True,
-                background_color="#04060a"
-            )
-            def on_twitch_closing():
-                if _twitch_window:
-                    try:
-                        _twitch_window.hide()
-                    except Exception:
-                        pass
-                return False
-            _twitch_window.events.closing += on_twitch_closing
-            apply_dark_titlebar(_twitch_window)
-        except Exception as e:
-            print(f"[Warning] Could not pre-create Twitch window: {e}")
 
     cache_dir = get_cache_dir()
     webview.start(debug=False, private_mode=False, storage_path=cache_dir)

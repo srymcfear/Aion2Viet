@@ -11,6 +11,7 @@ a = Analysis(
         ('release/AION2_VietHoa_Standalone/Data', 'Data'),
         ('gui/dist/index.html', 'gui/dist'),
         ('twitch_drops_window.html', '.'),
+        ('twitch_drops_window.html', 'gui/dist'),
         ('dps_overlay.html', '.'),
         ('dps_meter', 'dps_meter'),
         ('fear_logo.ico', '.'),
