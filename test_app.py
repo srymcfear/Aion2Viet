@@ -1,12 +1,20 @@
 import os
 import json
+import tempfile
 import unittest
 import app
 from app import ModApi, is_admin, parse_release_security, is_newer_version, SECURITY_KEY
+from twitch_drops_service import TwitchDropsService
 
 class TestModApi(unittest.TestCase):
     def setUp(self):
         self.api = ModApi()
+        self.test_dir = tempfile.TemporaryDirectory()
+        self.api.twitch_service = TwitchDropsService(storage_dir=self.test_dir.name)
+
+    def tearDown(self):
+        if hasattr(self, 'test_dir'):
+            self.test_dir.cleanup()
 
     def test_is_admin_check(self):
         res = is_admin()

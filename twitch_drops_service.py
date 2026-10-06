@@ -114,7 +114,17 @@ class TwitchDropsService:
                     if uid:
                         self.user_id = uid
                     self._save_config()
-                return val
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                with self._lock:
+                    self.account_name = None
+                    self.auth_token = ""
+                    self.is_running = False
+                    self._save_config()
+                self.log_callback("⚠️ Token Twitch không hợp lệ hoặc đã hết hạn (401 Unauthorized). Vui lòng đăng nhập lại.", "gray")
+            else:
+                print(f"[TwitchDrops] Token validate error: {e}")
+            return None
         except Exception as e:
             print(f"[TwitchDrops] Token validate error: {e}")
             return None
@@ -320,6 +330,17 @@ class TwitchDropsService:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 if resp.status == 200:
                     return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                with self._lock:
+                    self.account_name = None
+                    self.auth_token = ""
+                    self.is_running = False
+                    self._save_config()
+                self.log_callback("⚠️ Phiên đăng nhập Twitch hết hạn (401 Unauthorized). Vui lòng đăng nhập lại.", "gray")
+            else:
+                print(f"[TwitchDrops] GQL HTTP error: {e}")
+            return None
         except Exception as e:
             print(f"[TwitchDrops] GQL Request failed: {e}")
             return None

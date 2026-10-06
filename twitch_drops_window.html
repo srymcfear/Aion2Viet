@@ -278,11 +278,48 @@
 
   <!-- Regular Body -->
   <div class="hud-body">
+    <!-- Auth HUD Box (Shows when !hasToken or pending OAuth login) -->
+    <div id="authHudBox" style="display: none; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.4); padding: 10px 12px; margin-bottom: 2px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <span style="font-size: 11px; font-weight: 700; color: #fff; letter-spacing: 1px;">TWITCH AUTHORIZATION</span>
+        <span id="authBadge" style="font-size: 9px; padding: 2px 6px; background: rgba(0, 240, 255, 0.1); border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: 'JetBrains Mono';">SMART-TV FLOW</span>
+      </div>
+
+      <div id="authIdleBlock">
+        <div style="font-size: 10.5px; color: var(--text-dim); margin-bottom: 8px;">
+          Chưa kết nối tài khoản Twitch hoặc phiên làm việc đã hết hạn (401).
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="hud-btn" style="flex: 1; height: 30px; font-size: 11.5px;" onclick="startTwitchOAuth()">
+            🔑 ĐĂNG NHẬP 1-CLICK (OAUTH)
+          </button>
+          <button class="hud-btn sec" style="width: 105px; height: 30px; font-size: 10.5px;" onclick="promptManualToken()">
+            DÁN COOKIE
+          </button>
+        </div>
+      </div>
+
+      <div id="authPendingBlock" style="display: none; text-align: center; padding: 4px 0;">
+        <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 4px;">
+          Trình duyệt đã mở <strong style="color: var(--neon-cyan); cursor: pointer; text-decoration: underline;" onclick="openActivatePage()">twitch.tv/activate</strong>. Nhập mã:
+        </div>
+        <div id="authUserCode" style="font-family: 'JetBrains Mono'; font-size: 22px; font-weight: 700; letter-spacing: 5px; color: var(--neon-cyan); text-shadow: 0 0 12px var(--neon-cyan); padding: 4px 0;">
+          ------
+        </div>
+        <div style="font-size: 10px; color: #c084fc; font-weight: 600;">
+          ⚡ Đang đợi bạn bấm nút "Kích hoạt" trên trình duyệt...
+        </div>
+      </div>
+    </div>
+
     <!-- Stat Matrix -->
     <div class="stat-matrix">
-      <div class="stat-box">
-        <div class="stat-label">OPERATOR</div>
-        <div class="stat-value" id="operatorText" style="color: var(--neon-cyan);">srym_c</div>
+      <div class="stat-box" style="cursor: pointer;" title="Bấm để đăng nhập lại hoặc đổi tài khoản" onclick="toggleAuthBox()">
+        <div class="stat-label" style="display: flex; justify-content: space-between;">
+          <span>OPERATOR</span>
+          <span id="operatorAction" style="color: var(--neon-cyan); font-size: 8.5px;">[ĐỔI]</span>
+        </div>
+        <div class="stat-value" id="operatorText" style="color: var(--neon-cyan);">Đang tải...</div>
       </div>
       <div class="stat-box" style="border-left-color: var(--neon-violet);">
         <div class="stat-label">MINED SESSION</div>
@@ -338,9 +375,42 @@
     let isAlwaysOnTop = false;
     let isMiniMode = false;
     let cachedStatus = null;
+    let forceShowAuth = false;
 
     function getPyApi() {
       return window.pywebview ? window.pywebview.api : null;
+    }
+
+    function toggleAuthBox() {
+      forceShowAuth = !forceShowAuth;
+      const box = document.getElementById('authHudBox');
+      if (box) {
+        box.style.display = forceShowAuth ? 'block' : 'none';
+      }
+    }
+
+    function startTwitchOAuth() {
+      const api = getPyApi();
+      if (!api || !api.start_twitch_oauth) return;
+      api.start_twitch_oauth().then(() => {
+        fetchStatus();
+      }).catch(console.warn);
+    }
+
+    function openActivatePage() {
+      const code = document.getElementById('authUserCode').innerText.trim();
+      const url = code && code !== '------' ? `https://www.twitch.tv/activate?device-code=${code}` : 'https://www.twitch.tv/activate';
+      window.open(url, '_blank');
+    }
+
+    function promptManualToken() {
+      const token = prompt('Dán auth-token (từ cookie auth-token của twitch hoặc OAuth):');
+      if (token && token.trim()) {
+        const api = getPyApi();
+        if (api && api.set_twitch_auth_token) {
+          api.set_twitch_auth_token(token.trim()).then(fetchStatus);
+        }
+      }
     }
 
     function toggleAlwaysOnTop() {
@@ -420,8 +490,32 @@
     }
 
     function renderUI(status) {
-      // 1. Operator
-      document.getElementById('operatorText').innerText = status.accountName || 'Chưa đăng nhập';
+      // 1. Auth & Operator Status
+      const authBox = document.getElementById('authHudBox');
+      const authIdle = document.getElementById('authIdleBlock');
+      const authPending = document.getElementById('authPendingBlock');
+      const oauth = status.oauthState || {};
+
+      if (oauth.status === 'pending') {
+        if (authBox) authBox.style.display = 'block';
+        if (authIdle) authIdle.style.display = 'none';
+        if (authPending) authPending.style.display = 'block';
+        document.getElementById('authUserCode').innerText = oauth.user_code || '------';
+      } else if (!status.hasToken) {
+        if (authBox) authBox.style.display = 'block';
+        if (authIdle) authIdle.style.display = 'block';
+        if (authPending) authPending.style.display = 'none';
+      } else {
+        if (authBox && !forceShowAuth) {
+          authBox.style.display = 'none';
+        }
+      }
+
+      const opAction = document.getElementById('operatorAction');
+      if (opAction) {
+        opAction.innerText = status.hasToken ? '[ĐỔI]' : '[ĐĂNG NHẬP]';
+      }
+      document.getElementById('operatorText').innerText = status.accountName || (status.hasToken ? 'Đã kết nối' : 'Chưa đăng nhập');
 
       // 2. Mined Session
       document.getElementById('minedText').innerText = `+${status.minutesMined || 0} MINS`;
@@ -433,8 +527,8 @@
         document.getElementById('streamerStats').innerText = `${(ch.viewers || 0).toLocaleString()} VIEWERS • AUTO-TRACKING`;
         document.getElementById('miniStreamer').innerText = ch.displayName || ch.login;
       } else {
-        document.getElementById('streamerLogin').innerText = status.isRunning ? 'Đang tìm kiếm...' : 'Chưa bật cày';
-        document.getElementById('streamerStats').innerText = status.isRunning ? 'SCANNING AION 2 DIRECTORY' : 'STANDBY';
+        document.getElementById('streamerLogin').innerText = status.isRunning ? 'Đang tìm kiếm...' : (status.hasToken ? 'Chưa bật cày' : 'Chưa đăng nhập');
+        document.getElementById('streamerStats').innerText = status.isRunning ? 'SCANNING AION 2 DIRECTORY' : (status.hasToken ? 'STANDBY' : 'CẦN ĐĂNG NHẬP TWITCH');
         document.getElementById('miniStreamer').innerText = status.isRunning ? 'Đang tìm kiếm...' : 'Standby';
       }
 
@@ -445,7 +539,15 @@
         toggleBtn.innerText = '⚡ DỪNG CÀY NGẦM';
       } else {
         toggleBtn.className = 'hud-btn stopped';
-        toggleBtn.innerText = '▶ BẬT CÀY NGẦM';
+        toggleBtn.innerText = status.hasToken ? '▶ BẬT CÀY NGẦM' : '🔑 ĐĂNG NHẬP TWITCH';
+        if (!status.hasToken) {
+          toggleBtn.onclick = function() {
+            toggleAuthBox();
+            startTwitchOAuth();
+          };
+        } else {
+          toggleBtn.onclick = toggleMiningState;
+        }
       }
 
       // 5. Render Drops
