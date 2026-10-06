@@ -282,15 +282,16 @@ def get_gui_html_path():
 
 def get_twitch_window_html_path():
     b_dir = get_bundle_dir()
-    p1 = os.path.join(b_dir, "twitch_drops_window.html")
-    if os.path.isfile(p1):
-        return p1
-    p2 = os.path.join(ROOT_DIR, "twitch_drops_window.html")
-    if os.path.isfile(p2):
-        return p2
-    p3 = os.path.join(ROOT_DIR, "prototypes", "twitch_drops_demo3_game_hud.html")
-    if os.path.isfile(p3):
-        return p3
+    candidates = [
+        os.path.join(b_dir, "twitch_drops_window.html"),
+        os.path.join(ROOT_DIR, "twitch_drops_window.html"),
+        os.path.join(os.path.dirname(sys.executable), "twitch_drops_window.html"),
+        os.path.join(os.path.dirname(sys.executable), "trans", "twitch_drops_window.html"),
+        os.path.join(ROOT_DIR, "prototypes", "twitch_drops_demo3_game_hud.html"),
+    ]
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
     return None
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -961,6 +962,10 @@ exit
             try:
                 _twitch_window.restore()
                 _twitch_window.show()
+                hwnd = self._get_hwnd(_twitch_window)
+                if hwnd and user32:
+                    user32.SetForegroundWindow(wintypes.HWND(hwnd))
+                self.log("Đã kích hoạt hiển thị cửa sổ riêng Twitch Drops.", "blue")
                 return True
             except Exception:
                 _twitch_window = None
@@ -972,6 +977,7 @@ exit
 
         target_url = f"file:///{os.path.abspath(html_path).replace(os.sep, '/')}"
         try:
+            self.log("Đang mở cửa sổ riêng AION 2 Twitch Drops Tactical HUD...", "blue")
             _twitch_window = webview.create_window(
                 title="FEΔR - AION 2 Twitch Drops Miner",
                 url=target_url,
@@ -985,6 +991,21 @@ exit
                 background_color="#04060a"
             )
             apply_dark_titlebar(_twitch_window)
+
+            def _bring_front():
+                time.sleep(0.3)
+                try:
+                    if _twitch_window:
+                        _twitch_window.restore()
+                        _twitch_window.show()
+                        hwnd = self._get_hwnd(_twitch_window)
+                        if hwnd and user32:
+                            user32.SetForegroundWindow(wintypes.HWND(hwnd))
+                except Exception:
+                    pass
+
+            threading.Thread(target=_bring_front, daemon=True).start()
+            self.log("✔ Đã mở cửa sổ riêng FEΔR Twitch Drops Miner thành công.", "success")
             return True
         except Exception as e:
             self.log(f"Lỗi khởi chạy cửa sổ Twitch Drops: {e}", "red")
