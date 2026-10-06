@@ -781,6 +781,15 @@ exit
                 pass
         return True
 
+    def move_twitch_window(self, x, y):
+        global _twitch_window
+        if _twitch_window:
+            try:
+                _twitch_window.move(int(x), int(y))
+            except Exception:
+                pass
+        return True
+
     def start_dps_daemon(self):
         global _dps_process
         if _dps_process and _dps_process.poll() is None:

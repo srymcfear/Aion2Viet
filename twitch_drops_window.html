@@ -44,6 +44,17 @@
       padding: 0 14px;
       -webkit-app-region: drag;
     }
+    .pywebview-drag-region {
+      -webkit-app-region: drag;
+      cursor: grab;
+    }
+    .pywebview-drag-region:active {
+      cursor: grabbing;
+    }
+    .no-drag {
+      -webkit-app-region: no-drag;
+      cursor: default;
+    }
     .hud-title {
       font-family: 'Teko', sans-serif;
       font-size: 18px;
@@ -264,15 +275,15 @@
 </head>
 <body>
   <!-- HUD Header -->
-  <div class="hud-header">
-    <div class="hud-title">
+  <div class="hud-header pywebview-drag-region" id="dragHeader">
+    <div class="hud-title pywebview-drag-region" style="pointer-events: none;">
       <span>FEΔR</span> // AION 2 DROPS HUD
     </div>
-    <div class="hud-controls">
-      <button class="hud-ctrl-btn" title="Ghim trên cùng" id="pinBtn" onclick="toggleAlwaysOnTop()">📌</button>
-      <button class="hud-ctrl-btn" title="Chuyển Mini Overlay" onclick="toggleMini()">◲</button>
-      <button class="hud-ctrl-btn" title="Thu nhỏ" onclick="minimizeWin()">─</button>
-      <button class="hud-ctrl-btn danger" title="Đóng" onclick="closeWin()">✕</button>
+    <div class="hud-controls no-drag" onmousedown="event.stopPropagation()">
+      <button class="hud-ctrl-btn no-drag" title="Ghim trên cùng" id="pinBtn" onclick="toggleAlwaysOnTop()" onmousedown="event.stopPropagation()">📌</button>
+      <button class="hud-ctrl-btn no-drag" title="Chuyển Mini Overlay" onclick="toggleMini()" onmousedown="event.stopPropagation()">◲</button>
+      <button class="hud-ctrl-btn no-drag" title="Thu nhỏ" onclick="minimizeWin()" onmousedown="event.stopPropagation()">─</button>
+      <button class="hud-ctrl-btn danger no-drag" title="Đóng" onclick="closeWin()" onmousedown="event.stopPropagation()">✕</button>
     </div>
   </div>
 
@@ -361,12 +372,12 @@
   </div>
 
   <!-- Mini Overlay View -->
-  <div class="mini-hud">
-    <div>
-      <div style="font-size: 10px; color: var(--text-dim);">LIVE: <strong id="miniStreamer" style="color: var(--neon-cyan);">shroud</strong></div>
-      <div style="font-size: 12px; font-weight: 700; color: #fff;" id="miniDropText">Đang cày ngầm AION 2 Drops...</div>
+  <div class="mini-hud pywebview-drag-region" id="miniDragHeader">
+    <div class="pywebview-drag-region" style="pointer-events: none;">
+      <div style="font-size: 10px; color: var(--text-dim);" class="pywebview-drag-region">LIVE: <strong id="miniStreamer" style="color: var(--neon-cyan);">shroud</strong></div>
+      <div style="font-size: 12px; font-weight: 700; color: #fff;" id="miniDropText" class="pywebview-drag-region">Đang cày ngầm AION 2 Drops...</div>
     </div>
-    <button class="hud-btn" style="height: 28px; font-size: 13px; padding: 0 10px;" onclick="toggleMini()">
+    <button class="hud-btn no-drag" style="height: 28px; font-size: 13px; padding: 0 10px;" onclick="toggleMini()" onmousedown="event.stopPropagation()">
       Phóng to ↗
     </button>
   </div>
@@ -616,10 +627,52 @@
       }
     }
 
-    // Auto polling loop
+    // Enhanced Drag Support (Native pywebview + JS move API fallback)
+    function setupDrag(elementId) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      let isDragging = false;
+      let startX = 0;
+      let startY = 0;
+
+      el.addEventListener('mousedown', (e) => {
+        if (e.target.closest('.no-drag') || e.target.tagName === 'BUTTON') return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const api = getPyApi();
+        const curScreenX = e.screenX;
+        const curScreenY = e.screenY;
+        const targetX = Math.round(curScreenX - startX);
+        const targetY = Math.round(curScreenY - startY);
+
+        if (api && api.move_twitch_window) {
+          api.move_twitch_window(targetX, targetY);
+        } else if (window.pywebview && window.pywebview._jsApiCallback) {
+          window.pywebview._jsApiCallback('pywebviewMoveWindow', [targetX, targetY], 'move');
+        }
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+    }
+
+    // Auto polling loop & drag setup
     window.addEventListener('pywebviewready', () => {
+      setupDrag('dragHeader');
+      setupDrag('miniDragHeader');
       fetchStatus();
       setInterval(fetchStatus, 4000);
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      setupDrag('dragHeader');
+      setupDrag('miniDragHeader');
     });
 
     // Fallback if opened in browser directly
