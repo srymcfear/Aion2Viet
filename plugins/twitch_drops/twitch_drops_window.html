@@ -265,6 +265,14 @@
     }
     .mini-hud { display: none; }
 
+    /* Drag Regions */
+    .pywebview-drag-region, .app-drag-bar {
+      -webkit-app-region: drag;
+    }
+    .no-drag {
+      -webkit-app-region: no-drag;
+    }
+
     /* Custom Scrollbar */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -273,11 +281,11 @@
 </head>
 <body>
   <!-- HUD Header -->
-  <div class="hud-header" id="dragHeader">
+  <div class="hud-header pywebview-drag-region" id="dragHeader">
     <div class="hud-title" style="pointer-events: none;">
       <span>FEΔR</span> // AION 2 DROPS HUD
     </div>
-    <div class="hud-controls">
+    <div class="hud-controls no-drag">
       <button class="hud-ctrl-btn" title="Ghim trên cùng" id="pinBtn" onclick="toggleAlwaysOnTop()">📌</button>
       <button class="hud-ctrl-btn" title="Chuyển Mini Overlay" onclick="toggleMini()">◲</button>
     </div>
@@ -368,7 +376,7 @@
   </div>
 
   <!-- Mini Overlay View -->
-  <div class="mini-hud app-drag-bar" id="miniDragHeader" onmousedown="startTwitchDrag(event)">
+  <div class="mini-hud app-drag-bar pywebview-drag-region" id="miniDragHeader" onmousedown="startTwitchDrag(event)">
     <div class="app-drag-bar" style="pointer-events: none;">
       <div style="font-size: 10px; color: var(--text-dim);" class="app-drag-bar">LIVE: <strong id="miniStreamer" style="color: var(--neon-cyan);">shroud</strong></div>
       <div style="font-size: 12px; font-weight: 700; color: #fff;" id="miniDropText" class="app-drag-bar">Đang cày ngầm AION 2 Drops...</div>
@@ -386,6 +394,10 @@
 
     function getPyApi() {
       return window.pywebview ? window.pywebview.api : null;
+    }
+
+    function startTwitchDrag(e) {
+      if (e && e.target && e.target.closest && e.target.closest('.no-drag')) return;
     }
 
     function toggleAuthBox() {

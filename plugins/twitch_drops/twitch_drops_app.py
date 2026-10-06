@@ -214,6 +214,15 @@ class TwitchPluginApi:
                 pass
         return True
 
+    def move_twitch_window(self, x, y):
+        global _window
+        if _window:
+            try:
+                _window.move(int(x), int(y))
+            except Exception:
+                pass
+        return True
+
 def main():
     if not verify_signature():
         show_access_denied_and_exit()
@@ -242,7 +251,7 @@ def main():
         height=680,
         resizable=False,
         frameless=False,
-        easy_drag=False,
+        easy_drag=True,
         shadow=True,
         background_color="#04060a"
     )
