@@ -681,6 +681,12 @@ exit
     def claim_twitch_drop(self, drop_instance_id, drop_name="Item"):
         return self.twitch_service.claim_drop_manual(drop_instance_id, drop_name)
 
+    def start_twitch_oauth(self):
+        return self.twitch_service.start_oauth_login(auto_open_browser=True)
+
+    def get_twitch_oauth_status(self):
+        return self.twitch_service.get_oauth_status()
+
     def start_dps_daemon(self):
         global _dps_process
         if _dps_process and _dps_process.poll() is None:

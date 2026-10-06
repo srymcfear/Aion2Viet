@@ -174,7 +174,17 @@ class TestModApi(unittest.TestCase):
 
         stopped = self.api.stop_twitch_miner()
         self.assertTrue(stopped)
-        print("[PASS] Twitch Drops Miner plugin API and service verified.")
+
+        # Test DevilXD OAuth Device Code login flow
+        oauth_status = self.api.get_twitch_oauth_status()
+        self.assertIn("status", oauth_status)
+        self.assertIn("user_code", oauth_status)
+
+        res = self.api.twitch_service.start_oauth_login(auto_open_browser=False)
+        self.assertTrue(res.get("success"))
+        self.assertTrue(len(res.get("userCode", "")) > 0)
+        self.assertEqual(self.api.get_twitch_oauth_status()["status"], "pending")
+        print("[PASS] Twitch Drops Miner plugin API, service, and DevilXD OAuth Device Code verified.")
 
 if __name__ == "__main__":
     unittest.main()

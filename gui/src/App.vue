@@ -484,32 +484,96 @@
             </div>
           </div>
 
-          <!-- Token Configuration & Controls -->
+          <!-- Token Configuration & Controls (Exact DevilXD Formula) -->
           <div class="p-3.5 rounded-xl border border-slate-800/80 bg-[#0d121f] space-y-3">
-            <div>
-              <div class="flex justify-between items-center mb-1.5">
-                <span class="text-[11px] font-bold text-slate-300 uppercase tracking-wide">Twitch OAuth Token (auth-token)</span>
-                <span class="text-[10px] text-slate-400 font-mono" v-if="twitchStatus.accountName">Tài khoản: <strong class="text-cyan-300">{{ twitchStatus.accountName }}</strong></span>
+            
+            <!-- 1. Automatic 1-Click OAuth Activation (DevilXD SmartTV Device Code Flow) -->
+            <div class="p-3 rounded-xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/25 via-[#0c1322] to-purple-950/25 space-y-2">
+              <div class="flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full" :class="twitchStatus.hasToken ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]' : 'bg-slate-500'"></span>
+                  <span class="text-xs font-bold text-white tracking-wide">
+                    {{ twitchStatus.hasToken ? 'TÀI KHOẢN ĐÃ KẾT NỐI' : 'TỰ ĐỘNG ĐĂNG NHẬP (OAUTH DEVICE FLOW)' }}
+                  </span>
+                </div>
+                <span class="text-[9.5px] font-mono px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 font-bold">
+                  DEVILXD FORMULA
+                </span>
               </div>
-              <div class="flex gap-2">
-                <n-input
-                  v-model:value="twitchTokenInput"
-                  type="password"
-                  show-password-on="click"
-                  placeholder="Dán mã auth-token từ cookie trình duyệt..."
-                  size="small"
-                  class="flex-1 font-mono text-xs"
-                />
-                <n-button secondary size="small" @click="handleSaveTwitchToken" class="!px-3 text-xs font-semibold">
-                  Lưu & Kết Nối
+
+              <!-- When Connected -->
+              <div v-if="twitchStatus.hasToken && twitchStatus.accountName" class="flex justify-between items-center text-xs">
+                <div class="text-slate-300">
+                  Đã xác thực tài khoản: <strong class="text-cyan-300 font-mono">{{ twitchStatus.accountName }}</strong>
+                </div>
+                <button 
+                  @click="handleStartTwitchOAuth" 
+                  :disabled="isStartingOAuth"
+                  class="text-[10px] text-slate-400 hover:text-cyan-300 underline cursor-pointer bg-transparent border-0"
+                >
+                  Đổi tài khoản khác
+                </button>
+              </div>
+
+              <!-- When Pending User Code -->
+              <div v-else-if="twitchStatus.oauthState?.status === 'pending'" class="space-y-2 text-center py-1">
+                <div class="text-[11px] text-slate-300">
+                  Trình duyệt đã mở <code class="text-cyan-400 font-mono">twitch.tv/activate</code>. Hãy nhấn <strong class="text-white">Kích hoạt (Authorize)</strong>!
+                </div>
+                <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/60 border border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                  <span class="text-[10px] text-slate-400 uppercase font-semibold">MÃ CỦA BẠN:</span>
+                  <span class="text-sm font-black font-mono tracking-widest text-cyan-300">{{ twitchStatus.oauthState?.user_code }}</span>
+                </div>
+                <div class="flex items-center justify-center gap-2 text-[10px] text-slate-400 animate-pulse pt-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+                  <span>Đang tự động chờ nhận Token sau khi bạn xác nhận...</span>
+                </div>
+              </div>
+
+              <!-- When Idle / Not Connected -->
+              <div v-else class="flex justify-between items-center pt-1">
+                <div class="text-[10.5px] text-slate-400 leading-tight max-w-[65%]">
+                  Tự động sinh mã OAuth SmartTV & mở trang kích hoạt Twitch — không cần F12 lấy cookie thủ công!
+                </div>
+                <n-button 
+                  type="primary" 
+                  size="small" 
+                  :loading="isStartingOAuth"
+                  @click="handleStartTwitchOAuth"
+                  class="font-bold text-xs !px-3 shadow-[0_0_12px_rgba(6,182,212,0.3)]"
+                >
+                  1-Click Đăng Nhập
                 </n-button>
-              </div>
-              <div class="text-[9.5px] text-slate-500 mt-1 flex justify-between font-mono">
-                <span>Cách lấy: F12 trên Twitch.tv ➔ Application ➔ Cookies ➔ Copy giá trị <code class="text-cyan-400 font-semibold">auth-token</code>.</span>
               </div>
             </div>
 
-            <!-- Toggles & Action Buttons Row -->
+            <!-- 2. Manual Token Accordion (Fallback) -->
+            <div class="pt-1">
+              <div 
+                @click="showManualToken = !showManualToken" 
+                class="text-[10px] text-slate-500 hover:text-slate-300 cursor-pointer flex items-center justify-between font-mono"
+              >
+                <span>Nhập auth-token thủ công (Tùy chọn phụ)</span>
+                <span>{{ showManualToken ? '▲' : '▼' }}</span>
+              </div>
+              <div v-if="showManualToken" class="mt-2 space-y-1.5">
+                <div class="flex gap-2">
+                  <n-input
+                    v-model:value="twitchTokenInput"
+                    type="password"
+                    show-password-on="click"
+                    placeholder="Dán mã auth-token nếu muốn nhập thủ công..."
+                    size="small"
+                    class="flex-1 font-mono text-xs"
+                  />
+                  <n-button secondary size="small" @click="handleSaveTwitchToken" class="!px-3 text-xs font-semibold">
+                    Lưu
+                  </n-button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Toggles & Action Buttons Row -->
             <div class="flex items-center justify-between pt-2.5 border-t border-slate-800/80">
               <div class="flex items-center gap-2">
                 <n-switch v-model:value="twitchAutoClaim" size="small" @update:value="handleToggleTwitchAutoClaim" />
@@ -726,10 +790,14 @@ const toolsList = [
   }
 ];
 
-// Twitch Drops Miner State & Handlers
+// Twitch Drops Miner State & Handlers (DevilXD Formula)
 const showTwitchModal = ref(false);
+const showManualToken = ref(false);
+const isStartingOAuth = ref(false);
 const twitchTokenInput = ref('');
 const twitchAutoClaim = ref(true);
+let oauthPollTimer: any = null;
+
 const twitchStatus = ref({
   isRunning: false,
   hasToken: false,
@@ -737,7 +805,12 @@ const twitchStatus = ref({
   accountName: '',
   lastChecked: '',
   campaigns: [] as any[],
-  claimHistory: [] as any[]
+  claimHistory: [] as any[],
+  oauthState: {
+    status: 'idle',
+    user_code: '',
+    activate_url: 'https://www.twitch.tv/activate'
+  }
 });
 
 function handleToolClick(tool: any) {
@@ -765,6 +838,32 @@ function refreshTwitchStatus() {
       }
     }).catch((e: any) => console.warn(e));
   }
+}
+
+function handleStartTwitchOAuth() {
+  const pyApi = (window as any).pywebview?.api;
+  if (!pyApi || !pyApi.start_twitch_oauth) return;
+  isStartingOAuth.value = true;
+  pyApi.start_twitch_oauth().then((res: any) => {
+    isStartingOAuth.value = false;
+    if (res && res.success) {
+      addLog(`Mã kích hoạt Twitch: [${res.userCode}]. Đang mở trang xác thực...`, 'blue');
+      refreshTwitchStatus();
+      if (oauthPollTimer) clearInterval(oauthPollTimer);
+      oauthPollTimer = setInterval(() => {
+        refreshTwitchStatus();
+        if (twitchStatus.value.oauthState?.status === 'success' || twitchStatus.value.hasToken) {
+          clearInterval(oauthPollTimer);
+          oauthPollTimer = null;
+        }
+      }, 3000);
+    } else {
+      addLog(`Lỗi khởi tạo OAuth: ${res?.error || 'Không xác định'}`, 'red');
+    }
+  }).catch((e: any) => {
+    isStartingOAuth.value = false;
+    console.warn(e);
+  });
 }
 
 function handleSaveTwitchToken() {

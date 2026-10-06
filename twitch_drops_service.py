@@ -2,7 +2,7 @@
 TWITCH DROPS MINER & AUTO-CLAIMER SERVICE
 Integrated Plugin for F-Aion 2 Tools
 Developed by Team FEΔR / SrymC
-Clean, async, zero-hang daemon service based on DevilXD/TwitchDropsMiner GQL core.
+Clean, async, zero-hang daemon service based on DevilXD/TwitchDropsMiner GQL & OAuth core.
 """
 
 import os
@@ -11,9 +11,16 @@ import time
 import threading
 import urllib.request
 import urllib.error
+import urllib.parse
+import webbrowser
 
 GQL_ENDPOINT = "https://gql.twitch.tv/gql"
 TWITCH_CLIENT_ID = "kimne78kx3ncx6brgo4mv6wki5h1ko"
+
+# DevilXD's Exact OAuth Formula (SmartTV Device Code Flow)
+DEVILXD_CLIENT_ID = "ue6666qo983tsx6so1t0vnawi233wa"
+OAUTH_DEVICE_URL = "https://id.twitch.tv/oauth2/device"
+OAUTH_TOKEN_URL = "https://id.twitch.tv/oauth2/token"
 
 class TwitchDropsService:
     def __init__(self, storage_dir: str, log_callback=None):
@@ -32,6 +39,17 @@ class TwitchDropsService:
         self.claim_history = []
         self.last_checked = None
         self.account_name = None
+
+        # OAuth State (Exact DevilXD Device Code Formula)
+        self.oauth_state = {
+            "status": "idle", # "idle", "pending", "success", "error", "expired"
+            "user_code": "",
+            "device_code": "",
+            "verification_uri": "https://www.twitch.tv/activate",
+            "activate_url": "https://www.twitch.tv/activate",
+            "expires_at": 0,
+            "error_message": ""
+        }
 
         self._load_config()
 
@@ -59,13 +77,129 @@ class TwitchDropsService:
         except Exception as e:
             print(f"[TwitchDrops] Error saving config: {e}")
 
+    # -------------------------------------------------------------------------
+    # Exact DevilXD OAuth Device Code Login Formula
+    # -------------------------------------------------------------------------
+    def start_oauth_login(self, auto_open_browser: bool = True):
+        headers = {
+            "Accept": "application/json",
+            "Client-Id": DEVILXD_CLIENT_ID,
+            "User-Agent": "Mozilla/5.0 (Linux; Android 7.1; Smart Box C1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        payload = urllib.parse.urlencode({
+            "client_id": DEVILXD_CLIENT_ID,
+            "scopes": ""
+        }).encode("utf-8")
+
+        try:
+            req = urllib.request.Request(OAUTH_DEVICE_URL, data=payload, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            device_code = data["device_code"]
+            user_code = data["user_code"]
+            interval = data.get("interval", 5)
+            verification_uri = data.get("verification_uri", "https://www.twitch.tv/activate")
+            expires_in = data.get("expires_in", 1800)
+            activate_url = f"{verification_uri}?device-code={user_code}"
+
+            with self._lock:
+                self.oauth_state = {
+                    "status": "pending",
+                    "user_code": user_code,
+                    "device_code": device_code,
+                    "verification_uri": verification_uri,
+                    "activate_url": activate_url,
+                    "expires_at": time.time() + expires_in,
+                    "error_message": ""
+                }
+
+            self.log_callback(f"Mã kích hoạt Twitch: [{user_code}]. Đang mở trang xác thực tự động...", "blue")
+
+            if auto_open_browser:
+                try:
+                    webbrowser.open(activate_url)
+                except Exception:
+                    pass
+
+            # Start background polling thread
+            threading.Thread(
+                target=self._poll_oauth_token,
+                args=(device_code, interval, time.time() + expires_in),
+                daemon=True
+            ).start()
+
+            return {
+                "success": True,
+                "userCode": user_code,
+                "verificationUri": verification_uri,
+                "activateUrl": activate_url
+            }
+        except Exception as e:
+            self.log_callback(f"Lỗi khởi tạo đăng nhập Twitch OAuth: {e}", "red")
+            with self._lock:
+                self.oauth_state["status"] = "error"
+                self.oauth_state["error_message"] = str(e)
+            return {"success": False, "error": str(e)}
+
+    def _poll_oauth_token(self, device_code: str, interval: int, expires_at: float):
+        headers = {
+            "Accept": "application/json",
+            "Client-Id": DEVILXD_CLIENT_ID,
+            "User-Agent": "Mozilla/5.0 (Linux; Android 7.1; Smart Box C1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        payload = urllib.parse.urlencode({
+            "client_id": DEVILXD_CLIENT_ID,
+            "device_code": device_code,
+            "grant_type": "urn:ietf:params:oauth:grant-type:device_code"
+        }).encode("utf-8")
+
+        while time.time() < expires_at:
+            time.sleep(interval)
+            try:
+                req = urllib.request.Request(OAUTH_TOKEN_URL, data=payload, headers=headers, method="POST")
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode("utf-8"))
+                        access_token = data.get("access_token")
+                        if access_token:
+                            with self._lock:
+                                self.auth_token = access_token
+                                self.oauth_state["status"] = "success"
+                                self._save_config()
+
+                            self.log_callback("✔ Đăng nhập Twitch thành công! Đã tự động nhận OAuth Token.", "success")
+                            self._query_inventory()
+                            return
+            except urllib.error.HTTPError as e:
+                # 400 means authorization_pending (user hasn't approved yet)
+                if e.code == 400:
+                    continue
+                else:
+                    print(f"[TwitchDrops] OAuth poll HTTPError {e.code}: {e}")
+            except Exception as e:
+                print(f"[TwitchDrops] OAuth poll error: {e}")
+
+        with self._lock:
+            self.oauth_state["status"] = "expired"
+            self.oauth_state["error_message"] = "Mã kích hoạt đã hết hạn."
+        self.log_callback("Mã kích hoạt đăng nhập Twitch đã hết hạn.", "red")
+
+    def get_oauth_status(self):
+        with self._lock:
+            return dict(self.oauth_state)
+
+    # -------------------------------------------------------------------------
+    # Core Miner Logic
+    # -------------------------------------------------------------------------
     def set_auth_token(self, token: str):
         clean_token = token.replace("OAuth ", "").strip()
         with self._lock:
             self.auth_token = clean_token
             self._save_config()
         self.log_callback("Đã cập nhật Twitch OAuth Token.", "blue")
-        # Trigger an immediate check in background
         threading.Thread(target=self._query_inventory, daemon=True).start()
         return True
 
@@ -80,7 +214,7 @@ class TwitchDropsService:
             if self.is_running:
                 return True
             if not self.auth_token:
-                self.log_callback("⚠️ Cần nhập Twitch auth-token trước khi khởi chạy Plugin.", "red")
+                self.log_callback("⚠️ Cần đăng nhập tài khoản Twitch trước khi khởi chạy Plugin.", "red")
                 return False
 
             self.is_running = True
@@ -110,7 +244,8 @@ class TwitchDropsService:
                 "accountName": self.account_name,
                 "lastChecked": self.last_checked,
                 "campaigns": list(self.latest_campaigns),
-                "claimHistory": list(self.claim_history[:15])
+                "claimHistory": list(self.claim_history[:15]),
+                "oauthState": dict(self.oauth_state)
             }
 
     def _make_gql_request(self, payload: dict):
@@ -168,7 +303,7 @@ class TwitchDropsService:
 
         user_data = res.get("data", {}).get("currentUser")
         if not user_data:
-            self.log_callback("⚠️ Không thể xác thực tài khoản Twitch. Vui lòng kiểm tra lại auth-token.", "red")
+            self.log_callback("⚠️ Token Twitch không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.", "red")
             return
 
         account_name = user_data.get("displayName") or user_data.get("login")
