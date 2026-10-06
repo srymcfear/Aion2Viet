@@ -451,18 +451,80 @@
       }
     }
 
-    function startTwitchDrag(e) {
+    let isDraggingTwitch = false;
+    let startTwitchMouseX = 0;
+    let startTwitchMouseY = 0;
+    let winStartTwitchX = 0;
+    let winStartTwitchY = 0;
+    let pendingTwitchTargetX = null;
+    let pendingTwitchTargetY = null;
+    let isMovingTwitch = false;
+
+    async function startTwitchDrag(e) {
       if (e.button !== 0) return;
       const target = e.target;
       if (target && target.closest('button, input, a, .no-drag, .hud-controls')) return;
       const api = getPyApi();
-      if (api && api.start_twitch_drag) {
-        try {
-          api.start_twitch_drag();
-        } catch (err) {
-          console.warn("start_twitch_drag error:", err);
+      if (!api) return;
+
+      isDraggingTwitch = true;
+      startTwitchMouseX = e.screenX;
+      startTwitchMouseY = e.screenY;
+
+      try {
+        if (api.get_twitch_window_pos) {
+          const pos = await api.get_twitch_window_pos();
+          if (pos && pos.length === 2) {
+            winStartTwitchX = pos[0];
+            winStartTwitchY = pos[1];
+          }
         }
+      } catch (err) {
+        console.warn("get_twitch_window_pos error:", err);
       }
+
+      window.addEventListener('mousemove', onMouseMoveTwitch, { passive: true });
+      window.addEventListener('mouseup', onMouseUpTwitch, { once: true });
+    }
+
+    function sendMoveTwitch() {
+      if (pendingTwitchTargetX === null || pendingTwitchTargetY === null) {
+        isMovingTwitch = false;
+        return;
+      }
+      const x = pendingTwitchTargetX;
+      const y = pendingTwitchTargetY;
+      pendingTwitchTargetX = null;
+      pendingTwitchTargetY = null;
+
+      const api = getPyApi();
+      if (api && api.set_twitch_window_pos) {
+        api.set_twitch_window_pos(x, y).finally(() => {
+          if (pendingTwitchTargetX !== null && pendingTwitchTargetY !== null) {
+            requestAnimationFrame(sendMoveTwitch);
+          } else {
+            isMovingTwitch = false;
+          }
+        });
+      } else {
+        isMovingTwitch = false;
+      }
+    }
+
+    function onMouseMoveTwitch(e) {
+      if (!isDraggingTwitch) return;
+      pendingTwitchTargetX = winStartTwitchX + (e.screenX - startTwitchMouseX);
+      pendingTwitchTargetY = winStartTwitchY + (e.screenY - startTwitchMouseY);
+
+      if (!isMovingTwitch) {
+        isMovingTwitch = true;
+        requestAnimationFrame(sendMoveTwitch);
+      }
+    }
+
+    function onMouseUpTwitch() {
+      isDraggingTwitch = false;
+      window.removeEventListener('mousemove', onMouseMoveTwitch);
     }
 
     function minimizeWin() {

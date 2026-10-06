@@ -780,11 +780,11 @@ const changelog = ref('');
 const lastChecked = ref('');
 const isCheckingUpdate = ref(false);
 
-// Splash / Loading Screen State (~10s)
-const splashProgress = ref(0);
-const splashStatusText = ref('Khởi tạo hệ thống FEΔR Engine...');
-const splashFading = ref(false);
-const splashRemoved = ref(false);
+// Splash / Loading Screen State (Immediate launch)
+const splashProgress = ref(100);
+const splashStatusText = ref('Sẵn sàng');
+const splashFading = ref(true);
+const splashRemoved = ref(true);
 
 const logs = ref<LogItem[]>([
   { time: new Date().toLocaleTimeString(), text: 'Khởi tạo hệ thống quản lý AION 2.', type: 'blue' }
@@ -1055,20 +1055,85 @@ function startPolling() {
   }, 120);
 }
 
-function handleDragStart(e: MouseEvent) {
+let isDragging = false;
+let startMouseX = 0;
+let startMouseY = 0;
+let winStartX = 0;
+let winStartY = 0;
+let pendingTargetX: number | null = null;
+let pendingTargetY: number | null = null;
+let isMoving = false;
+
+async function handleDragStart(e: MouseEvent) {
   if (e.button !== 0) return;
   const target = e.target as HTMLElement;
-  if (!target || target.closest('button, input, a, .no-drag, svg, path, .n-base-close')) {
+  if (!target || target.closest('button, input, a, .no-drag, svg, path, .n-base-close, .n-tab')) {
     return;
   }
+
   const pyApi = (window as any).pywebview?.api;
-  if (pyApi && pyApi.start_window_drag) {
-    try {
-      pyApi.start_window_drag();
-    } catch (err) {
-      console.warn("start_window_drag error:", err);
+  if (!pyApi) return;
+
+  isDragging = true;
+  startMouseX = e.screenX;
+  startMouseY = e.screenY;
+
+  try {
+    if (pyApi.get_window_pos) {
+      const pos = await pyApi.get_window_pos();
+      if (pos && pos.length === 2) {
+        winStartX = pos[0];
+        winStartY = pos[1];
+      }
     }
+  } catch (err) {
+    console.warn("get_window_pos error:", err);
   }
+
+  window.addEventListener('mousemove', onMouseMoveWindow, { passive: true });
+  window.addEventListener('mouseup', onMouseUpWindow, { once: true });
+}
+
+function sendMoveWindow() {
+  if (pendingTargetX === null || pendingTargetY === null) {
+    isMoving = false;
+    return;
+  }
+  const x = pendingTargetX;
+  const y = pendingTargetY;
+  pendingTargetX = null;
+  pendingTargetY = null;
+
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.set_window_pos) {
+    pyApi.set_window_pos(x, y).finally(() => {
+      if (pendingTargetX !== null && pendingTargetY !== null) {
+        requestAnimationFrame(sendMoveWindow);
+      } else {
+        isMoving = false;
+      }
+    });
+  } else {
+    isMoving = false;
+  }
+}
+
+function onMouseMoveWindow(e: MouseEvent) {
+  if (!isDragging) return;
+  const deltaX = e.screenX - startMouseX;
+  const deltaY = e.screenY - startMouseY;
+  pendingTargetX = winStartX + deltaX;
+  pendingTargetY = winStartY + deltaY;
+
+  if (!isMoving) {
+    isMoving = true;
+    requestAnimationFrame(sendMoveWindow);
+  }
+}
+
+function onMouseUpWindow() {
+  isDragging = false;
+  window.removeEventListener('mousemove', onMouseMoveWindow);
 }
 
 function handleMinimize(e?: Event) {

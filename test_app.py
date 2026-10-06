@@ -102,9 +102,13 @@ class TestModApi(unittest.TestCase):
         self.assertFalse(self.api.start_window_drag())
         self.assertFalse(self.api.start_twitch_drag())
         self.assertFalse(self.api.start_dps_drag())
+        self.assertEqual(self.api.get_window_pos(), [0, 0])
+        self.assertTrue(self.api.set_window_pos(100, 200))
+        self.assertEqual(self.api.get_twitch_window_pos(), [0, 0])
+        self.assertTrue(self.api.set_twitch_window_pos(150, 250))
         self.assertNotIn("window", dir(self.api))
         self.assertIsNone(app._main_window)
-        print("[PASS] Window controls and native drag methods handled gracefully and no window exposed to pywebview")
+        print("[PASS] Window controls, pos APIs, and native drag methods handled gracefully and no window exposed to pywebview")
 
     def test_browse_folder_and_process_check(self):
         # browse_folder should gracefully return current state when window is None

@@ -652,6 +652,80 @@ exit
     def show_window(self):
         return True
 
+    def _get_hwnd(self, win):
+        if not win or sys.platform != "win32":
+            return None
+        try:
+            if hasattr(win, 'native') and win.native:
+                return int(win.native.Handle.ToInt64())
+            import webview.platforms.winforms as wf
+            uid = getattr(win, 'uid', 'master')
+            inst = wf.BrowserView.instances.get(uid)
+            if inst:
+                return int(inst.Handle.ToInt64())
+        except Exception:
+            pass
+        return None
+
+    def get_window_pos(self):
+        global _main_window
+        return self._get_pos(_main_window)
+
+    def set_window_pos(self, x, y):
+        global _main_window
+        return self._set_pos(_main_window, x, y)
+
+    def get_twitch_window_pos(self):
+        global _twitch_window
+        return self._get_pos(_twitch_window)
+
+    def set_twitch_window_pos(self, x, y):
+        global _twitch_window
+        return self._set_pos(_twitch_window, x, y)
+
+    def _get_pos(self, win):
+        if not win:
+            return [0, 0]
+        hwnd = self._get_hwnd(win)
+        if hwnd and user32:
+            try:
+                rect = wintypes.RECT()
+                if user32.GetWindowRect(wintypes.HWND(hwnd), ctypes.byref(rect)):
+                    return [int(rect.left), int(rect.top)]
+            except Exception:
+                pass
+        try:
+            return [int(getattr(win, 'x', 0) or 0), int(getattr(win, 'y', 0) or 0)]
+        except Exception:
+            return [0, 0]
+
+    def _set_pos(self, win, x, y):
+        if not win:
+            return True
+        hwnd = self._get_hwnd(win)
+        if hwnd and user32:
+            try:
+                SWP_NOSIZE = 0x0001
+                SWP_NOZORDER = 0x0004
+                SWP_NOACTIVATE = 0x0010
+                user32.SetWindowPos(
+                    wintypes.HWND(hwnd),
+                    wintypes.HWND(0),
+                    int(round(float(x))),
+                    int(round(float(y))),
+                    0,
+                    0,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+                )
+                return True
+            except Exception:
+                pass
+        try:
+            win.move(int(round(float(x))), int(round(float(y))))
+            return True
+        except Exception:
+            return False
+
     def start_window_drag(self):
         global _main_window
         return self._do_drag(_main_window)
@@ -668,15 +742,7 @@ exit
         if not win or sys.platform != "win32" or not user32:
             return False
         try:
-            hwnd = None
-            if hasattr(win, 'native') and win.native:
-                hwnd = int(win.native.Handle.ToInt64())
-            if not hwnd:
-                import webview.platforms.winforms as wf
-                uid = getattr(win, 'uid', 'master')
-                inst = wf.BrowserView.instances.get(uid)
-                if inst:
-                    hwnd = int(inst.Handle.ToInt64())
+            hwnd = self._get_hwnd(win)
             if hwnd:
                 user32.ReleaseCapture()
                 user32.PostMessageW(hwnd, 0x00A1, 2, 0)
@@ -687,12 +753,12 @@ exit
 
     def move_main_window(self, x, y):
         global _main_window
-        return safe_move_window(_main_window, x, y)
+        return self._set_pos(_main_window, x, y)
 
     def minimize_window(self):
         global _main_window
         def _min():
-            time.sleep(0.02)
+            time.sleep(0.01)
             if _main_window:
                 try:
                     _main_window.minimize()
@@ -702,24 +768,19 @@ exit
         return True
 
     def close_window(self):
-        global _main_window
-        def _terminate():
-            try:
-                self.stop_dps_daemon()
-                self.close_dps_window()
-                self.close_twitch_window()
-                if hasattr(self, 'twitch_service'):
-                    self.twitch_service.stop()
-            except Exception:
-                pass
-            finally:
-                os._exit(0)
-
-        threading.Thread(target=_terminate, daemon=True).start()
-        def _watchdog():
-            time.sleep(0.2)
+        def _kill():
+            time.sleep(0.05)
             os._exit(0)
-        threading.Thread(target=_watchdog, daemon=True).start()
+        threading.Thread(target=_kill, daemon=True).start()
+        try:
+            self.stop_dps_daemon()
+            self.close_dps_window()
+            self.close_twitch_window()
+            if hasattr(self, 'twitch_service'):
+                self.twitch_service.stop()
+        except Exception:
+            pass
+        os._exit(0)
         return True
 
     def launch_dps_meter(self):
