@@ -209,11 +209,25 @@ def get_gui_html_path():
         return p3
     return None
 
+def get_twitch_window_html_path():
+    b_dir = get_bundle_dir()
+    p1 = os.path.join(b_dir, "twitch_drops_window.html")
+    if os.path.isfile(p1):
+        return p1
+    p2 = os.path.join(ROOT_DIR, "twitch_drops_window.html")
+    if os.path.isfile(p2):
+        return p2
+    p3 = os.path.join(ROOT_DIR, "prototypes", "twitch_drops_demo3_game_hud.html")
+    if os.path.isfile(p3):
+        return p3
+    return None
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 DUMMY_PAK_BYTES = bytes([0x47, 0x55, 0x20, 0x32, 0x30, 0x32, 0x36, 0x30, 0x39, 0x32, 0x39, 0x31, 0x37, 0x35, 0x37])
 
 _main_window = None
 _dps_window = None
+_twitch_window = None
 _dps_process = None
 _dps_meter_process = None
 
@@ -578,6 +592,7 @@ exit
             time.sleep(0.02)
             self.stop_dps_daemon()
             self.close_dps_window()
+            self.close_twitch_window()
             try:
                 if hasattr(self, 'twitch_service'):
                     self.twitch_service.stop()
@@ -694,6 +709,77 @@ exit
             return True
         except Exception:
             return False
+
+    def launch_twitch_window(self):
+        global _twitch_window
+        if _twitch_window:
+            try:
+                _twitch_window.restore()
+                _twitch_window.show()
+                return True
+            except Exception:
+                _twitch_window = None
+
+        html_path = get_twitch_window_html_path()
+        if not html_path or not os.path.isfile(html_path):
+            self.log("Không tìm thấy file giao diện twitch_drops_window.html", "red")
+            return False
+
+        target_url = f"file:///{os.path.abspath(html_path).replace(os.sep, '/')}"
+        try:
+            _twitch_window = webview.create_window(
+                title="FEΔR - AION 2 Twitch Drops Miner",
+                url=target_url,
+                js_api=self,
+                width=500,
+                height=640,
+                resizable=False,
+                frameless=True,
+                easy_drag=False,
+                shadow=True,
+                background_color="#04060a"
+            )
+            return True
+        except Exception as e:
+            self.log(f"Lỗi khởi chạy cửa sổ Twitch Drops: {e}", "red")
+            return False
+
+    def close_twitch_window(self):
+        global _twitch_window
+        if _twitch_window:
+            try:
+                _twitch_window.destroy()
+            except Exception:
+                pass
+            _twitch_window = None
+        return True
+
+    def minimize_twitch_window(self):
+        global _twitch_window
+        if _twitch_window:
+            try:
+                _twitch_window.minimize()
+            except Exception:
+                pass
+        return True
+
+    def set_twitch_always_on_top(self, is_on_top):
+        global _twitch_window
+        if _twitch_window:
+            try:
+                _twitch_window.on_top = bool(is_on_top)
+            except Exception:
+                pass
+        return True
+
+    def resize_twitch_window(self, width, height):
+        global _twitch_window
+        if _twitch_window:
+            try:
+                _twitch_window.resize(int(width), int(height))
+            except Exception:
+                pass
+        return True
 
     def start_dps_daemon(self):
         global _dps_process

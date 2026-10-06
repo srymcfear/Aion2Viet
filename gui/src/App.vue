@@ -464,8 +464,16 @@
               </div>
             </div>
 
-            <!-- Status Indicator & Close Button -->
+            <!-- Status Indicator, Pop-out Button & Close Button -->
             <div class="flex items-center gap-2.5">
+              <button 
+                @click="handleLaunchTwitchWindow" 
+                title="Mở cửa sổ rời Tactical Game HUD"
+                class="px-2 py-0.5 rounded-md text-[10px] font-bold border border-cyan-500/40 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-500 hover:text-black transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <span>CỬA SỔ RỜI</span>
+                <span>↗</span>
+              </button>
               <span 
                 class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1.5 transition-all"
                 :class="twitchStatus.isRunning 
@@ -839,9 +847,19 @@ function handleToolClick(tool: any) {
   if (tool.id === 'dps') {
     handleLaunchDpsMeter();
   } else if (tool.id === 'twitch') {
-    openTwitchModal();
+    handleLaunchTwitchWindow();
   } else {
     addLog(`Công cụ [${tool.title}] đang trong lộ trình phát triển của Team FEΔR.`, 'blue');
+  }
+}
+
+function handleLaunchTwitchWindow() {
+  showTwitchModal.value = false;
+  const pyApi = (window as any).pywebview?.api;
+  if (pyApi && pyApi.launch_twitch_window) {
+    pyApi.launch_twitch_window();
+  } else {
+    openTwitchModal();
   }
 }
 

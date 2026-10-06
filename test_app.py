@@ -186,6 +186,20 @@ class TestModApi(unittest.TestCase):
         self.assertEqual(self.api.get_twitch_oauth_status()["status"], "pending")
         print("[PASS] Twitch Drops Miner plugin API, service, and DevilXD OAuth Device Code verified.")
 
+    def test_twitch_window_lifecycle(self):
+        html_path = app.get_twitch_window_html_path()
+        self.assertIsNotNone(html_path, "twitch_drops_window.html must be found")
+        self.assertTrue(os.path.isfile(html_path), f"File {html_path} must exist on disk")
+
+        # Window lifecycle and overlay toggles
+        self.assertTrue(self.api.close_twitch_window())
+        self.assertTrue(self.api.minimize_twitch_window())
+        self.assertTrue(self.api.set_twitch_always_on_top(True))
+        self.assertTrue(self.api.set_twitch_always_on_top(False))
+        self.assertTrue(self.api.resize_twitch_window(360, 95))
+        self.assertTrue(self.api.resize_twitch_window(500, 640))
+        print("[PASS] Twitch Drops Tactical HUD window paths and lifecycle APIs verified.")
+
 if __name__ == "__main__":
     unittest.main()
 
