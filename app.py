@@ -277,28 +277,34 @@ def safe_move_window(win, x, y):
 if sys.platform == "win32" and user32:
     try:
         import webview.platforms.winforms as wf
+        def _safe_browserform_move(self, x, y):
+            try:
+                hwnd = int(self.Handle.ToInt64())
+                scale = getattr(self, '_scale', 1.0) or 1.0
+                x_phys = int(round(float(x) * scale))
+                y_phys = int(round(float(y) * scale))
+                SWP_NOSIZE = 0x0001
+                SWP_NOZORDER = 0x0004
+                SWP_NOACTIVATE = 0x0010
+                user32.SetWindowPos(
+                    wintypes.HWND(hwnd),
+                    wintypes.HWND(0),
+                    x_phys,
+                    y_phys,
+                    0,
+                    0,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
+                )
+            except Exception:
+                pass
+
         def _safe_winforms_move(x, y, uid='master'):
             inst = wf.BrowserView.instances.get(uid)
             if inst:
-                try:
-                    hwnd = int(inst.Handle.ToInt64())
-                    scale = getattr(inst, '_scale', 1.0) or 1.0
-                    x_phys = int(round(float(x) * scale))
-                    y_phys = int(round(float(y) * scale))
-                    SWP_NOSIZE = 0x0001
-                    SWP_NOZORDER = 0x0004
-                    SWP_NOACTIVATE = 0x0010
-                    user32.SetWindowPos(
-                        wintypes.HWND(hwnd),
-                        wintypes.HWND(0),
-                        x_phys,
-                        y_phys,
-                        0,
-                        0,
-                        SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE
-                    )
-                except Exception:
-                    pass
+                _safe_browserform_move(inst, x, y)
+
+        if hasattr(wf, 'BrowserView') and hasattr(wf.BrowserView, 'BrowserForm'):
+            wf.BrowserView.BrowserForm.move = _safe_browserform_move
         wf.move = _safe_winforms_move
     except Exception:
         pass
@@ -664,23 +670,23 @@ exit
 
     def close_window(self):
         global _main_window
-        def _close():
-            time.sleep(0.02)
-            self.stop_dps_daemon()
-            self.close_dps_window()
-            self.close_twitch_window()
+        def _terminate():
             try:
+                self.stop_dps_daemon()
+                self.close_dps_window()
+                self.close_twitch_window()
                 if hasattr(self, 'twitch_service'):
                     self.twitch_service.stop()
             except Exception:
                 pass
-            if _main_window:
-                try:
-                    _main_window.destroy()
-                except Exception:
-                    pass
+            finally:
+                os._exit(0)
+
+        threading.Thread(target=_terminate, daemon=True).start()
+        def _watchdog():
+            time.sleep(0.2)
             os._exit(0)
-        threading.Thread(target=_close, daemon=True).start()
+        threading.Thread(target=_watchdog, daemon=True).start()
         return True
 
     def launch_dps_meter(self):

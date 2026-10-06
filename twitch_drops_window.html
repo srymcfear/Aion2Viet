@@ -458,10 +458,17 @@
       }
     }
 
-    function closeWin() {
+    function closeWin(e) {
+      if (e) {
+        try { e.stopPropagation(); e.preventDefault(); } catch {}
+      }
       const api = getPyApi();
       if (api && api.close_twitch_window) {
-        api.close_twitch_window();
+        try {
+          api.close_twitch_window();
+        } catch {
+          window.close();
+        }
       } else {
         window.close();
       }
@@ -627,90 +634,10 @@
       }
     }
 
-    // Enhanced High-Performance Drag Support (Native pywebview + JS move API with RAF throttling)
-    function setupDrag() {
-      let isDragging = false;
-      let startX = 0;
-      let startY = 0;
-      let targetX = 0;
-      let targetY = 0;
-      let rafPending = false;
-      let isMoving = false;
-
-      const nonDraggableSelectors = [
-        'button',
-        'input',
-        'textarea',
-        'select',
-        'a',
-        '.no-drag',
-        '.hud-btn',
-        '.hud-ctrl-btn',
-        '.hud-link-btn',
-        '.cursor-pointer',
-        '[role="button"]'
-      ];
-
-      function isInteractive(target) {
-        if (!target || target === document.body || target === document.documentElement) return false;
-        for (const sel of nonDraggableSelectors) {
-          if (target.closest && target.closest(sel)) return true;
-        }
-        return false;
-      }
-
-      window.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return;
-        if (isInteractive(e.target)) return;
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-      });
-
-      window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        targetX = Math.round(e.screenX - startX);
-        targetY = Math.round(e.screenY - startY);
-
-        if (!rafPending) {
-          rafPending = true;
-          requestAnimationFrame(async () => {
-            rafPending = false;
-            if (!isDragging || isMoving) return;
-            isMoving = true;
-            try {
-              const curX = targetX;
-              const curY = targetY;
-              const api = getPyApi();
-              if (api && api.move_twitch_window) {
-                await api.move_twitch_window(curX, curY);
-              } else if (window.pywebview && window.pywebview._jsApiCallback) {
-                window.pywebview._jsApiCallback('pywebviewMoveWindow', [curX, curY], 'move');
-              }
-            } catch (err) {
-            } finally {
-              isMoving = false;
-            }
-          });
-        }
-      });
-
-      window.addEventListener('mouseup', () => {
-        isDragging = false;
-        rafPending = false;
-        isMoving = false;
-      });
-    }
-
-    // Auto polling loop & drag setup
+    // Auto polling loop
     window.addEventListener('pywebviewready', () => {
-      setupDrag();
       fetchStatus();
       setInterval(fetchStatus, 4000);
-    });
-
-    window.addEventListener('DOMContentLoaded', () => {
-      setupDrag();
     });
 
     // Fallback if opened in browser directly

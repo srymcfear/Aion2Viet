@@ -2,10 +2,11 @@
   <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
     <div class="relative w-screen h-screen flex flex-col bg-[#090d16] text-[var(--text-main)] select-none overflow-hidden border border-[var(--border-subtle)] rounded-xl shadow-2xl">
       
-      <!-- Splash / Loading Screen (~10s on launch) -->
+      <!-- Splash / Loading Screen (~2s on launch or click to skip) -->
       <div 
         v-if="!splashRemoved"
-        class="absolute inset-0 z-50 flex flex-col justify-between bg-[#07090e] select-none transition-opacity duration-700 ease-out"
+        @click="skipSplash"
+        class="absolute inset-0 z-50 flex flex-col justify-between bg-[#07090e] select-none transition-opacity duration-500 ease-out cursor-pointer"
         :class="splashFading ? 'opacity-0 pointer-events-none' : 'opacity-100'"
       >
         <!-- Top Drag Bar with Status & Window Controls -->
@@ -14,22 +15,24 @@
             <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
             <span class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Khởi tạo hệ thống</span>
           </div>
-          <div class="flex items-center gap-1 no-drag">
+          <div class="flex items-center gap-1 no-drag" @mousedown.stop>
             <button 
-              @click="handleMinimize"
+              @click.stop="handleMinimize"
+              @mousedown.stop
               title="Thu nhỏ"
               class="w-6 h-6 rounded-md flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             >
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <svg class="w-3 h-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
             </button>
             <button 
-              @click="handleClose"
+              @click.stop="handleClose"
+              @mousedown.stop
               title="Đóng"
               class="w-6 h-6 rounded-md flex items-center justify-center text-slate-500 hover:text-white hover:bg-red-500 transition-colors cursor-pointer"
             >
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <svg class="w-3 h-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
@@ -121,22 +124,24 @@
           </div>
 
           <!-- Window Controls (Minimize & Close) -->
-          <div class="flex items-center gap-1 pl-1.5 border-l border-slate-700/50">
+          <div class="flex items-center gap-1 pl-1.5 border-l border-slate-700/50 no-drag" @mousedown.stop>
             <button 
-              @click="handleMinimize"
+              @click.stop="handleMinimize"
+              @mousedown.stop
               title="Thu nhỏ"
               class="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             >
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <svg class="w-3 h-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="5" y1="12" x2="19" y2="12"></line>
               </svg>
             </button>
             <button 
-              @click="handleClose"
+              @click.stop="handleClose"
+              @mousedown.stop
               title="Đóng"
               class="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 active:bg-red-600 transition-colors cursor-pointer"
             >
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <svg class="w-3 h-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
@@ -1047,17 +1052,27 @@ function startPolling() {
   }, 120);
 }
 
-function handleMinimize() {
+function handleMinimize(e?: Event) {
+  if (e) {
+    try { e.stopPropagation(); e.preventDefault(); } catch {}
+  }
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.minimize_window) {
-    pyApi.minimize_window();
+    try { pyApi.minimize_window(); } catch {}
   }
 }
 
-function handleClose() {
+function handleClose(e?: Event) {
+  if (e) {
+    try { e.stopPropagation(); e.preventDefault(); } catch {}
+  }
   const pyApi = (window as any).pywebview?.api;
   if (pyApi && pyApi.close_window) {
-    pyApi.close_window();
+    try {
+      pyApi.close_window();
+    } catch {
+      window.close();
+    }
   } else {
     window.close();
   }
@@ -1215,8 +1230,18 @@ function initFromPy() {
   return false;
 }
 
+function skipSplash() {
+  if (splashRemoved.value) return;
+  splashProgress.value = 100;
+  splashStatusText.value = 'Sẵn sàng khởi chạy giao diện!';
+  splashFading.value = true;
+  setTimeout(() => {
+    splashRemoved.value = true;
+  }, 350);
+}
+
 onMounted(() => {
-  // 10s Splash Screen Sequence (100 steps * 100ms = 10,000ms)
+  // Fast & smooth Splash Screen Sequence (~2s)
   const splashInterval = setInterval(() => {
     splashProgress.value += 1;
     if (splashProgress.value <= 20) {
@@ -1236,12 +1261,10 @@ onMounted(() => {
         splashFading.value = true;
         setTimeout(() => {
           splashRemoved.value = true;
-        }, 700);
-      }, 400);
+        }, 500);
+      }, 200);
     }
-  }, 100);
-
-  setupWindowDrag();
+  }, 20);
 
   let attempts = 0;
   const initInterval = setInterval(async () => {
@@ -1270,79 +1293,4 @@ onMounted(() => {
     if (attempts > 30) clearInterval(initInterval);
   }, 200);
 });
-
-function setupWindowDrag() {
-  let isDragging = false;
-  let startX = 0;
-  let startY = 0;
-  let targetX = 0;
-  let targetY = 0;
-  let rafPending = false;
-  let isMoving = false;
-
-  const nonDraggableSelectors = [
-    'button',
-    'input',
-    'textarea',
-    'select',
-    'a',
-    '.no-drag',
-    '.n-button',
-    '.n-input',
-    '.n-switch',
-    '.n-tabs-tab'
-  ];
-
-  function isInteractive(target: HTMLElement | null): boolean {
-    if (!target || target === document.body || target === document.documentElement) return false;
-    for (const sel of nonDraggableSelectors) {
-      if (target.closest && target.closest(sel)) return true;
-    }
-    return false;
-  }
-
-  window.addEventListener('mousedown', (e: MouseEvent) => {
-    if (e.button !== 0) return;
-    const target = e.target as HTMLElement;
-    if (isInteractive(target)) return;
-
-    isDragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
-  });
-
-  window.addEventListener('mousemove', (e: MouseEvent) => {
-    if (!isDragging) return;
-    targetX = Math.round(e.screenX - startX);
-    targetY = Math.round(e.screenY - startY);
-
-    if (!rafPending) {
-      rafPending = true;
-      requestAnimationFrame(async () => {
-        rafPending = false;
-        if (!isDragging || isMoving) return;
-        isMoving = true;
-        try {
-          const curX = targetX;
-          const curY = targetY;
-          const pyApi = (window as any).pywebview?.api;
-          if (pyApi && pyApi.move_main_window) {
-            await pyApi.move_main_window(curX, curY);
-          } else if ((window as any).pywebview?._jsApiCallback) {
-            (window as any).pywebview._jsApiCallback('pywebviewMoveWindow', [curX, curY], 'move');
-          }
-        } catch {
-        } finally {
-          isMoving = false;
-        }
-      });
-    }
-  });
-
-  window.addEventListener('mouseup', () => {
-    isDragging = false;
-    rafPending = false;
-    isMoving = false;
-  });
-}
 </script>
