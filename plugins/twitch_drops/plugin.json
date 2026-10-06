@@ -1,0 +1,10 @@
+{
+  "id": "twitch_drops_miner",
+  "name": "AION 2 Twitch Drops Miner",
+  "version": "1.0.0",
+  "type": "plugin",
+  "author": "FEΔR",
+  "entry": "TwitchDropsMiner.exe",
+  "description": "Tự động xem và nhận Twitch Drops ngầm cho AION 2.",
+  "signatureRequired": true
+}

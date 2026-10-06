@@ -4,14 +4,11 @@ import os
 block_cipher = None
 
 a = Analysis(
-    ['app.py'],
+    ['twitch_drops_app.py'],
     pathex=['.'],
     binaries=[],
     datas=[
-        ('release/AION2_VietHoa_Standalone/Data', 'Data'),
-        ('gui/dist/index.html', 'gui/dist'),
-        ('plugins/twitch_drops', 'plugins/twitch_drops'),
-        ('dps_meter', 'dps_meter'),
+        ('twitch_drops_window.html', '.'),
         ('fear_logo.ico', '.'),
         ('fear_logo.png', '.')
     ],
@@ -20,9 +17,9 @@ a = Analysis(
         'clr',
         'winreg',
         'webbrowser',
-        'PIL',
         'urllib.request',
         'urllib.error',
+        'urllib.parse',
         'hashlib',
         'twitch_drops_service'
     ],
@@ -45,7 +42,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='F-Aion 2 Tools',
+    name='TwitchDropsMiner',
     icon='fear_logo.ico',
     debug=False,
     bootloader_ignore_signals=False,
@@ -59,5 +56,4 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    uac_admin=True,
 )

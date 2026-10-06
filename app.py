@@ -137,6 +137,11 @@ def get_dps_plugin_dir():
     os.makedirs(dps_dir, exist_ok=True)
     return dps_dir
 
+def get_twitch_plugin_dir():
+    twitch_dir = os.path.join(get_plugins_dir(), "twitch_drops")
+    os.makedirs(twitch_dir, exist_ok=True)
+    return twitch_dir
+
 def is_game_running():
     try:
         import subprocess
@@ -476,6 +481,81 @@ def sync_dps_meter_plugin():
 
 def get_dps_meter_executable():
     return sync_dps_meter_plugin()
+
+def sync_twitch_drops_plugin():
+    """
+    Deploys and synchronizes the Twitch Drops Miner plugin into C:\\ProgramData\\FEAR\\Aion2_Tools\\plugins\\twitch_drops.
+    Returns the absolute path to TwitchDropsMiner.exe inside the plugin folder.
+    """
+    target_plugin_dir = get_twitch_plugin_dir()
+    target_exe = os.path.join(target_plugin_dir, "TwitchDropsMiner.exe")
+
+    b_dir = get_bundle_dir()
+    candidates = [
+        os.path.join(b_dir, "plugins", "twitch_drops"),
+        os.path.join(ROOT_DIR, "plugins", "twitch_drops"),
+        os.path.join(os.path.dirname(sys.executable), "plugins", "twitch_drops")
+    ]
+    source_dir = None
+    for c in candidates:
+        if os.path.isdir(c) and os.path.isfile(os.path.join(c, "TwitchDropsMiner.exe")):
+            source_dir = c
+            break
+
+    if source_dir:
+        src_exe = os.path.join(source_dir, "TwitchDropsMiner.exe")
+        should_sync = False
+        if not os.path.isfile(target_exe):
+            should_sync = True
+        else:
+            try:
+                if os.path.getmtime(src_exe) > os.path.getmtime(target_exe):
+                    should_sync = True
+            except Exception:
+                pass
+
+        if should_sync:
+            try:
+                for item in os.listdir(source_dir):
+                    s = os.path.join(source_dir, item)
+                    d = os.path.join(target_plugin_dir, item)
+                    if os.path.isfile(s):
+                        if not os.path.isfile(d) or os.path.getmtime(s) > os.path.getmtime(d):
+                            shutil.copy2(s, d)
+            except Exception as e:
+                print(f"[WARN] Error deploying Twitch Drops plugin: {e}")
+
+    # Ensure plugin.json
+    manifest_path = os.path.join(target_plugin_dir, "plugin.json")
+    if not os.path.isfile(manifest_path):
+        try:
+            manifest_info = {
+                "id": "twitch_drops_miner",
+                "name": "AION 2 Twitch Drops Miner",
+                "version": "1.0.0",
+                "type": "plugin",
+                "author": "FEΔR",
+                "entry": "TwitchDropsMiner.exe",
+                "description": "Tự động xem và nhận Twitch Drops ngầm cho AION 2.",
+                "signatureRequired": True,
+                "storage": target_plugin_dir
+            }
+            with open(manifest_path, "w", encoding="utf-8") as mf:
+                json.dump(manifest_info, mf, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    if os.path.isfile(target_exe):
+        return target_exe
+
+    local_path = os.path.join(ROOT_DIR, "plugins", "twitch_drops", "TwitchDropsMiner.exe")
+    if os.path.isfile(local_path):
+        return local_path
+
+    return None
+
+def get_twitch_drops_executable():
+    return sync_twitch_drops_plugin()
 
 class ModApi:
     def __init__(self):
@@ -968,79 +1048,43 @@ exit
             return False
 
     def launch_twitch_window(self):
-        global _twitch_process, _twitch_window
-        if _twitch_window:
-            try:
-                _twitch_window.show()
-                _twitch_window.restore()
-                hwnd = self._get_hwnd(_twitch_window)
-                if hwnd and user32:
-                    user32.SetForegroundWindow(wintypes.HWND(hwnd))
-                    user32.ShowWindow(wintypes.HWND(hwnd), 9)
-                self.log("Đã kích hoạt hiển thị cửa sổ riêng Twitch Drops.", "blue")
-                return True
-            except Exception:
-                _twitch_window = None
-
+        global _twitch_process
         if _twitch_process and _twitch_process.poll() is None:
-            self.log("Cửa sổ Twitch Drops Miner đang hoạt động.", "blue")
+            self.log("Cửa sổ FEΔR Twitch Drops Miner đang hoạt động.", "blue")
             return True
 
-        html_path = get_twitch_window_html_path()
-        if not html_path or not os.path.isfile(html_path):
-            self.log("Không tìm thấy file giao diện twitch_drops_window.html", "red")
+        twitch_exe = get_twitch_drops_executable()
+        if not twitch_exe or not os.path.isfile(twitch_exe):
+            self.log(f"❌ Không tìm thấy plugin TwitchDropsMiner.exe tại {get_twitch_plugin_dir()}.", "red")
             return False
 
         try:
             import subprocess
-            if getattr(sys, 'frozen', False):
-                cmd = [sys.executable, "--twitch-window"]
-            else:
-                cmd = [sys.executable, os.path.abspath(__file__), "--twitch-window"]
-            _twitch_process = subprocess.Popen(cmd, cwd=ROOT_DIR)
-            self.log("✔ Đã mở cửa sổ riêng FEΔR Twitch Drops Miner thành công.", "success")
+            twitch_dir = os.path.dirname(twitch_exe)
+            _twitch_process = subprocess.Popen(
+                [twitch_exe, "--fear-launcher", SECURITY_KEY_HASH],
+                cwd=twitch_dir
+            )
+            self.log(f"✔ Đã kích hoạt Plugin FEΔR Twitch Drops Miner (Vị trí: {twitch_dir}).", "success")
             return True
         except Exception as e:
-            self.log(f"Lỗi khởi chạy cửa sổ riêng Twitch Drops: {e}", "red")
+            self.log(f"Lỗi khởi chạy Plugin Twitch Drops Miner: {e}", "red")
             return False
 
     def hide_twitch_window(self):
-        global _twitch_window
-        if _twitch_window:
-            try:
-                _twitch_window.hide()
-            except Exception:
-                pass
-        return True
+        return self.close_twitch_window()
 
     def close_twitch_window(self):
-        global _twitch_window, _twitch_process
-        if _twitch_window:
-            try:
-                _twitch_window.destroy()
-            except Exception:
-                pass
-            _twitch_window = None
+        global _twitch_process
         if _twitch_process and _twitch_process.poll() is None:
             try:
                 _twitch_process.terminate()
             except Exception:
                 pass
             _twitch_process = None
-        if "--twitch-window" in sys.argv:
-            try:
-                sys.exit(0)
-            except Exception:
-                pass
         return True
 
     def minimize_twitch_window(self):
-        global _twitch_window
-        if _twitch_window:
-            try:
-                _twitch_window.minimize()
-            except Exception:
-                pass
         return True
 
     def set_twitch_always_on_top(self, is_on_top):
@@ -1526,47 +1570,7 @@ exit
         return True
 
 
-def run_twitch_window():
-    global _twitch_window
-    if sys.platform == "win32":
-        try:
-            import ctypes
-            ctypes.windll.shcore.SetProcessDpiAwareness(1)
-        except Exception:
-            pass
-
-    if not is_webview2_installed():
-        sys.exit(0)
-
-    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = "--disable-features=msWebOOUI,msPdfOOUI"
-    api = ModApi()
-    html_path = get_twitch_window_html_path()
-    if not html_path or not os.path.isfile(html_path):
-        sys.exit(0)
-
-    target_url = f"file:///{os.path.abspath(html_path).replace(os.sep, '/')}"
-    win = webview.create_window(
-        title="FEΔR - AION 2 Twitch Drops Miner",
-        url=target_url,
-        js_api=api,
-        width=500,
-        height=680,
-        resizable=False,
-        frameless=False,
-        easy_drag=False,
-        shadow=True,
-        background_color="#04060a"
-    )
-    _twitch_window = win
-    apply_dark_titlebar(win)
-    cache_dir = get_cache_dir()
-    webview.start(debug=False, private_mode=False, storage_path=cache_dir)
-
-
 def main():
-    if "--twitch-window" in sys.argv:
-        run_twitch_window()
-        return
 
     if sys.platform == "win32" and not is_admin():
         ensure_admin()
