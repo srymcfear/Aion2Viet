@@ -1,6 +1,6 @@
 <template>
   <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
-    <div class="relative w-screen h-screen flex flex-col bg-[#090d16] text-[var(--text-main)] select-none overflow-hidden border border-[var(--border-subtle)] rounded-xl shadow-2xl">
+    <div class="relative w-screen h-screen flex flex-col bg-[#090d16] text-[var(--text-main)] select-none overflow-hidden">
       
       <!-- Splash / Loading Screen (~2s on launch or click to skip) -->
       <div 
@@ -9,34 +9,11 @@
         class="absolute inset-0 z-50 flex flex-col justify-between bg-[#07090e] select-none transition-opacity duration-500 ease-out cursor-pointer"
         :class="splashFading ? 'opacity-0 pointer-events-none' : 'opacity-100'"
       >
-        <!-- Top Drag Bar with Status & Window Controls -->
-        <div class="h-11 px-3.5 flex items-center justify-between app-drag-bar bg-transparent cursor-move" @mousedown="handleDragStart">
+        <!-- Top Status Bar -->
+        <div class="h-11 px-3.5 flex items-center justify-between bg-transparent">
           <div class="flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
             <span class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Khởi tạo hệ thống</span>
-          </div>
-          <div class="flex items-center gap-1 no-drag" @mousedown.stop>
-            <button 
-              @click.stop="handleMinimize"
-              @mousedown.stop
-              title="Thu nhỏ"
-              class="w-6 h-6 rounded-md flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <svg class="w-3 h-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
-            <button 
-              @click.stop="handleClose"
-              @mousedown.stop
-              title="Đóng"
-              class="w-6 h-6 rounded-md flex items-center justify-center text-slate-500 hover:text-white hover:bg-red-500 transition-colors cursor-pointer"
-            >
-              <svg class="w-3 h-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
           </div>
         </div>
 
@@ -88,10 +65,9 @@
         </div>
       </div>
       
-      <!-- Compact Header with Integrated Status Pill & Window Controls -->
+      <!-- Compact Header with Integrated Status Pill -->
       <div 
-        class="h-11 px-3.5 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/95 shrink-0 app-drag-bar cursor-move"
-        @mousedown="handleDragStart"
+        class="h-11 px-3.5 flex items-center justify-between border-b border-[var(--border-subtle)] bg-[#0d121f]/95 shrink-0"
       >
         <div class="flex items-center gap-2.5">
           <img src="./assets/logo.png" alt="FEAR" class="h-6 w-6 object-contain rounded-md border border-white/10 shadow-sm" />
@@ -100,7 +76,7 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-2.5 no-drag">
+        <div class="flex items-center gap-2.5">
           <!-- Update Required Notification Pill -->
           <div 
             v-if="hasUpdate"
@@ -124,31 +100,6 @@
               :class="isInstalled ? 'bg-[#38bdf8] animate-pulse shadow-[0_0_8px_#38bdf8]' : 'bg-slate-500'"
             ></span>
             <span>{{ isInstalled ? 'ĐÃ BẬT VIỆT HÓA' : 'BẢN GỐC' }}</span>
-          </div>
-
-          <!-- Window Controls (Minimize & Close) -->
-          <div class="flex items-center gap-1 pl-1.5 border-l border-slate-700/50 no-drag" @mousedown.stop>
-            <button 
-              @click.stop="handleMinimize"
-              @mousedown.stop
-              title="Thu nhỏ"
-              class="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-            >
-              <svg class="w-3 h-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
-            <button 
-              @click.stop="handleClose"
-              @mousedown.stop
-              title="Đóng"
-              class="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-red-500 active:bg-red-600 transition-colors cursor-pointer"
-            >
-              <svg class="w-3 h-3 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
           </div>
         </div>
       </div>
@@ -1055,86 +1006,7 @@ function startPolling() {
   }, 120);
 }
 
-let isDragging = false;
-let startMouseX = 0;
-let startMouseY = 0;
-let winStartX = 0;
-let winStartY = 0;
-let pendingTargetX: number | null = null;
-let pendingTargetY: number | null = null;
-let isMoving = false;
 
-async function handleDragStart(e: MouseEvent) {
-  if (e.button !== 0) return;
-  const target = e.target as HTMLElement;
-  if (!target || target.closest('button, input, a, .no-drag, svg, path, .n-base-close, .n-tab')) {
-    return;
-  }
-
-  const pyApi = (window as any).pywebview?.api;
-  if (!pyApi) return;
-
-  isDragging = true;
-  startMouseX = e.screenX;
-  startMouseY = e.screenY;
-
-  try {
-    if (pyApi.get_window_pos) {
-      const pos = await pyApi.get_window_pos();
-      if (pos && pos.length === 2) {
-        winStartX = pos[0];
-        winStartY = pos[1];
-      }
-    }
-  } catch (err) {
-    console.warn("get_window_pos error:", err);
-  }
-
-  window.addEventListener('mousemove', onMouseMoveWindow, { passive: true });
-  window.addEventListener('mouseup', onMouseUpWindow, { once: true });
-}
-
-function sendMoveWindow() {
-  if (pendingTargetX === null || pendingTargetY === null) {
-    isMoving = false;
-    return;
-  }
-  const x = pendingTargetX;
-  const y = pendingTargetY;
-  pendingTargetX = null;
-  pendingTargetY = null;
-
-  const pyApi = (window as any).pywebview?.api;
-  if (pyApi && pyApi.set_window_pos) {
-    pyApi.set_window_pos(x, y).finally(() => {
-      if (pendingTargetX !== null && pendingTargetY !== null) {
-        requestAnimationFrame(sendMoveWindow);
-      } else {
-        isMoving = false;
-      }
-    });
-  } else {
-    isMoving = false;
-  }
-}
-
-function onMouseMoveWindow(e: MouseEvent) {
-  if (!isDragging) return;
-  const deltaX = e.screenX - startMouseX;
-  const deltaY = e.screenY - startMouseY;
-  pendingTargetX = winStartX + deltaX;
-  pendingTargetY = winStartY + deltaY;
-
-  if (!isMoving) {
-    isMoving = true;
-    requestAnimationFrame(sendMoveWindow);
-  }
-}
-
-function onMouseUpWindow() {
-  isDragging = false;
-  window.removeEventListener('mousemove', onMouseMoveWindow);
-}
 
 function handleMinimize(e?: Event) {
   if (e) {

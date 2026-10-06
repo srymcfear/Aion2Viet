@@ -22,6 +22,59 @@ import ctypes
 from ctypes import wintypes
 from twitch_drops_service import TwitchDropsService
 
+def apply_dark_titlebar(win):
+    """
+    Applies Windows DWM Immersive Dark Mode and Custom FEΔR Palette to the native titlebar.
+    Runs asynchronously to wait until the window handle (HWND) is allocated.
+    """
+    if sys.platform != "win32":
+        return
+
+    def _worker():
+        for _ in range(50):
+            try:
+                hwnd = None
+                if hasattr(win, 'native') and win.native:
+                    hwnd = int(win.native.Handle.ToInt64())
+                elif hasattr(win, 'gui') and hasattr(win.gui, 'BrowserView'):
+                    uid = getattr(win, 'uid', 'master')
+                    inst = win.gui.BrowserView.instances.get(uid)
+                    if inst:
+                        hwnd = int(inst.Handle.ToInt64())
+                else:
+                    import webview.platforms.winforms as wf
+                    uid = getattr(win, 'uid', 'master')
+                    inst = wf.BrowserView.instances.get(uid)
+                    if inst:
+                        hwnd = int(inst.Handle.ToInt64())
+
+                if hwnd:
+                    dwmapi = ctypes.windll.dwmapi
+                    # DWMWA_USE_IMMERSIVE_DARK_MODE = 20 (Windows 10 1809+ / Windows 11)
+                    dark_mode = ctypes.c_int(1)
+                    dwmapi.DwmSetWindowAttribute(
+                        wintypes.HWND(hwnd),
+                        20,
+                        ctypes.byref(dark_mode),
+                        ctypes.sizeof(dark_mode)
+                    )
+                    # Windows 11 DWM (BGR): Caption #07090e (0x0E0907), Text #f8fafc (0xFCFAF8), Border #38bdf8 (0xF8BD38)
+                    caption_color = ctypes.c_uint(0x000E0907)
+                    text_color = ctypes.c_uint(0x00FCFAF8)
+                    border_color = ctypes.c_uint(0x00F8BD38)
+                    try:
+                        dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), 35, ctypes.byref(caption_color), ctypes.sizeof(caption_color))
+                        dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), 36, ctypes.byref(text_color), ctypes.sizeof(text_color))
+                        dwmapi.DwmSetWindowAttribute(wintypes.HWND(hwnd), 34, ctypes.byref(border_color), ctypes.sizeof(border_color))
+                    except Exception:
+                        pass
+                    return
+            except Exception:
+                pass
+            time.sleep(0.08)
+
+    threading.Thread(target=_worker, daemon=True).start()
+
 # Security & Update Configuration
 CURRENT_VERSION = "1.1.0"
 SECURITY_KEY = "fearAion2Tran-key"
@@ -924,13 +977,14 @@ exit
                 url=target_url,
                 js_api=self,
                 width=500,
-                height=640,
+                height=680,
                 resizable=False,
-                frameless=True,
+                frameless=False,
                 easy_drag=False,
                 shadow=True,
                 background_color="#04060a"
             )
+            apply_dark_titlebar(_twitch_window)
             return True
         except Exception as e:
             self.log(f"Lỗi khởi chạy cửa sổ Twitch Drops: {e}", "red")
@@ -1422,15 +1476,16 @@ def main():
         url=target_url,
         js_api=api,
         width=680,
-        height=475,
+        height=515,
         resizable=False,
-        frameless=True,
+        frameless=False,
         easy_drag=False,
         shadow=True,
         background_color="#07090e"
     )
     global _main_window
     _main_window = window
+    apply_dark_titlebar(window)
     cache_dir = get_cache_dir()
     webview.start(debug=False, private_mode=False, storage_path=cache_dir)
 
