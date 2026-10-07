@@ -312,11 +312,14 @@
             ⏳ Đã mở cửa sổ Twitch! Vui lòng đăng nhập trên cửa sổ đó. Khi xong cửa sổ sẽ tự tắt.
           </div>
           <div style="display: flex; gap: 6px;">
+            <button class="hud-btn sec" style="flex: 1.2; height: 26px; font-size: 10px; border-color: rgba(0, 240, 255, 0.4);" onclick="syncTwitchSession()">
+              🔄 ĐỒNG BỘ TÀI KHOẢN
+            </button>
             <button class="hud-btn sec" style="flex: 1; height: 26px; font-size: 10px;" onclick="promptManualToken()">
-              🔑 DÁN AUTH-TOKEN
+              🔑 DÁN TOKEN
             </button>
             <button class="hud-btn sec" style="flex: 1; height: 26px; font-size: 10px;" onclick="startTwitchOAuth()">
-              📱 DÙNG MÃ THIẾT BỊ
+              📱 MÃ THIẾT BỊ
             </button>
           </div>
         </div>
@@ -433,6 +436,18 @@
       const box = document.getElementById('authHudBox');
       if (box) {
         box.style.display = forceShowAuth ? 'block' : 'none';
+      }
+    }
+
+    function syncTwitchSession() {
+      const api = getPyApi();
+      if (!api) return;
+      if (api.sync_twitch_session) {
+        api.sync_twitch_session().then(res => {
+          fetchStatus();
+        }).catch(() => fetchStatus());
+      } else {
+        fetchStatus();
       }
     }
 

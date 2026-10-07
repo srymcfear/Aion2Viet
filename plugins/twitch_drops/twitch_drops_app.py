@@ -183,6 +183,15 @@ class TwitchPluginApi:
             print(f"[Error] open_twitch_web_login: {e}")
             return {"success": False, "error": str(e)}
 
+    def sync_twitch_session(self):
+        """Forces reloading config and re-validating Twitch token immediately."""
+        try:
+            self.service._load_config()
+            self.service.validate_token()
+            return {"success": bool(self.service.auth_token), "accountName": self.service.account_name}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     def open_twitch_inventory(self):
         try:
             webbrowser.open("https://www.twitch.tv/drops/inventory")
@@ -247,49 +256,51 @@ def run_twitch_login_window():
 
     def _login_listener(win):
         print("[TwitchLogin] Cửa sổ đăng nhập Twitch đã mở, đang đợi hoàn tất...")
-        for _ in range(360):  # Đợi tối đa 6 phút
-            time.sleep(1)
+        for i in range(360):  # Đợi tối đa 6 phút
+            time.sleep(1.5)
             try:
-                cookies = win.get_cookies()
-                token = None
-                for c in cookies:
-                    s = str(c)
-                    if "auth-token=" in s:
-                        if hasattr(c, "get") and c.get("auth-token"):
-                            token = c["auth-token"].value
-                        elif hasattr(c, "items"):
-                            for k, v in c.items():
-                                if k == "auth-token":
-                                    token = getattr(v, "value", str(v))
-                                    break
-                        if not token:
+                curr_url = ""
+                try:
+                    curr_url = win.get_current_url() or ""
+                except Exception:
+                    pass
+
+                # Khi người dùng đã đăng nhập, URL sẽ chuyển về trang chủ hoặc channel (không còn login)
+                is_logged_in_url = "twitch.tv" in curr_url and "/login" not in curr_url and "passport.twitch.tv" not in curr_url
+
+                if is_logged_in_url or i % 3 == 0:
+                    cookies = win.get_cookies()
+                    token = None
+                    for c in cookies:
+                        s = str(c)
+                        if "auth-token=" in s:
                             for part in s.split(";"):
                                 part = part.strip()
-                                if part.startswith("auth-token=") or " auth-token=" in part or part.startswith("Set-Cookie: auth-token="):
+                                if "auth-token=" in part:
                                     token = part.split("auth-token=")[-1].strip()
                                     break
-                    if token and len(token) > 10:
-                        break
+                        if token:
+                            break
 
-                if token and len(token) > 10:
-                    print(f"[TwitchLogin] Nhận diện thành công auth-token! Độ dài: {len(token)}")
-                    with service._lock:
-                        service.auth_token = token
-                        service.client_id = "kimne78kx3ncx6brgo4mv6wki5h1ko"
-                        service.oauth_state["status"] = "idle"
-                        service.oauth_state["user_code"] = ""
-                        service.oauth_state["error_message"] = ""
-                        service._save_config()
-                    try:
-                        service.validate_token()
-                    except Exception:
-                        pass
-                    time.sleep(1)
-                    try:
-                        win.destroy()
-                    except Exception:
-                        pass
-                    return
+                    if token and len(token) > 10:
+                        print(f"[TwitchLogin] Nhận diện thành công auth-token! Độ dài: {len(token)}")
+                        with service._lock:
+                            service.auth_token = token
+                            service.client_id = "kimne78kx3ncx6brgo4mv6wki5h1ko"
+                            service.oauth_state["status"] = "idle"
+                            service.oauth_state["user_code"] = ""
+                            service.oauth_state["error_message"] = ""
+                            service._save_config()
+                        try:
+                            service.validate_token()
+                        except Exception:
+                            pass
+                        time.sleep(0.5)
+                        try:
+                            win.destroy()
+                        except Exception:
+                            pass
+                        return
             except Exception as e:
                 pass
         # Timeout
