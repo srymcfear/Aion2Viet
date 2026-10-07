@@ -435,9 +435,16 @@ class TwitchDropsService:
                 claimed = self_edge.get("isClaimed", False)
                 drop_id = self_edge.get("dropInstanceID")
 
+                image_url = None
+                benefit_edges = d.get("benefitEdges") or []
+                if benefit_edges:
+                    benefit = benefit_edges[0].get("benefit") or {}
+                    image_url = benefit.get("imageAssetURL")
+
                 timed_drops.append({
                     "id": d.get("id"),
                     "name": d.get("name", "Drop Item"),
+                    "imageUrl": image_url,
                     "currentMinutesWatched": curr,
                     "requiredMinutesWatched": req_m,
                     "isClaimed": claimed,

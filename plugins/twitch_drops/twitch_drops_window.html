@@ -220,7 +220,43 @@
     .matrix-item {
       background: var(--hud-panel);
       border: 1px solid rgba(255, 255, 255, 0.06);
-      padding: 8px 10px;
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .matrix-item:hover {
+      background: rgba(18, 26, 43, 0.95);
+      border-color: rgba(0, 240, 255, 0.3);
+    }
+    .matrix-thumb-box {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      box-shadow: inset 0 0 8px rgba(0, 240, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .matrix-thumb-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: -webkit-optimize-contrast;
+    }
+    .matrix-thumb-placeholder {
+      font-size: 16px;
+      color: var(--neon-cyan);
+      opacity: 0.7;
+    }
+    .matrix-content {
+      flex: 1;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -228,7 +264,16 @@
     .matrix-top {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-size: 11px;
+    }
+    .matrix-title {
+      color: #fff;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-right: 6px;
     }
     .matrix-progress {
       height: 4px;
@@ -735,16 +780,23 @@
             badgeHtml = `<span style="color: var(--neon-cyan); font-family: 'JetBrains Mono';">${cur}/${req}m (${pct}%)</span>`;
           }
 
+          const thumbHtml = drop.imageUrl
+            ? `<div class="matrix-thumb-box"><img class="matrix-thumb-img" src="${drop.imageUrl}" alt="${drop.name}" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<span class=\\\'matrix-thumb-placeholder\\\'>🎁</span>';"></div>`
+            : `<div class="matrix-thumb-box"><span class="matrix-thumb-placeholder">🎁</span></div>`;
+
           html += `
             <div class="matrix-item">
-              <div class="matrix-top">
-                <span style="color: #fff; font-weight: 700;">${drop.name}</span>
-                ${badgeHtml}
+              ${thumbHtml}
+              <div class="matrix-content">
+                <div class="matrix-top">
+                  <span class="matrix-title" title="${drop.name}">${drop.name}</span>
+                  ${badgeHtml}
+                </div>
+                <div class="matrix-progress">
+                  <div class="matrix-fill" style="width: ${pct}%; background: ${isReady ? '#c084fc' : 'linear-gradient(90deg, #0284c7, var(--neon-cyan))'};"></div>
+                </div>
+                ${claimBtnHtml}
               </div>
-              <div class="matrix-progress">
-                <div class="matrix-fill" style="width: ${pct}%; background: ${isReady ? '#c084fc' : 'linear-gradient(90deg, #0284c7, var(--neon-cyan))'};"></div>
-              </div>
-              ${claimBtnHtml}
             </div>
           `;
         });
