@@ -650,14 +650,13 @@ class TwitchDropsService:
                     self.minutes_mined += 1
                 tick_counter += 1
 
-                # Every 2 ticks, query inventory to sync live progress
-                if tick_counter % 2 == 0:
-                    self._query_inventory()
+                # Query inventory every tick so UI and user get instant +1 min updates
+                self._query_inventory()
 
-                    # Find active drop in progress
-                    active_drop = None
-                    for c in self.latest_campaigns:
-                        for d in c.get("timeBasedDrops", []):
+                # Find active drop in progress
+                active_drop = None
+                for c in self.latest_campaigns:
+                    for d in c.get("timeBasedDrops", []):
                             if not d.get("isClaimed") and d.get("currentMinutesWatched", 0) < d.get("requiredMinutesWatched", 1):
                                 active_drop = d
                                 break
