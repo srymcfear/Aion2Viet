@@ -65,8 +65,10 @@ graph TD
 - [x] **Quét & Khóa Mục Tiêu:** Chuẩn hóa mục tiêu đang khóa/bị đánh, người chơi địch, linh thú địch, quái nhiệm vụ, NPC chủ động tấn công, quái tinh anh/boss, NPC địch thông thường.
 - [x] **HUD & Hiển Thị Chiến Đấu:** Chuẩn hóa thông số nổi, chữ nổi chiến đấu, sát thương nhận vào, hồi máu bản thân, độ trong suốt cảnh báo, góc nhìn Boss và hướng sau lưng.
 - [x] **Cơ Chế Chiến Đấu & Phòng Ngự:** Chuẩn hóa Túi đồ (`Cube`), Chặn đòn (`Block`), Xuyên Chặn đòn (`Block Penetration`), Chặn bằng khiên (`Shield Block`), Trói chân (`Root`), Sát thương Thanh Choáng (`Stagger Gauge Damage`), Hóa giải (`Dispel`).
-
-
+- [x] **Seamless Hybrid Auto-Updater Engine (`auto_updater.py`):**
+  - **Lớp 1 (OTA Data Patcher):** Tự động tải file zip/dat từ GitHub Release nạp thẳng vào `C:\ProgramData\FEAR\Aion2_Tools` và game loose-files trong 2s không cần restart Tool.
+  - **Lớp 2 (In-Place Binary Self-Replacement):** Khắc phục triệt để Windows File Lock bằng kỹ thuật NTFS Rename-in-use + Detached Worker Script (`updater.bat`), tự động tải bản launcher mới có hiển thị tốc độ MB/s, thay thế file gốc và tự relaunch liền mạch.
+  - Đã tích hợp test suite `test_auto_updater.py` đảm bảo độ tin cậy.
 
 ---
 
@@ -83,13 +85,7 @@ Dưới đây là các đầu việc ưu tiên cần thực hiện trong các ph
 - [ ] **Thông Báo Windows Khi Nhận Quà (Native Desktop Notification):**
   - Hiển thị Toast Notification của Windows khi có một mốc quà Drops hoàn thành hoặc được tự động nhận (Auto-Claim).
 
-### 🎯 Ưu Tiên Trung Bình (Phase 2: Live Patching & Automation)
-- [ ] **OTA Dictionary Patcher (Cập nhật Việt hóa qua mạng):**
-  - Khi game có bản update nhỏ hoặc bổ sung bản dịch mới, tool tự tải file delta từ GitHub Release về nạp thẳng vào thư mục game mà người dùng không cần tải lại file zip hay file exe mới.
-- [ ] **Tự Động Cập Nhật Bản Mới (In-App Auto Updater):**
-  - Launcher tự so khớp phiên bản qua `fearAion2Tran-ver` trên GitHub Release và hiển thị nút "Cập nhật ngay" để tải và thay thế file tự động.
-
-### 🎯 Tính Năng Nâng Cao (Phase 3: Extended Tools)
+### 🎯 Tính Năng Nâng Cao (Phase 2: Extended Tools)
 - [ ] **Tối Ưu Plugin DPS Meter:**
   - Hoàn thiện module đo DPS / sát thương thời gian thực cho AION 2 (nghiên cứu phương án đọc combat log an toàn không vi phạm Anti-Cheat).
 
