@@ -363,7 +363,7 @@ def main():
         url=target_url,
         js_api=api,
         width=500,
-        height=680,
+        height=620,
         resizable=False,
         frameless=False,
         easy_drag=True,
