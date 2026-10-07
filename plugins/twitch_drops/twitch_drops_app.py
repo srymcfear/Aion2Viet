@@ -167,6 +167,22 @@ class TwitchPluginApi:
             print(f"[Error] set_twitch_auth_token: {e}")
             return False
 
+    def open_twitch_web_login(self):
+        try:
+            exe_path = sys.executable
+            if getattr(sys, 'frozen', False):
+                args = [exe_path, "--fear-launcher", SECURITY_KEY_HASH, "--login"]
+            else:
+                script_path = os.path.abspath(__file__)
+                args = [sys.executable, script_path, "--fear-launcher", SECURITY_KEY_HASH, "--login"]
+            
+            import subprocess
+            subprocess.Popen(args, close_fds=True if sys.platform != "win32" else False)
+            return {"success": True}
+        except Exception as e:
+            print(f"[Error] open_twitch_web_login: {e}")
+            return {"success": False, "error": str(e)}
+
     def open_twitch_inventory(self):
         try:
             webbrowser.open("https://www.twitch.tv/drops/inventory")
@@ -223,9 +239,85 @@ class TwitchPluginApi:
                 pass
         return True
 
+def run_twitch_login_window():
+    """Opens a standalone WebView window for Twitch login, intercepts auth-token cookie, saves it, and exits."""
+    storage_dir = get_app_storage_dir()
+    cache_dir = get_cache_dir()
+    service = TwitchDropsService(storage_dir=storage_dir)
+
+    def _login_listener(win):
+        print("[TwitchLogin] Cửa sổ đăng nhập Twitch đã mở, đang đợi hoàn tất...")
+        for _ in range(360):  # Đợi tối đa 6 phút
+            time.sleep(1)
+            try:
+                cookies = win.get_cookies()
+                token = None
+                for c in cookies:
+                    s = str(c)
+                    if "auth-token=" in s:
+                        if hasattr(c, "get") and c.get("auth-token"):
+                            token = c["auth-token"].value
+                        elif hasattr(c, "items"):
+                            for k, v in c.items():
+                                if k == "auth-token":
+                                    token = getattr(v, "value", str(v))
+                                    break
+                        if not token:
+                            for part in s.split(";"):
+                                part = part.strip()
+                                if part.startswith("auth-token=") or " auth-token=" in part or part.startswith("Set-Cookie: auth-token="):
+                                    token = part.split("auth-token=")[-1].strip()
+                                    break
+                    if token and len(token) > 10:
+                        break
+
+                if token and len(token) > 10:
+                    print(f"[TwitchLogin] Nhận diện thành công auth-token! Độ dài: {len(token)}")
+                    with service._lock:
+                        service.auth_token = token
+                        service.client_id = "kimne78kx3ncx6brgo4mv6wki5h1ko"
+                        service.oauth_state["status"] = "idle"
+                        service.oauth_state["user_code"] = ""
+                        service.oauth_state["error_message"] = ""
+                        service._save_config()
+                    try:
+                        service.validate_token()
+                    except Exception:
+                        pass
+                    time.sleep(1)
+                    try:
+                        win.destroy()
+                    except Exception:
+                        pass
+                    return
+            except Exception as e:
+                pass
+        # Timeout
+        try:
+            win.destroy()
+        except Exception:
+            pass
+
+    login_win = webview.create_window(
+        title="FEΔR - Đăng Nhập Twitch Trực Tiếp",
+        url="https://www.twitch.tv/login",
+        width=460,
+        height=720,
+        resizable=True,
+        shadow=True,
+        background_color="#0e0e10"
+    )
+    apply_dark_titlebar(login_win)
+    webview.start(_login_listener, login_win, private_mode=False, storage_path=cache_dir)
+    sys.exit(0)
+
 def main():
     if not verify_signature():
         show_access_denied_and_exit()
+        return
+
+    if "--login" in sys.argv:
+        run_twitch_login_window()
         return
 
     if sys.platform == "win32":
