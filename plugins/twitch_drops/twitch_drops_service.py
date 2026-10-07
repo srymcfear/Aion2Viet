@@ -339,6 +339,20 @@ class TwitchDropsService:
 
     def get_status(self):
         with self._lock:
+            # Auto-trigger inventory query if token exists but campaigns list is empty
+            if self.auth_token and not self.latest_campaigns and not getattr(self, "_querying_inv", False):
+                self._querying_inv = True
+                def _do_query():
+                    try:
+                        if not self.user_id:
+                            self.validate_token()
+                        self._query_inventory()
+                    except Exception as e:
+                        print(f"[TwitchDrops] Auto-query inventory error: {e}")
+                    finally:
+                        self._querying_inv = False
+                threading.Thread(target=_do_query, daemon=True).start()
+
             return {
                 "isRunning": self.is_running,
                 "hasToken": bool(self.auth_token),
@@ -398,7 +412,7 @@ class TwitchDropsService:
                 }
             },
             "variables": {
-                "fetchRewardCampaigns": False
+                "fetchRewardCampaigns": True
             }
         }
 

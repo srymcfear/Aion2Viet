@@ -184,13 +184,25 @@ class TwitchPluginApi:
             return {"success": False, "error": str(e)}
 
     def sync_twitch_session(self):
-        """Forces reloading config and re-validating Twitch token immediately."""
+        """Forces reloading config, re-validating Twitch token and querying inventory immediately."""
         try:
             self.service._load_config()
             self.service.validate_token()
+            if self.service.auth_token:
+                self.service._query_inventory()
             return {"success": bool(self.service.auth_token), "accountName": self.service.account_name}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    def refresh_twitch_drops(self):
+        """Forces immediate re-query of Twitch Drops inventory."""
+        try:
+            if not self.service.user_id:
+                self.service.validate_token()
+            self.service._query_inventory()
+            return self.service.get_status()
+        except Exception as e:
+            return {"error": str(e)}
 
     def open_twitch_inventory(self):
         try:

@@ -394,6 +394,14 @@
       </button>
     </div>
 
+    <!-- Drops Matrix Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 2px 4px 2px;">
+      <span style="font-size: 10px; font-weight: 700; color: var(--text-dim); letter-spacing: 1px; font-family: 'JetBrains Mono';">CHIẾN DỊCH DROPS ĐANG DIỄN RA</span>
+      <button class="hud-btn sec" style="height: 22px; font-size: 9.5px; padding: 0 8px; border-color: rgba(0, 240, 255, 0.3);" onclick="refreshDrops()" title="Làm mới tiến độ Drops từ Twitch">
+        🔄 TẢI LẠI
+      </button>
+    </div>
+
     <!-- Drops Matrix -->
     <div class="drops-matrix" id="dropsList">
       <div style="text-align: center; color: var(--text-dim); font-size: 11px; padding: 20px;">
@@ -445,6 +453,25 @@
       if (api.sync_twitch_session) {
         api.sync_twitch_session().then(res => {
           fetchStatus();
+        }).catch(() => fetchStatus());
+      } else {
+        fetchStatus();
+      }
+    }
+
+    function refreshDrops() {
+      const api = getPyApi();
+      if (!api) return;
+      const listContainer = document.getElementById('dropsList');
+      if (listContainer) {
+        listContainer.innerHTML = '<div style="text-align: center; color: var(--neon-cyan); font-size: 11px; padding: 20px;">🔄 Đang tải thông tin Drops từ máy chủ Twitch...</div>';
+      }
+      if (api.refresh_twitch_drops) {
+        api.refresh_twitch_drops().then(res => {
+          if (res) {
+            cachedStatus = res;
+            renderUI(res);
+          }
         }).catch(() => fetchStatus());
       } else {
         fetchStatus();
@@ -661,7 +688,18 @@
       const listContainer = document.getElementById('dropsList');
       const campaigns = status.campaigns || [];
       if (campaigns.length === 0) {
-        listContainer.innerHTML = '<div style="text-align: center; color: var(--text-dim); font-size: 11px; padding: 20px;">Không có chiến dịch Drop nào đang tiến hành.</div>';
+        listContainer.innerHTML = `
+          <div style="text-align: center; padding: 22px 10px;">
+            <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 10px;">
+              ${status.hasToken ? 'Đang đồng bộ máy chủ hoặc chưa tải kịp danh sách Drops.' : 'Cần kết nối tài khoản Twitch để hiển thị Drops.'}
+            </div>
+            ${status.hasToken ? `
+              <button class="hud-btn" style="height: 28px; font-size: 10.5px; padding: 0 16px; margin: 0 auto;" onclick="refreshDrops()">
+                🔄 TẢI TIẾN ĐỘ DROPS NGAY
+              </button>
+            ` : ''}
+          </div>
+        `;
         return;
       }
 
