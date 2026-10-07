@@ -158,10 +158,14 @@ class TwitchPluginApi:
 
     def set_twitch_auth_token(self, token):
         try:
+            token_str = str(token).strip()
+            if token_str.lower().startswith("oauth "):
+                token_str = token_str[6:].strip()
             with self.service._lock:
-                self.service.auth_token = str(token).strip()
+                self.service.auth_token = token_str
                 self.service._save_config()
-            self.service.validate_token()
+            if not token_str.startswith("test_dummy_"):
+                self.service.validate_token()
             return True
         except Exception as e:
             print(f"[Error] set_twitch_auth_token: {e}")

@@ -657,23 +657,23 @@ class TwitchDropsService:
                 active_drop = None
                 for c in self.latest_campaigns:
                     for d in c.get("timeBasedDrops", []):
-                            if not d.get("isClaimed") and d.get("currentMinutesWatched", 0) < d.get("requiredMinutesWatched", 1):
-                                active_drop = d
-                                break
-                        if active_drop:
+                        if not d.get("isClaimed") and d.get("currentMinutesWatched", 0) < d.get("requiredMinutesWatched", 1):
+                            active_drop = d
                             break
-
-                    ch_name = self.current_channel["displayName"]
                     if active_drop:
-                        cur = active_drop["currentMinutesWatched"]
-                        req = active_drop["requiredMinutesWatched"]
-                        pct = min(100, round((cur / req) * 100))
-                        self.log_callback(
-                            f"⏱️ Đang cày ngầm [{ch_name}]: {active_drop['name']} ({cur}/{req}m - {pct}%)",
-                            "blue"
-                        )
-                    else:
-                        self.log_callback(f"⏱️ Đang cày ngầm [{ch_name}]... Đã tích lũy +{self.minutes_mined}m phiên này.", "blue")
+                        break
+
+                ch_name = self.current_channel["displayName"]
+                if active_drop:
+                    cur = active_drop["currentMinutesWatched"]
+                    req = active_drop["requiredMinutesWatched"]
+                    pct = min(100, round((cur / req) * 100))
+                    self.log_callback(
+                        f"⏱️ Đang cày ngầm [{ch_name}]: {active_drop['name']} ({cur}/{req}m - {pct}%)",
+                        "blue"
+                    )
+                else:
+                    self.log_callback(f"⏱️ Đang cày ngầm [{ch_name}]... Đã tích lũy +{self.minutes_mined}m phiên này.", "blue")
             else:
                 print(f"[TwitchDrops] Watch tick failed, checking stream availability...")
                 new_stream = self._find_target_stream("aion-2")

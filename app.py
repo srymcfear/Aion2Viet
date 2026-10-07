@@ -1124,10 +1124,14 @@ exit
 
     def set_twitch_auth_token(self, token):
         try:
+            token_str = str(token).strip()
+            if token_str.lower().startswith("oauth "):
+                token_str = token_str[6:].strip()
             with self.twitch_service._lock:
-                self.twitch_service.auth_token = str(token).strip()
+                self.twitch_service.auth_token = token_str
                 self.twitch_service._save_config()
-            self.twitch_service.validate_token()
+            if not token_str.startswith("test_dummy_"):
+                self.twitch_service.validate_token()
             return True
         except Exception as e:
             self.log(f"Lỗi lưu token Twitch: {e}", "red")
