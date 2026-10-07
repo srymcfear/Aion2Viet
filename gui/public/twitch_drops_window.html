@@ -427,6 +427,9 @@
       <div style="font-family: 'JetBrains Mono'; color: var(--text-dim); font-size: 10px;" id="streamerStats">
         18,447 VIEWERS • AUTO-TRACKING
       </div>
+      <div style="font-family: 'JetBrains Mono'; color: var(--neon-cyan); font-size: 10px; margin-top: 3px; display: none;" id="streamerLiveProgress">
+        ⚡ Đang cày ngầm...
+      </div>
     </div>
 
     <!-- Main Buttons -->
@@ -720,6 +723,16 @@
         document.getElementById('streamerLogin').innerText = status.isRunning ? 'Đang tìm kiếm...' : (status.hasToken ? 'Chưa bật cày' : 'Chưa đăng nhập');
         document.getElementById('streamerStats').innerText = status.isRunning ? 'SCANNING AION 2 DIRECTORY' : (status.hasToken ? 'STANDBY' : 'CẦN ĐĂNG NHẬP TWITCH');
         document.getElementById('miniStreamer').innerText = status.isRunning ? 'Đang tìm kiếm...' : 'Standby';
+      }
+
+      const liveProg = document.getElementById('streamerLiveProgress');
+      if (liveProg) {
+        if (status.isRunning && status.activeStatusText) {
+          liveProg.style.display = 'block';
+          liveProg.innerText = '⚡ ' + status.activeStatusText;
+        } else {
+          liveProg.style.display = 'none';
+        }
       }
 
       // 4. Toggle Button

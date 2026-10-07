@@ -12,6 +12,17 @@ import ctypes
 import webbrowser
 from ctypes import wintypes
 import webview
+
+# Ensure stdout/stderr handles UTF-8 on Windows
+if sys.platform == "win32":
+    try:
+        if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if sys.stderr and hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from twitch_drops_service import TwitchDropsService
 
 SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
@@ -118,7 +129,14 @@ class TwitchPluginApi:
         )
 
     def _log(self, msg, msg_type=""):
-        print(f"[TwitchDrops] {msg}")
+        try:
+            if sys.stdout and hasattr(sys.stdout, "buffer"):
+                sys.stdout.buffer.write(f"[TwitchDrops] {msg}\n".encode("utf-8", errors="replace"))
+                sys.stdout.flush()
+            else:
+                print(f"[TwitchDrops] {msg}")
+        except Exception:
+            pass
 
     def get_twitch_drops_status(self):
         try:

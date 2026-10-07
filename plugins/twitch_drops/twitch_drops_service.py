@@ -54,6 +54,7 @@ class TwitchDropsService:
         self.minutes_mined = 0
         self.client_id = DEVILXD_CLIENT_ID
         self._notified_integrity_drops = set()
+        self.active_status_text = ""
 
         # OAuth State (DevilXD Device Code Formula)
         self.oauth_state = {
@@ -321,6 +322,13 @@ class TwitchDropsService:
         threading.Thread(target=self._validate_and_refresh, daemon=True).start()
         return True
 
+    def _safe_log(self, msg: str, mtype: str = ""):
+        try:
+            if self.log_callback:
+                self.log_callback(msg, mtype)
+        except Exception:
+            pass
+
     def set_auto_claim(self, enabled: bool):
         with self._lock:
             self.auto_claim = bool(enabled)
@@ -332,7 +340,7 @@ class TwitchDropsService:
             if self.is_running:
                 return True
             if not self.auth_token:
-                self.log_callback("⚠️ Cần đăng nhập tài khoản Twitch trước khi khởi chạy Plugin.", "red")
+                self._safe_log("⚠️ Cần đăng nhập tài khoản Twitch trước khi khởi chạy Plugin.", "red")
                 return False
 
             self.is_running = True
@@ -340,7 +348,7 @@ class TwitchDropsService:
             self._thread = threading.Thread(target=self._worker_loop, daemon=True)
             self._thread.start()
 
-        self.log_callback("✔ Plugin Twitch Drops Miner đã kích hoạt chạy ngầm.", "success")
+        self._safe_log("✔ Plugin Twitch Drops Miner đã kích hoạt chạy ngầm.", "success")
         return True
 
     def stop(self):
@@ -348,9 +356,10 @@ class TwitchDropsService:
             if not self.is_running:
                 return True
             self.is_running = False
+            self.active_status_text = ""
             self._stop_event.set()
 
-        self.log_callback("Đã dừng Plugin Twitch Drops Miner.", "blue")
+        self._safe_log("Đã dừng Plugin Twitch Drops Miner.", "blue")
         return True
 
     def get_status(self):
@@ -378,6 +387,7 @@ class TwitchDropsService:
                 "userId": self.user_id,
                 "currentChannel": dict(self.current_channel) if self.current_channel else None,
                 "minutesMined": self.minutes_mined,
+                "activeStatusText": getattr(self, "active_status_text", ""),
                 "lastChecked": self.last_checked,
                 "campaigns": list(self.latest_campaigns),
                 "claimHistory": list(self.claim_history[:15]),
@@ -622,6 +632,7 @@ class TwitchDropsService:
         b64_raw = base64.b64encode(raw_json.encode("utf-8")).decode("utf-8")
 
         tick_ok = False
+        client_id_to_use = self.client_id or TWITCH_WEB_CLIENT_ID
 
         # Dispatch 1: Modern GQL sendSpadeEvents mutation (Twitch Web / Mobile)
         try:
@@ -640,7 +651,7 @@ class TwitchDropsService:
                 GQL_ENDPOINT,
                 data=json.dumps(gql_body).encode("utf-8"),
                 headers={
-                    "Client-Id": TWITCH_WEB_CLIENT_ID,
+                    "Client-Id": client_id_to_use,
                     "Authorization": f"OAuth {self.auth_token}",
                     "Content-Type": "application/json",
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
@@ -654,7 +665,7 @@ class TwitchDropsService:
                     if code in (200, 204):
                         tick_ok = True
         except Exception as e:
-            print(f"[TwitchDrops] GQL sendSpadeEvents error: {e}")
+            pass
 
         # Dispatch 2: Standard Spade Track endpoint (DevilXD fallback)
         try:
@@ -664,7 +675,7 @@ class TwitchDropsService:
                 "Content-Type": "application/x-www-form-urlencoded",
                 "Origin": "https://www.twitch.tv",
                 "Referer": f"https://www.twitch.tv/{streamer_login}",
-                "Client-Id": TWITCH_WEB_CLIENT_ID,
+                "Client-Id": client_id_to_use,
                 "Authorization": f"OAuth {self.auth_token}"
             }
             req_spade = urllib.request.Request(SPADE_ENDPOINT, data=payload_spade, headers=headers_spade, method="POST")
@@ -672,80 +683,90 @@ class TwitchDropsService:
                 if resp.status in (200, 204):
                     tick_ok = True
         except Exception as e:
-            print(f"[TwitchDrops] Spade tick error: {e}")
+            pass
 
         return tick_ok
 
     def _worker_loop(self):
-        # Initial inventory query & ensure user_id
-        self._check_external_config_update()
-        if not self.user_id:
-            self.validate_token()
-        self._query_inventory()
-
-        tick_counter = 0
+        try:
+            # Initial inventory query & ensure user_id
+            self._check_external_config_update()
+            if not self.user_id:
+                self.validate_token()
+            self._query_inventory()
+        except Exception:
+            pass
 
         while not self._stop_event.is_set():
-            self._check_external_config_update()
-            # 1. Ensure target stream is active
-            if not self.current_channel:
-                stream = self._find_target_stream("aion-2")
-                if stream:
+            try:
+                self._check_external_config_update()
+                if not self.user_id:
+                    self.validate_token()
+
+                # 1. Ensure target stream is active
+                if not self.current_channel:
+                    stream = self._find_target_stream("aion-2")
+                    if stream:
+                        with self._lock:
+                            self.current_channel = stream
+                        viewers_cnt = stream.get("viewers", 0)
+                        self._safe_log(
+                            f"📺 Đang tự động xem ngầm: [{stream['displayName']}] (AION 2 - {viewers_cnt:,} viewers)",
+                            "success"
+                        )
+                    else:
+                        self.active_status_text = "Chưa tìm thấy kênh AION 2 trực tiếp. Đang thử lại..."
+                        self._safe_log("⚠️ Chưa tìm thấy kênh phát AION 2 trực tiếp. Đang thử lại sau 30s...", "red")
+                        for _ in range(30):
+                            if self._stop_event.is_set():
+                                return
+                            time.sleep(1)
+                        continue
+
+                # 2. Send 1 minute watch tick
+                succeeded = self._send_watch_tick(self.current_channel)
+                if succeeded:
                     with self._lock:
-                        self.current_channel = stream
-                    self.log_callback(
-                        f"📺 Đang tự động xem ngầm: [{stream['displayName']}] (AION 2 - {stream['viewers']:,} viewers)",
-                        "success"
-                    )
-                else:
-                    self.log_callback("⚠️ Chưa tìm thấy kênh phát AION 2 trực tiếp. Đang thử lại sau 30s...", "red")
-                    for _ in range(30):
-                        if self._stop_event.is_set():
-                            return
-                        time.sleep(1)
-                    continue
+                        self.minutes_mined += 1
 
-            # 2. Send 1 minute watch tick
-            succeeded = self._send_watch_tick(self.current_channel)
-            if succeeded:
-                with self._lock:
-                    self.minutes_mined += 1
-                tick_counter += 1
+                    # Query inventory every tick so UI and user get instant +1 min updates
+                    self._query_inventory()
 
-                # Query inventory every tick so UI and user get instant +1 min updates
-                self._query_inventory()
-
-                # Find active drop in progress
-                active_drop = None
-                for c in self.latest_campaigns:
-                    for d in c.get("timeBasedDrops", []):
-                        if not d.get("isClaimed") and d.get("currentMinutesWatched", 0) < d.get("requiredMinutesWatched", 1):
-                            active_drop = d
+                    # Find active drop in progress
+                    active_drop = None
+                    for c in self.latest_campaigns:
+                        for d in c.get("timeBasedDrops", []):
+                            if not d.get("isClaimed") and d.get("currentMinutesWatched", 0) < d.get("requiredMinutesWatched", 1):
+                                active_drop = d
+                                break
+                        if active_drop:
                             break
-                    if active_drop:
-                        break
 
-                ch_name = self.current_channel["displayName"]
-                if active_drop:
-                    cur = active_drop["currentMinutesWatched"]
-                    req = active_drop["requiredMinutesWatched"]
-                    pct = min(100, round((cur / req) * 100))
-                    self.log_callback(
-                        f"⏱️ Đang cày ngầm [{ch_name}]: {active_drop['name']} ({cur}/{req}m - {pct}%)",
-                        "blue"
-                    )
+                    ch_name = self.current_channel["displayName"]
+                    if active_drop:
+                        cur = active_drop["currentMinutesWatched"]
+                        req = active_drop["requiredMinutesWatched"]
+                        pct = min(100, round((cur / req) * 100))
+                        self.active_status_text = f"Đang cày: {active_drop['name']} ({cur}/{req}m - {pct}%)"
+                        self._safe_log(
+                            f"⏱️ Đang cày ngầm [{ch_name}]: {active_drop['name']} ({cur}/{req}m - {pct}%)",
+                            "blue"
+                        )
+                    else:
+                        self.active_status_text = f"Đang xem [{ch_name}] (+{self.minutes_mined}m)"
+                        self._safe_log(f"⏱️ Đang cày ngầm [{ch_name}]... Đã tích lũy +{self.minutes_mined}m phiên này.", "blue")
                 else:
-                    self.log_callback(f"⏱️ Đang cày ngầm [{ch_name}]... Đã tích lũy +{self.minutes_mined}m phiên này.", "blue")
-            else:
-                print(f"[TwitchDrops] Watch tick failed, checking stream availability...")
-                new_stream = self._find_target_stream("aion-2")
-                if new_stream and new_stream.get("login") != self.current_channel.get("login"):
-                    with self._lock:
-                        self.current_channel = new_stream
-                    self.log_callback(
-                        f"🔄 Chuyển sang kênh phát sóng tiếp theo: [{new_stream['displayName']}]",
-                        "blue"
-                    )
+                    self._safe_log("Đang làm mới thông tin kênh phát...", "blue")
+                    new_stream = self._find_target_stream("aion-2")
+                    if new_stream:
+                        with self._lock:
+                            self.current_channel = new_stream
+                        self._safe_log(
+                            f"🔄 Chuyển sang kênh phát sóng tiếp theo: [{new_stream['displayName']}]",
+                            "blue"
+                        )
+            except Exception:
+                pass
 
             # 3. Wait ~59s before next minute tick (DevilXD WATCH_INTERVAL)
             for _ in range(59):
@@ -755,3 +776,4 @@ class TwitchDropsService:
 
         with self._lock:
             self.current_channel = None
+            self.active_status_text = ""

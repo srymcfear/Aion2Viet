@@ -509,19 +509,34 @@ def sync_twitch_drops_plugin():
             should_sync = True
         else:
             try:
-                if os.path.getmtime(src_exe) > os.path.getmtime(target_exe):
+                if os.path.getsize(src_exe) != os.path.getsize(target_exe) or os.path.getmtime(src_exe) > os.path.getmtime(target_exe):
                     should_sync = True
             except Exception:
                 pass
 
         if should_sync:
             try:
+                # Terminate any running plugin instance before copying
+                try:
+                    import subprocess
+                    subprocess.run(["taskkill", "/F", "/IM", "TwitchDropsMiner.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=2)
+                    time.sleep(0.3)
+                except Exception:
+                    pass
+
                 for item in os.listdir(source_dir):
                     s = os.path.join(source_dir, item)
                     d = os.path.join(target_plugin_dir, item)
                     if os.path.isfile(s):
-                        if not os.path.isfile(d) or os.path.getmtime(s) > os.path.getmtime(d):
+                        try:
                             shutil.copy2(s, d)
+                        except Exception:
+                            try:
+                                old_tmp = d + f".old_{int(time.time())}"
+                                os.rename(d, old_tmp)
+                                shutil.copy2(s, d)
+                            except Exception:
+                                pass
             except Exception as e:
                 print(f"[WARN] Error deploying Twitch Drops plugin: {e}")
 
