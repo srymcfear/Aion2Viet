@@ -9,6 +9,7 @@ import os
 import json
 import time
 import base64
+import gzip
 import datetime
 import threading
 import urllib.request
@@ -38,6 +39,7 @@ class TwitchDropsService:
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread = None
+        self._last_config_mtime = 0
 
         self.auth_token = ""
         self.auto_claim = True
@@ -75,6 +77,7 @@ class TwitchDropsService:
     def _load_config(self):
         try:
             if os.path.isfile(self.config_file):
+                self._last_config_mtime = os.path.getmtime(self.config_file)
                 with open(self.config_file, "r", encoding="utf-8") as f:
                     content = f.read().strip()
                     if content:
@@ -85,6 +88,19 @@ class TwitchDropsService:
                         self.account_name = data.get("account_name", "")
                         self.user_id = data.get("user_id", "")
                         self.claim_history = data.get("claim_history", [])[:30]
+        except Exception:
+            pass
+
+    def _check_external_config_update(self):
+        """Checks if config file was modified externally (e.g. by login window) and reloads it."""
+        try:
+            if os.path.isfile(self.config_file):
+                mtime = os.path.getmtime(self.config_file)
+                if self._last_config_mtime != mtime:
+                    self._last_config_mtime = mtime
+                    self._load_config()
+                    if self.auth_token and not self.user_id:
+                        threading.Thread(target=self._validate_and_refresh, daemon=True).start()
         except Exception:
             pass
 
@@ -338,6 +354,7 @@ class TwitchDropsService:
         return True
 
     def get_status(self):
+        self._check_external_config_update()
         with self._lock:
             # Auto-trigger inventory query if token exists but campaigns list is empty
             if self.auth_token and not self.latest_campaigns and not getattr(self, "_querying_inv", False):
@@ -549,7 +566,10 @@ class TwitchDropsService:
         res = self._make_gql_request(query)
         if not res:
             return None
-        streams = res.get("data", {}).get("game", {}).get("streams", {}).get("edges", [])
+        game_data = res.get("data", {}).get("game", {})
+        game_id = str(game_data.get("id") or "771448419")
+        game_name = str(game_data.get("name") or "AION 2")
+        streams = game_data.get("streams", {}).get("edges", [])
         if not streams:
             return None
         top = streams[0].get("node", {})
@@ -560,7 +580,9 @@ class TwitchDropsService:
             "channelId": str(broadcaster.get("id")),
             "broadcastId": str(top.get("id")),
             "viewers": top.get("viewersCount", 0),
-            "title": top.get("title", "")
+            "title": top.get("title", ""),
+            "gameId": game_id,
+            "gameName": game_name
         }
 
     def _send_watch_tick(self, stream_info: dict) -> bool:
@@ -571,8 +593,8 @@ class TwitchDropsService:
         streamer_login = stream_info["login"]
         broadcast_id = stream_info["broadcastId"]
         channel_id = stream_info["channelId"]
-        game_name = "AION 2"
-        game_id = "771448419"
+        game_name = stream_info.get("gameName") or "AION 2"
+        game_id = stream_info.get("gameId") or "771448419"
 
         watch_event = [
             {
@@ -582,7 +604,7 @@ class TwitchDropsService:
                     "channel_id": str(channel_id),
                     "channel": str(streamer_login),
                     "client_time": now_iso,
-                    "game": game_name,
+                    "game": str(game_name),
                     "game_id": str(game_id),
                     "hidden": False,
                     "is_live": True,
@@ -595,29 +617,68 @@ class TwitchDropsService:
             }
         ]
 
-        json_str = json.dumps(watch_event, separators=(',', ':'))
-        b64_data = base64.b64encode(json_str.encode("utf-8")).decode("utf-8")
-        payload = urllib.parse.urlencode({"data": b64_data}).encode("utf-8")
+        raw_json = json.dumps(watch_event, separators=(',', ':'))
+        gz_b64 = base64.b64encode(gzip.compress(raw_json.encode("utf-8"))).decode("utf-8")
+        b64_raw = base64.b64encode(raw_json.encode("utf-8")).decode("utf-8")
 
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": "https://www.twitch.tv",
-            "Referer": f"https://www.twitch.tv/{streamer_login}",
-            "Client-Id": TWITCH_WEB_CLIENT_ID,
-            "Authorization": f"OAuth {self.auth_token}"
-        }
+        tick_ok = False
 
+        # Dispatch 1: Modern GQL sendSpadeEvents mutation (Twitch Web / Mobile)
         try:
-            req = urllib.request.Request(SPADE_ENDPOINT, data=payload, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                return resp.status in (200, 204)
+            gql_body = {
+                "operationName": "SendEvents",
+                "query": "mutation SendEvents($input: SendSpadeEventsInput!) {\n  sendSpadeEvents(input: $input) {\n    statusCode\n  }\n}",
+                "variables": {
+                    "input": {
+                        "data": gz_b64,
+                        "repository": "twilight",
+                        "encoding": "GZIP_B64"
+                    }
+                }
+            }
+            req_gql = urllib.request.Request(
+                GQL_ENDPOINT,
+                data=json.dumps(gql_body).encode("utf-8"),
+                headers={
+                    "Client-Id": TWITCH_WEB_CLIENT_ID,
+                    "Authorization": f"OAuth {self.auth_token}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+                },
+                method="POST"
+            )
+            with urllib.request.urlopen(req_gql, timeout=10) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    code = data.get("data", {}).get("sendSpadeEvents", {}).get("statusCode")
+                    if code in (200, 204):
+                        tick_ok = True
+        except Exception as e:
+            print(f"[TwitchDrops] GQL sendSpadeEvents error: {e}")
+
+        # Dispatch 2: Standard Spade Track endpoint (DevilXD fallback)
+        try:
+            payload_spade = urllib.parse.urlencode({"data": b64_raw}).encode("utf-8")
+            headers_spade = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Origin": "https://www.twitch.tv",
+                "Referer": f"https://www.twitch.tv/{streamer_login}",
+                "Client-Id": TWITCH_WEB_CLIENT_ID,
+                "Authorization": f"OAuth {self.auth_token}"
+            }
+            req_spade = urllib.request.Request(SPADE_ENDPOINT, data=payload_spade, headers=headers_spade, method="POST")
+            with urllib.request.urlopen(req_spade, timeout=10) as resp:
+                if resp.status in (200, 204):
+                    tick_ok = True
         except Exception as e:
             print(f"[TwitchDrops] Spade tick error: {e}")
-            return False
+
+        return tick_ok
 
     def _worker_loop(self):
         # Initial inventory query & ensure user_id
+        self._check_external_config_update()
         if not self.user_id:
             self.validate_token()
         self._query_inventory()
@@ -625,6 +686,7 @@ class TwitchDropsService:
         tick_counter = 0
 
         while not self._stop_event.is_set():
+            self._check_external_config_update()
             # 1. Ensure target stream is active
             if not self.current_channel:
                 stream = self._find_target_stream("aion-2")
@@ -685,7 +747,7 @@ class TwitchDropsService:
                         "blue"
                     )
 
-            # 3. Wait ~59s before next minute tick
+            # 3. Wait ~59s before next minute tick (DevilXD WATCH_INTERVAL)
             for _ in range(59):
                 if self._stop_event.is_set():
                     break

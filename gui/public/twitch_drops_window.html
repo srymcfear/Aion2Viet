@@ -529,9 +529,20 @@
       const hint = document.getElementById('webLoginHint');
       if (hint) hint.style.display = 'block';
       api.open_twitch_web_login().then(() => {
-        // Poll status closely
-        for (let i = 1; i <= 30; i++) {
-          setTimeout(fetchStatus, i * 2000);
+        // Poll status closely and auto-sync session
+        for (let i = 1; i <= 60; i++) {
+          setTimeout(() => {
+            if (api.sync_twitch_session) {
+              api.sync_twitch_session().then(res => {
+                if (res && res.success) {
+                  if (hint) hint.style.display = 'none';
+                  fetchStatus();
+                }
+              }).catch(() => fetchStatus());
+            } else {
+              fetchStatus();
+            }
+          }, i * 2000);
         }
       }).catch(console.warn);
     }

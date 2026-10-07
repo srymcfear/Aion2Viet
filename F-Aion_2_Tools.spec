@@ -27,6 +27,9 @@ a = Analysis(
         'urllib.request',
         'urllib.error',
         'hashlib',
+        'gzip',
+        'base64',
+        're',
         'twitch_drops_service'
     ],
     hookspath=[],

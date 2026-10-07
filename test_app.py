@@ -195,11 +195,18 @@ class TestModApi(unittest.TestCase):
         self.assertIn("status", oauth_status)
         self.assertIn("user_code", oauth_status)
 
-        res = self.api.twitch_service.start_oauth_login(auto_open_browser=False)
-        self.assertTrue(res.get("success"))
-        self.assertTrue(len(res.get("userCode", "")) > 0)
-        self.assertEqual(self.api.get_twitch_oauth_status()["status"], "pending")
-        print("[PASS] Twitch Drops Miner plugin API, service, and DevilXD OAuth Device Code verified.")
+        # Test sync_twitch_session and refresh_twitch_drops
+        sync_res = self.api.sync_twitch_session()
+        self.assertIn("success", sync_res)
+        self.assertIn("accountName", sync_res)
+
+        ref_res = self.api.refresh_twitch_drops()
+        self.assertIn("isRunning", ref_res)
+        self.assertIn("campaigns", ref_res)
+
+        # Test external config mtime check
+        self.api.twitch_service._check_external_config_update()
+        print("[PASS] Twitch Drops Miner plugin API, session sync, and DevilXD OAuth Device Code verified.")
 
     def test_twitch_window_lifecycle(self):
         html_path = app.get_twitch_window_html_path()

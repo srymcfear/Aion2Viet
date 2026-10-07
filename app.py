@@ -1144,6 +1144,38 @@ exit
         except Exception:
             return False
 
+    def open_twitch_web_login(self):
+        try:
+            twitch_exe = get_twitch_drops_executable()
+            if not twitch_exe or not os.path.isfile(twitch_exe):
+                return {"success": False, "error": "TwitchDropsMiner.exe not found"}
+            import subprocess
+            subprocess.Popen([twitch_exe, "--fear-launcher", SECURITY_KEY_HASH, "--login"], cwd=os.path.dirname(twitch_exe))
+            return {"success": True}
+        except Exception as e:
+            self.log(f"Lỗi mở cửa sổ đăng nhập Twitch: {e}", "red")
+            return {"success": False, "error": str(e)}
+
+    def sync_twitch_session(self):
+        try:
+            self.twitch_service._last_config_mtime = 0
+            self.twitch_service._load_config()
+            self.twitch_service.validate_token()
+            if self.twitch_service.auth_token:
+                self.twitch_service._query_inventory()
+            return {"success": bool(self.twitch_service.auth_token), "accountName": self.twitch_service.account_name}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def refresh_twitch_drops(self):
+        try:
+            if not self.twitch_service.user_id:
+                self.twitch_service.validate_token()
+            self.twitch_service._query_inventory()
+            return self.twitch_service.get_status()
+        except Exception as e:
+            return {"error": str(e)}
+
     def start_dps_daemon(self):
         global _dps_process
         if _dps_process and _dps_process.poll() is None:

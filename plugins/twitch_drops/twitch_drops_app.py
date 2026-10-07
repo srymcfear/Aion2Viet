@@ -5,6 +5,7 @@ Decoupled Native GUI Architecture with Security Lock
 """
 import os
 import sys
+import re
 import json
 import time
 import ctypes
@@ -175,7 +176,14 @@ class TwitchPluginApi:
         try:
             exe_path = sys.executable
             if getattr(sys, 'frozen', False):
-                args = [exe_path, "--fear-launcher", SECURITY_KEY_HASH, "--login"]
+                # If running inside main tool or standalone
+                if "TwitchDropsMiner" in os.path.basename(exe_path):
+                    args = [exe_path, "--fear-launcher", SECURITY_KEY_HASH, "--login"]
+                else:
+                    plugin_exe = os.path.join(r"C:\ProgramData\FEAR\Aion2_Tools\plugins\twitch_drops", "TwitchDropsMiner.exe")
+                    if not os.path.isfile(plugin_exe):
+                        plugin_exe = os.path.join(os.path.dirname(exe_path), "plugins", "twitch_drops", "TwitchDropsMiner.exe")
+                    args = [plugin_exe, "--fear-launcher", SECURITY_KEY_HASH, "--login"]
             else:
                 script_path = os.path.abspath(__file__)
                 args = [sys.executable, script_path, "--fear-launcher", SECURITY_KEY_HASH, "--login"]
@@ -275,48 +283,61 @@ def run_twitch_login_window():
         for i in range(360):  # Đợi tối đa 6 phút
             time.sleep(1.5)
             try:
-                curr_url = ""
+                token = None
+
+                # Method 1: Check win.get_cookies() Cookie objects or dicts
                 try:
-                    curr_url = win.get_current_url() or ""
-                except Exception:
-                    pass
-
-                # Khi người dùng đã đăng nhập, URL sẽ chuyển về trang chủ hoặc channel (không còn login)
-                is_logged_in_url = "twitch.tv" in curr_url and "/login" not in curr_url and "passport.twitch.tv" not in curr_url
-
-                if is_logged_in_url or i % 3 == 0:
-                    cookies = win.get_cookies()
-                    token = None
+                    cookies = win.get_cookies() or []
                     for c in cookies:
+                        name = getattr(c, 'name', None) or (c.get('name') if isinstance(c, dict) else None)
+                        val = getattr(c, 'value', None) or (c.get('value') if isinstance(c, dict) else None)
+                        if name == 'auth-token' and val:
+                            m = re.search(r'([a-zA-Z0-9_-]{20,})', str(val).strip())
+                            if m:
+                                token = m.group(1)
+                                break
+
                         s = str(c)
                         if "auth-token=" in s:
-                            for part in s.split(";"):
-                                part = part.strip()
-                                if "auth-token=" in part:
-                                    token = part.split("auth-token=")[-1].strip()
-                                    break
-                        if token:
-                            break
+                            m = re.search(r'auth-token=([a-zA-Z0-9_-]{20,})', s)
+                            if m:
+                                token = m.group(1)
+                                break
+                except Exception as e:
+                    pass
 
-                    if token and len(token) > 10:
-                        print(f"[TwitchLogin] Nhận diện thành công auth-token! Độ dài: {len(token)}")
+                # Method 2: Fallback to document.cookie in WebView
+                if not token:
+                    try:
+                        raw_cookie = win.evaluate_js("document.cookie") or ""
+                        m = re.search(r'auth-token=([a-zA-Z0-9_-]{20,})', raw_cookie)
+                        if m:
+                            token = m.group(1)
+                    except Exception:
+                        pass
+
+                if token and len(token) >= 20:
+                    print(f"[TwitchLogin] Nhận diện auth-token ({token[:6]}...), đang kiểm tra tính hợp lệ...")
+                    with service._lock:
+                        service.auth_token = token
+                        service.client_id = "kimne78kx3ncx6brgo4mv6wki5h1ko"
+
+                    val_res = service.validate_token()
+                    if val_res:
                         with service._lock:
-                            service.auth_token = token
-                            service.client_id = "kimne78kx3ncx6brgo4mv6wki5h1ko"
                             service.oauth_state["status"] = "idle"
                             service.oauth_state["user_code"] = ""
                             service.oauth_state["error_message"] = ""
                             service._save_config()
-                        try:
-                            service.validate_token()
-                        except Exception:
-                            pass
+                        print(f"[TwitchLogin] Xác thực thành công cho user: {service.account_name} ({service.user_id})")
                         time.sleep(0.5)
                         try:
                             win.destroy()
                         except Exception:
                             pass
                         return
+                    else:
+                        print("[TwitchLogin] Token chưa hoàn tất xác thực trên Twitch, tiếp tục đợi...")
             except Exception as e:
                 pass
         # Timeout
