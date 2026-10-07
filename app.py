@@ -21,6 +21,7 @@ import webview
 import ctypes
 from ctypes import wintypes
 from twitch_drops_service import TwitchDropsService
+from auto_updater import AutoUpdater
 
 def apply_dark_titlebar(win):
     """
@@ -634,57 +635,29 @@ class ModApi:
             self.security_info["isChecking"] = True
 
         try:
-            req = urllib.request.Request(
-                API_RELEASE_URL,
-                headers={"User-Agent": f"F-Aion-2-Tools/{CURRENT_VERSION}"}
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                if resp.status == 200:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    tag = str(data.get("tag_name", "")).strip()
-                    body = str(data.get("body", ""))
-                    html_url = data.get("html_url", RELEASE_URL)
-                    
-                    sec_status, sec_msg, req_ver = parse_release_security(body)
-                    
-                    download_url = None
-                    for asset in data.get("assets", []):
-                        if asset.get("name", "").lower().endswith(".exe"):
-                            download_url = asset.get("browser_download_url")
-                            break
-                    
-                    # Prioritize fearAion2Tran-ver if present in release notes, otherwise tag name
-                    remote_ver = req_ver or tag.lstrip("v")
-                    has_upd = is_newer_version(remote_ver, CURRENT_VERSION)
-                    
-                    with self._lock:
-                        self.security_info["status"] = sec_status
-                        self.security_info["message"] = sec_msg
-                        self.security_info["latestVersion"] = remote_ver or CURRENT_VERSION
-                        self.security_info["hasUpdate"] = has_upd
-                        self.security_info["requiredVer"] = req_ver
-                        self.security_info["releaseUrl"] = html_url
-                        self.security_info["downloadUrl"] = download_url
-                        self.security_info["changelog"] = body
-                        self.security_info["lastChecked"] = time.strftime("%H:%M:%S")
-                        self.security_info["isChecking"] = False
+            updater = AutoUpdater(CURRENT_VERSION, DEFAULT_GITHUB_REPO)
+            info = updater.fetch_release_info()
 
-                    if has_upd:
-                        self.log(f"🔔 YÊU CẦU CẬP NHẬT: Đã có phiên bản v{remote_ver} (Hiện tại: v{CURRENT_VERSION}). Vui lòng cập nhật phần mềm!", "blue")
-                    else:
-                        self.log("✔ Đang sử dụng phiên bản mới nhất.", "success")
-                    return
-        except urllib.error.HTTPError as e:
             with self._lock:
-                if e.code == 404:
-                    self.security_info["message"] = "Trạng thái: Hoạt động (Chưa phát hành bản mới trên GitHub)"
-                else:
-                    self.security_info["message"] = f"Phản hồi từ máy chủ: HTTP {e.code}"
+                self.security_info["status"] = info.get("security_status", "active")
+                self.security_info["message"] = info.get("security_message", "Hệ thống hoạt động bình thường")
+                self.security_info["latestVersion"] = info.get("latest_version", CURRENT_VERSION)
+                self.security_info["hasUpdate"] = info.get("has_update", False)
+                self.security_info["releaseUrl"] = info.get("release_url", RELEASE_URL)
+                self.security_info["downloadUrl"] = info.get("exe_asset", {}).get("url") if info.get("exe_asset") else None
+                self.security_info["zipUrl"] = info.get("zip_asset", {}).get("url") if info.get("zip_asset") else None
+                self.security_info["changelog"] = info.get("release_notes", "")
                 self.security_info["lastChecked"] = time.strftime("%H:%M:%S")
                 self.security_info["isChecking"] = False
-        except Exception:
+
+            if info.get("has_update"):
+                self.log(f"🔔 ĐÃ CÓ PHIÊN BẢN MỚI: v{info['latest_version']} (Hiện tại: v{CURRENT_VERSION}). Bấm 'Tự động tải cập nhật' để nâng cấp!", "blue")
+            else:
+                self.log("✔ Bạn đang sử dụng phiên bản mới nhất.", "success")
+
+        except Exception as e:
             with self._lock:
-                self.security_info["message"] = "Trạng thái: Hoạt động (Chế độ ngoại tuyến)"
+                self.security_info["message"] = f"Lỗi kiểm tra cập nhật: {e}"
                 self.security_info["lastChecked"] = time.strftime("%H:%M:%S")
                 self.security_info["isChecking"] = False
 
@@ -706,115 +679,100 @@ class ModApi:
         return True
 
     def download_update(self):
-        download_url = self.security_info.get("downloadUrl")
-        if not download_url:
-            return self.open_release_url()
-
         with self._lock:
             if self.state["isBusy"]:
                 return False
             self.state["isBusy"] = True
 
-        def _down():
+        def _update_worker():
+            updater = AutoUpdater(CURRENT_VERSION, DEFAULT_GITHUB_REPO)
             try:
-                self.log("Bắt đầu tải bản cập nhật...", "blue")
-                self.update_progress(5, "Đang kết nối máy chủ tải về...")
-                req = urllib.request.Request(
-                    download_url,
-                    headers={"User-Agent": f"F-Aion-2-Tools/{CURRENT_VERSION}"}
-                )
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    total_size = int(resp.headers.get("content-length", 0))
-                    downloaded = 0
-                    updates_dir = get_updates_dir()
-                    new_file_name = f"F-Aion_2_Tools_v{self.security_info['latestVersion']}.exe"
-                    dest_path = os.path.join(updates_dir, new_file_name)
+                self.log(">>> BẮT ĐẦU QUÁ TRÌNH TỰ ĐỘNG CẬP NHẬT...", "blue")
+                self.update_progress(5, "[1/3] Đang kết nối máy chủ GitHub...")
 
-                    with open(dest_path, "wb") as f:
-                        while True:
-                            chunk = resp.read(64 * 1024)
-                            if not chunk:
-                                break
-                            f.write(chunk)
-                            downloaded += len(chunk)
-                            if total_size > 0:
-                                pct = int((downloaded / total_size) * 90) + 5
-                                self.update_progress(pct, f"Đang tải: {downloaded // 1024} KB / {total_size // 1024} KB ({pct}%)")
+                info = updater.fetch_release_info()
+                if info.get("error"):
+                    self.log(f"Lỗi kết nối máy chủ: {info['error']}", "red")
+                    self.open_release_url()
+                    return
 
-                self.update_progress(98, "Đang chuẩn bị tự động cài đặt...")
-                self.log(f"✔ Đã tải xong bản mới: v{self.security_info['latestVersion']}", "success")
+                exe_asset = info.get("exe_asset")
+                zip_asset = info.get("zip_asset")
 
-                # In-place auto update: Replace current running .exe at user's location
-                if getattr(sys, "frozen", False):
+                # Strategy 1: Running as compiled EXE (Frozen) -> Self-replacing binary update
+                if getattr(sys, "frozen", False) and exe_asset:
+                    download_url = exe_asset["url"]
+                    file_name = exe_asset["name"]
                     target_exe = os.path.abspath(sys.executable)
-                    self.log(f"Tự động cập nhật vào vị trí hiện tại: {target_exe}", "blue")
+                    temp_exe = os.path.join(tempfile.gettempdir(), f"F-Aion_2_Tools_v{info['latest_version']}.exe")
 
-                    old_bak = target_exe + ".bak"
-                    try:
-                        if os.path.isfile(old_bak):
-                            os.remove(old_bak)
-                        os.rename(target_exe, old_bak)
-                        shutil.copy2(dest_path, target_exe)
-                    except Exception:
-                        pass
+                    self.log(f"Đang tải bản Launcher mới: {file_name} ({exe_asset.get('size', 0) // (1024*1024)} MB)...", "blue")
 
-                    updater_bat = os.path.join(tempfile.gettempdir(), f"fear_updater_{os.getpid()}.bat")
-                    bat_content = f"""@echo off
-chcp 65001 >nul
-setlocal
-set "TARGET={target_exe}"
-set "SOURCE={dest_path}"
-set "BAK={old_bak}"
+                    def _on_prog(pct, speed_msg):
+                        self.update_progress(pct, f"[2/3] Đang tải bản mới: {speed_msg}")
 
-timeout /t 1 /nobreak >nul
-for /l %%i in (1,1,20) do (
-    if exist "%BAK%" del /f /q "%BAK%" >nul 2>&1
-    del /f /q "%TARGET%" >nul 2>&1
-    if not exist "%TARGET%" goto :copy_new
-    timeout /t 1 /nobreak >nul
-)
+                    updater.download_asset(download_url, temp_exe, progress_cb=_on_prog)
 
-:copy_new
-copy /y "%SOURCE%" "%TARGET%" >nul 2>&1
-if exist "%TARGET%" (
-    start "" "%TARGET%"
-)
-if exist "%BAK%" del /f /q "%BAK%" >nul 2>&1
-del "%~f0" >nul 2>&1
-exit
-"""
-                    try:
-                        with open(updater_bat, "w", encoding="utf-8", errors="ignore") as bf:
-                            bf.write(bat_content)
-                    except Exception:
-                        pass
-
-                    self.update_progress(100, "Cập nhật thành công! Đang khởi động lại...")
-                    self.log("Khởi động lại phần mềm phiên bản mới...", "success")
+                    self.update_progress(99, "[3/3] Đang thay thế file và khởi động lại...")
+                    self.log("✔ Tải hoàn tất! Đang khởi động lại phần mềm...", "success")
                     time.sleep(1)
 
-                    import subprocess
-                    subprocess.Popen(
-                        ["cmd.exe", "/c", updater_bat],
-                        creationflags=0x08000000 | 0x00000200,
-                        close_fds=True
+                    updater.apply_exe_update_and_restart(temp_exe, target_exe, log_cb=self.log)
+                    return
+
+                # Strategy 2: OTA Data Patcher (Dev mode OR updating translation zip)
+                if zip_asset:
+                    download_url = zip_asset["url"]
+                    file_name = zip_asset["name"]
+                    temp_zip = os.path.join(tempfile.gettempdir(), f"AION2_Update_v{info['latest_version']}.zip")
+
+                    self.log(f"Đang tải gói dữ liệu cập nhật: {file_name}...", "blue")
+
+                    def _on_prog(pct, speed_msg):
+                        self.update_progress(pct, f"[2/3] Đang tải gói Việt hóa: {speed_msg}")
+
+                    updater.download_asset(download_url, temp_zip, progress_cb=_on_prog)
+
+                    self.update_progress(95, "[3/3] Đang giải nén và cập nhật dữ liệu...")
+                    local_data = get_data_dir()
+                    target_game = self.state.get("gameDir")
+
+                    success = updater.apply_data_update(
+                        temp_zip,
+                        target_game_dir=target_game,
+                        local_data_dir=local_data,
+                        log_cb=self.log
                     )
-                else:
+
+                    if success:
+                        self.update_progress(100, "Cập nhật dữ liệu thành công!")
+                        self.log(f"✔ Đã cập nhật xong dữ liệu bản dịch v{info['latest_version']}!", "success")
+                    else:
+                        self.update_progress(0, "Lỗi giải nén gói cập nhật")
+                    return
+
+                # Strategy 3: Only exe exists but running non-frozen
+                if exe_asset:
+                    download_url = exe_asset["url"]
+                    temp_exe = os.path.join(tempfile.gettempdir(), f"F-Aion_2_Tools_v{info['latest_version']}.exe")
+                    self.log(f"Đang tải bản Launcher mới: {exe_asset['name']}...", "blue")
+                    updater.download_asset(download_url, temp_exe)
                     self.update_progress(100, "Tải bản mới thành công!")
-                    self.log(f"Môi trường Dev: Khởi chạy file vừa tải tại {dest_path}", "blue")
-                    time.sleep(1)
-                    os.startfile(dest_path)
+                    self.log(f"✔ Đã tải bản mới về: {temp_exe}", "success")
+                    return
 
-                with self._lock:
-                    self.state["isBusy"] = False
-                self.close_window()
+                self.log("Không tìm thấy tệp cài đặt phù hợp trên GitHub Releases.", "red")
+                self.open_release_url()
+
             except Exception as e:
-                self.log(f"Lỗi tải cập nhật: {e}", "red")
-                self.update_progress(0, "Lỗi tải cập nhật")
+                self.log(f"Lỗi trong quá trình tự động cập nhật: {e}", "red")
+                self.update_progress(0, "Lỗi cập nhật")
+                self.open_release_url()
+            finally:
                 with self._lock:
                     self.state["isBusy"] = False
 
-        threading.Thread(target=_down, daemon=True).start()
+        threading.Thread(target=_update_worker, daemon=True).start()
         return True
 
     def show_window(self):

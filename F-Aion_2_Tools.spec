@@ -30,7 +30,9 @@ a = Analysis(
         'gzip',
         'base64',
         're',
-        'twitch_drops_service'
+        'twitch_drops_service',
+        'auto_updater',
+        'zipfile'
     ],
     hookspath=[],
     hooksconfig={},
