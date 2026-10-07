@@ -1,6 +1,6 @@
 # Những điều cần lưu ý (Project & Dev Guidelines)
 
-- **Tiến độ & Lộ trình Dự án:** Đọc chi tiết tại [PROJECT_ROADMAP.md](file:///h:/AION2_Code/trans/PROJECT_ROADMAP.md). File này lưu trữ toàn bộ kiến trúc, tiến độ đã hoàn thành qua các phiên bản (hiện tại v1.1.1), các đầu việc tiếp theo và hướng dẫn build/release.
+- **Tiến độ & Lộ trình Dự án:** Đọc chi tiết tại [PROJECT_ROADMAP.md](file:///h:/AION2_Code/trans/PROJECT_ROADMAP.md). File này lưu trữ toàn bộ kiến trúc, tiến độ đã hoàn thành qua các phiên bản (hiện tại v1.1.2), các đầu việc tiếp theo và hướng dẫn build/release.
 - Sau khi hoàn thành mỗi thay đổi, đều bắt buộc phải tạo một Git commit tương ứng để tiện cho việc theo dõi và khôi phục (rollback) sau này.
 - Sau mỗi thay đổi, đều bắt buộc phải viết mới hoặc cập nhật các kiểm thử (test) liên quan, đồng thời đảm bảo toàn bộ kiểm thử và xác thực đều vượt qua trước khi bàn giao cho người dùng.
 - **Quy tắc dịch thuật AION 2:**

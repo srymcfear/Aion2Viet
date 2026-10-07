@@ -1,6 +1,6 @@
 # 🚀 AION 2 TOOLS & VIỆT HÓA - TIẾN ĐỘ & LỘ TRÌNH PHÁT TRIỂN (PROJECT ROADMAP)
 *Dự án phát triển bởi: **Team FEΔR / SrymC (BER)***  
-*Cập nhật lần cuối: Tháng 10/2026 (Phiên bản hiện tại: **v1.1.1**)*
+*Cập nhật lần cuối: Tháng 10/2026 (Phiên bản hiện tại: **v1.1.2**)*
 
 ---
 
@@ -58,12 +58,14 @@ graph TD
 - [x] **Hiển thị Real-time Live Progress:** Bổ sung dòng thông báo trạng thái trực tiếp ngay dưới streamer: `⚡ Đang cày: [Tên phần thưởng] (X/Ym - Z%) • +N MINS`.
 - [x] **Chống khóa file cài đặt Plugin:** Nâng cấp [app.py](file:///h:/AION2_Code/trans/app.py) tự động đóng tiến trình cũ trước khi cập nhật file vào `C:\ProgramData\FEAR\Aion2_Tools`.
 - [x] **Tự động hóa Release:** Hoàn thiện script build và tự động upload song song lên 2 repository: `srymcfear/DEV-Aion2Viet` và `srymcfear/Aion2Viet`.
-- [x] **Chuẩn hóa Thuật ngữ Bản dịch (L10N Terminology Polish):**
-  + Hệ phái: `Class` $\rightarrow$ `Hệ Phái`, `Ranger` $\rightarrow$ `Cung thủ`, `Chanter` $\rightarrow$ `Hộ Pháp`, `Cleric` $\rightarrow$ `Trị Liệu`.
-  + Thiết lập Game: Chuẩn hóa nhặt đồ, nhặt trang bị, bình thuốc, vật phẩm tiêu hao, đá năng lượng, khôi phục cài đặt.
-  + Tìm kiếm mục tiêu (Targeting): Chuẩn hóa mục tiêu đang khóa/bị đánh, người chơi địch, linh thú địch, quái nhiệm vụ, quái tinh anh/boss, NPC địch thông thường.
-  + Giao diện chiến đấu (HUD / Floater): Chuẩn hóa thông số nổi, chữ nổi chiến đấu, sát thương nhận vào, hồi máu bản thân, độ trong suốt cảnh báo, sau lưng.
-  + Cơ chế chiến đấu & Phòng ngự: Chuẩn hóa Túi đồ (`Cube`), Chặn đòn (`Block`), Xuyên Chặn đòn (`Block Penetration`), Chặn bằng khiên (`Shield Block`), Trói chân (`Root`), Sát thương Thanh Choáng (`Stagger Gauge Damage`).
+
+### ✅ Giai Đoạn 4: Phát Hành v1.1.2 - Đại Tu Thuật Ngữ & Chuẩn Hóa Bản Dịch
+- [x] **Hệ Phái & Lớp Nhân Vật:** Chuẩn hóa `Class` $\rightarrow$ `Hệ Phái`, `Ranger` $\rightarrow$ `Cung thủ`, `Chanter` $\rightarrow$ `Hộ Pháp`, `Cleric` $\rightarrow$ `Trị Liệu`.
+- [x] **Cài Đặt Game & Nhặt Đồ:** Chuẩn hóa toàn diện cài đặt loot/nhặt đồ, nhặt trang bị, phân loại phẩm chất (Thường/Hiếm), bình thuốc, vật phẩm tiêu hao, đá năng lượng.
+- [x] **Quét & Khóa Mục Tiêu:** Chuẩn hóa mục tiêu đang khóa/bị đánh, người chơi địch, linh thú địch, quái nhiệm vụ, NPC chủ động tấn công, quái tinh anh/boss, NPC địch thông thường.
+- [x] **HUD & Hiển Thị Chiến Đấu:** Chuẩn hóa thông số nổi, chữ nổi chiến đấu, sát thương nhận vào, hồi máu bản thân, độ trong suốt cảnh báo, góc nhìn Boss và hướng sau lưng.
+- [x] **Cơ Chế Chiến Đấu & Phòng Ngự:** Chuẩn hóa Túi đồ (`Cube`), Chặn đòn (`Block`), Xuyên Chặn đòn (`Block Penetration`), Chặn bằng khiên (`Shield Block`), Trói chân (`Root`), Sát thương Thanh Choáng (`Stagger Gauge Damage`), Hóa giải (`Dispel`).
+
 
 
 ---
