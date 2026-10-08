@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEΔR Cyberpunk Combat Meter</title>
+  <!-- Tailwind CSS & Fonts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-cyber: #06070d;
+      --cyan-neon: #00e5ff;
+      --magenta-neon: #ff007f;
+      --violet-neon: #8a2be2;
+    }
+
+    body {
+      background: rgba(6, 7, 13, 0.94);
+      color: #e2e8f0;
+      font-family: 'Rajdhani', sans-serif;
+      overflow-x: hidden;
+      user-select: none;
+      margin: 0;
+      padding: 0;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .font-hud { font-family: 'Orbitron', monospace; }
+    .font-mono-val { font-family: 'JetBrains Mono', monospace; }
+
+    /* Dragging regions for desktop app overlay */
+    .drag-region { -webkit-app-region: drag; }
+    .no-drag { -webkit-app-region: no-drag; }
+
+    /* Scanline Background Texture */
+    .scanline {
+      background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0, 229, 255, 0.03) 50%, rgba(0, 229, 255, 0.03));
+      background-size: 100% 4px;
+    }
+
+    /* Cyber Bevel Clips */
+    .cyber-clip {
+      clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+    }
+    .cyber-clip-header {
+      clip-path: polygon(0 0, 100% 0, calc(100% - 15px) 100%, 15px 100%);
+    }
+
+    /* Neon Borders & Glows (Strictly NO GREEN, NO YELLOW) */
+    .neon-cyan-glow {
+      box-shadow: 0 0 16px rgba(0, 229, 255, 0.25), inset 0 0 10px rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.55);
+    }
+    .neon-magenta-glow {
+      box-shadow: 0 0 16px rgba(255, 0, 127, 0.35), inset 0 0 10px rgba(255, 0, 127, 0.12);
+      border: 1px solid rgba(255, 0, 127, 0.7);
+    }
+    .text-glow-cyan { text-shadow: 0 0 10px rgba(0, 229, 255, 0.85); }
+    .text-glow-magenta { text-shadow: 0 0 10px rgba(255, 0, 127, 0.85); }
+    .text-glow-violet { text-shadow: 0 0 10px rgba(138, 43, 226, 0.85); }
+
+    /* Progress bar transitions */
+    .bar-anim {
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  </style>
+</head>
+<body class="p-3 scanline flex flex-col justify-start min-h-screen text-slate-200">
+
+  <!-- ================= TOP HEADER (DRAGGABLE HUD BAR) ================= -->
+  <header class="drag-region flex items-center justify-between bg-black/80 px-3 py-2 border-b border-cyan-500/50 mb-3 cyber-clip-header select-none">
+    <div class="flex items-center gap-2.5">
+      <div class="w-3 h-3 bg-cyan-400 rotate-45 animate-pulse shadow-[0_0_8px_#00e5ff]"></div>
+      <span class="font-hud text-base font-black tracking-wider text-cyan-400 text-glow-cyan">
+        FEΔR <span class="text-slate-100">:: METER</span>
+      </span>
+      <span class="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-hud">v1.0 PLUGIN</span>
+      <span id="clickThroughBadge" class="text-[10px] px-1.5 py-0.2 rounded bg-purple-950 text-purple-300 border border-purple-800 font-hud">PASSTHROUGH ON</span>
+    </div>
+
+    <!-- TELEMETRY STATS -->
+    <div class="flex items-center gap-4 text-xs font-mono-val no-drag">
+      <div class="flex items-center gap-1 text-slate-400">
+        <span class="text-slate-500 font-hud text-[10px]">PING</span>
+        <span id="telemetryPing" class="text-cyan-400 font-bold">24ms</span>
+      </div>
+      <div class="flex items-center gap-1 text-slate-400">
+        <span class="text-slate-500 font-hud text-[10px]">FPS</span>
+        <span id="telemetryFps" class="text-purple-400 font-bold">144</span>
+      </div>
+      <div class="flex items-center gap-1 text-slate-400">
+        <span class="text-slate-500 font-hud text-[10px]">TIME</span>
+        <span id="telemetryTimer" class="text-pink-400 font-bold">03:15</span>
+      </div>
+
+      <!-- WINDOW CONTROLS -->
+      <div class="flex items-center gap-1 ml-2 border-l border-slate-800 pl-2">
+        <button onclick="handleTogglePassThrough()" title="Bật/Tắt Click-through" class="w-5 h-5 rounded bg-slate-900 border border-cyan-800 hover:border-cyan-400 flex items-center justify-center text-[10px] text-cyan-300 transition">
+          ◈
+        </button>
+        <button onclick="handleMinimize()" title="Thu nhỏ" class="w-5 h-5 rounded bg-slate-900 border border-slate-800 hover:border-slate-600 flex items-center justify-center text-[10px] text-slate-400 transition">
+          –
+        </button>
+        <button onclick="handleClose()" title="Đóng cửa sổ" class="w-5 h-5 rounded bg-pink-950 border border-pink-800 hover:border-pink-500 flex items-center justify-center text-[10px] text-pink-300 transition">
+          ✕
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= BOSS & COMBAT ASSIST WIDGET ================= -->
+  <section class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+
+    <!-- BOSS TARGET / AGGRO INDICATOR -->
+    <div class="md:col-span-1 bg-black/85 p-3 rounded cyber-clip neon-magenta-glow flex flex-col justify-between">
+      <div class="flex justify-between items-center mb-1">
+        <span class="font-hud text-[11px] font-bold text-pink-400 tracking-wider">TARGET SYSTEM</span>
+        <span id="bossAggroBadge" class="text-[10px] px-2 py-0.5 rounded font-hud font-bold bg-pink-900/80 text-pink-200 border border-pink-500 animate-pulse">
+          LOCKED ON YOU!
+        </span>
+      </div>
+      <div class="flex items-center gap-3 my-1">
+        <div class="w-10 h-10 rounded bg-pink-950/90 border border-pink-500 flex items-center justify-center text-pink-400 font-hud text-lg font-black shadow-[0_0_12px_#ff007f]">
+          !
+        </div>
+        <div>
+          <div class="text-xs font-bold text-white uppercase">Focus: <span id="bossTargetName" class="text-pink-400">月蝕の黒羽</span></div>
+          <div class="text-[11px] text-slate-400">Phase: <span class="text-cyan-300 font-hud">Phase 3 (Enrage)</span></div>
+        </div>
+      </div>
+      <div class="text-[10px] text-pink-300 flex items-center justify-between pt-1 border-t border-pink-950">
+        <span>⚠️ HƯỚNG ĐÁNH TỐI ƯU:</span>
+        <span class="font-bold bg-pink-950 px-1.5 py-0.5 border border-pink-700 text-pink-200">BACK ATTACK 180°</span>
+      </div>
+    </div>
+
+    <!-- BOSS HP GAUGE & RAID STATS -->
+    <div class="md:col-span-2 bg-black/85 p-3 rounded cyber-clip neon-cyan-glow flex flex-col justify-between">
+      <div>
+        <div class="flex justify-between items-center mb-1">
+          <div class="flex items-center gap-2">
+            <span id="bossName" class="font-hud font-bold text-sm text-white tracking-wider">AWAKENED KROMEDE [ABYSS]</span>
+            <span class="text-[9px] px-1.5 py-0.2 rounded bg-pink-950 text-pink-300 border border-pink-800 font-hud">LV.60 BOSS</span>
+          </div>
+          <div class="font-hud font-bold text-cyan-400 text-base" id="bossHpPercent">68.4%</div>
+        </div>
+        <div class="w-full h-3.5 bg-slate-950 rounded border border-cyan-800/60 p-0.5 overflow-hidden">
+          <div id="bossHpBar" class="h-full bg-gradient-to-r from-pink-600 via-purple-600 to-cyan-400 rounded bar-anim" style="width: 68.4%;"></div>
+        </div>
+      </div>
+      <div class="flex justify-between text-[11px] text-slate-400 mt-2 font-mono-val">
+        <span>HP: <strong id="bossHpText" class="text-slate-200">26,231,400</strong> / 38,350,000</span>
+        <span>TOTAL PARTY DPS: <strong id="partyTotalDps" class="text-cyan-300 font-hud">194,520</strong></span>
+        <span>ENRAGE: <strong class="text-pink-400">01:45</strong></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ACTIVE COOLDOWNS HUD ================= -->
+  <section class="bg-black/80 p-2.5 rounded border border-cyan-500/30 mb-3 cyber-clip">
+    <div class="flex justify-between items-center mb-1.5 text-[11px] font-hud text-cyan-400">
+      <span>ACTIVE SKILL COOLDOWNS & POTIONS</span>
+      <span class="text-[10px] text-slate-500 font-mono-val">TTS VOICE ALERT ACTIVE</span>
+    </div>
+    <div class="grid grid-cols-4 md:grid-cols-6 gap-2 text-center" id="cooldownContainer">
+      <!-- CD 1 -->
+      <div class="bg-slate-950 p-1.5 rounded border border-cyan-900">
+        <div class="text-[10px] text-slate-400">Flame Burst</div>
+        <div class="text-sm font-hud font-bold text-cyan-400 my-0.5">6.4s</div>
+        <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
+          <div class="bg-cyan-400 h-full w-3/4"></div>
+        </div>
+      </div>
+      <!-- CD 2 -->
+      <div class="bg-slate-950 p-1.5 rounded border border-purple-900">
+        <div class="text-[10px] text-slate-400">Glacial Harpoon</div>
+        <div class="text-sm font-hud font-bold text-purple-400 my-0.5">12.1s</div>
+        <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
+          <div class="bg-purple-400 h-full w-1/2"></div>
+        </div>
+      </div>
+      <!-- CD 3 -->
+      <div class="bg-slate-950 p-1.5 rounded border border-pink-900">
+        <div class="text-[10px] text-slate-400">Inferno Meteor</div>
+        <div class="text-sm font-hud font-bold text-pink-400 my-0.5">38.0s</div>
+        <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
+          <div class="bg-pink-400 h-full w-2/3"></div>
+        </div>
+      </div>
+      <!-- CD 4 (Potion) -->
+      <div class="bg-slate-950 p-1.5 rounded border border-cyan-700">
+        <div class="text-[10px] text-cyan-300">HP Potion</div>
+        <div class="text-sm font-hud font-bold text-slate-100 my-0.5">READY</div>
+        <div class="w-full bg-cyan-400 h-1 rounded"></div>
+      </div>
+      <!-- CD 5 -->
+      <div class="bg-slate-950 p-1.5 rounded border border-slate-800">
+        <div class="text-[10px] text-slate-400">Mana Barrier</div>
+        <div class="text-sm font-hud font-bold text-slate-300 my-0.5">READY</div>
+        <div class="w-full bg-purple-500 h-1 rounded"></div>
+      </div>
+      <!-- CD 6 -->
+      <div class="bg-slate-950 p-1.5 rounded border border-pink-900">
+        <div class="text-[10px] text-slate-400">Rage Gauge</div>
+        <div class="text-sm font-hud font-bold text-pink-400 my-0.5">850/1000</div>
+        <div class="w-full bg-slate-800 h-1 rounded overflow-hidden">
+          <div class="bg-pink-500 h-full w-4/5"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MAIN PARTY DPS TABLE ================= -->
+  <section class="bg-black/90 border border-cyan-500/40 rounded-lg p-3 cyber-clip flex-1">
+    <!-- TABLE HEADER -->
+    <div class="flex justify-between items-center pb-2 border-b border-cyan-900/80 text-[11px] font-hud text-slate-400">
+      <div class="flex items-center gap-4">
+        <span class="w-6 text-center">#</span>
+        <span>PLAYER NAME / CLASS</span>
+      </div>
+      <div class="flex items-center gap-6 font-mono-val">
+        <span class="w-14 text-right">CRIT%</span>
+        <span class="w-16 text-right">TOTAL</span>
+        <span class="w-20 text-right">DPS</span>
+        <span class="w-12 text-right">SHARE</span>
+      </div>
+    </div>
+
+    <!-- ROWS CONTAINER -->
+    <div class="space-y-1.5 mt-2" id="partyRowsContainer">
+      <!-- Dynamic Rows Generated by JS -->
+    </div>
+
+    <!-- FOOTER CONTROLS & SHORTCUTS -->
+    <footer class="mt-3 pt-2.5 border-t border-cyan-950 flex flex-wrap items-center justify-between text-xs">
+      <div class="flex gap-2">
+        <button onclick="handleSimulateToggle()" id="btnSimulate" class="px-2.5 py-1 bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-700 rounded font-hud font-bold transition">
+          SIMULATE COMBAT
+        </button>
+        <button onclick="handleResetCombat()" class="px-2.5 py-1 bg-pink-950 hover:bg-pink-900 text-pink-300 border border-pink-700 rounded font-hud font-bold transition">
+          RESET METER
+        </button>
+      </div>
+      <div class="flex items-center gap-3 text-[11px] font-mono-val text-slate-400">
+        <span>Aether: <strong class="text-purple-300">1,035/1000</strong></span>
+        <span>Kinah: <strong class="text-cyan-300">5.1M</strong></span>
+        <span>Bus Runs: <strong class="text-pink-300">14/20</strong></span>
+        <span class="px-2 py-0.5 bg-slate-900 border border-slate-700 rounded text-slate-300 font-hud text-[10px]">F11 HUD</span>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ================= CORE LOGIC & IPC BRIDGE ================= -->
+  <script>
+    // Initial State / Mock Data
+    let combatData = [
+      { id: 1, name: "月蝕の黒羽", job: "Sorcerer", isSelf: true, damage: 18450000, dps: 84500, share: 43.4, crit: 64.2 },
+      { id: 2, name: "SrymC_FEΔR", job: "Gladiator", isSelf: false, damage: 12100000, dps: 55400, share: 28.5, crit: 48.0 },
+      { id: 3, name: "Nova_Assassin", job: "Assassin", isSelf: false, damage: 7800000, dps: 35700, share: 18.4, crit: 56.5 },
+      { id: 4, name: "HolySanctuary", job: "Cleric", isSelf: false, damage: 4120000, dps: 18920, share: 9.7, crit: 12.0 }
+    ];
+
+    let isSimulating = false;
+    let simTimer = null;
+    let elapsedSeconds = 195;
+
+    // Render Party Rows
+    function renderPartyRows() {
+      const container = document.getElementById('partyRowsContainer');
+      container.innerHTML = '';
+
+      const maxDamage = Math.max(...combatData.map(p => p.damage));
+
+      combatData.forEach((player, index) => {
+        const percentWidth = ((player.damage / maxDamage) * 100).toFixed(1);
+        const rankColor = index === 0 ? 'text-cyan-400' : (index === 1 ? 'text-purple-400' : 'text-pink-400');
+        const borderColor = player.isSelf ? 'border-cyan-500/70 bg-cyan-950/20' : 'border-slate-800 bg-slate-950/70';
+        const barColor = player.isSelf ? 'bg-cyan-500/25' : (index === 1 ? 'bg-purple-600/20' : 'bg-pink-600/15');
+
+        const row = document.createElement('div');
+        row.className = `relative p-2 rounded border ${borderColor} hover:border-cyan-400 transition cursor-pointer select-none`;
+        row.innerHTML = `
+          <div class="absolute inset-y-0 left-0 ${barColor} rounded pointer-events-none bar-anim" style="width: ${percentWidth}%;"></div>
+          <div class="relative flex justify-between items-center text-sm">
+            <div class="flex items-center gap-3">
+              <span class="font-hud font-bold ${rankColor} w-5 text-center">0${index + 1}</span>
+              <span class="w-2 h-2 rounded-full ${player.isSelf ? 'bg-cyan-400 shadow-[0_0_8px_#00e5ff]' : 'bg-slate-500'}"></span>
+              <span class="font-bold text-white">${player.name} ${player.isSelf ? '<span class="text-[10px] text-cyan-400 font-hud ml-1">(YOU)</span>' : ''}</span>
+              <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-900 text-slate-300 border border-slate-800">${player.job}</span>
+            </div>
+            <div class="flex items-center gap-6 font-mono-val text-xs">
+              <span class="w-14 text-right text-slate-400">${player.crit.toFixed(1)}%</span>
+              <span class="w-16 text-right text-slate-300">${(player.damage / 1000000).toFixed(1)}M</span>
+              <span class="w-20 text-right font-hud font-bold text-cyan-300 text-sm">${player.dps.toLocaleString()}</span>
+              <span class="w-12 text-right font-bold ${rankColor}">${player.share.toFixed(1)}%</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    // Format Seconds to MM:SS
+    function formatTime(s) {
+      const m = Math.floor(s / 60).toString().padStart(2, '0');
+      const sec = (s % 60).toString().padStart(2, '0');
+      return `${m}:${sec}`;
+    }
+
+    // Live Simulation
+    function handleSimulateToggle() {
+      const btn = document.getElementById('btnSimulate');
+      if (isSimulating) {
+        clearInterval(simTimer);
+        isSimulating = false;
+        btn.innerText = 'SIMULATE COMBAT';
+        btn.classList.replace('bg-pink-700', 'bg-cyan-950');
+      } else {
+        isSimulating = true;
+        btn.innerText = 'PAUSE SIMULATION';
+        btn.classList.replace('bg-cyan-950', 'bg-pink-700');
+        simTimer = setInterval(() => {
+          elapsedSeconds++;
+          document.getElementById('telemetryTimer').innerText = formatTime(elapsedSeconds);
+          
+          // Fluctuate Ping
+          document.getElementById('telemetryPing').innerText = (22 + Math.floor(Math.random() * 6)) + 'ms';
+
+          // Simulate Boss HP Drop
+          const hpBar = document.getElementById('bossHpBar');
+          let currentPct = parseFloat(hpBar.style.width);
+          if (currentPct > 3) {
+            currentPct -= 0.12;
+            hpBar.style.width = currentPct.toFixed(1) + '%';
+            document.getElementById('bossHpPercent').innerText = currentPct.toFixed(1) + '%';
+          }
+
+          // Fluctuate DPS
+          combatData[0].damage += 84500;
+          combatData[0].dps = Math.floor(82000 + Math.random() * 5000);
+          renderPartyRows();
+        }, 1000);
+      }
+    }
+
+    // Reset Combat
+    function handleResetCombat() {
+      elapsedSeconds = 0;
+      document.getElementById('telemetryTimer').innerText = '00:00';
+      document.getElementById('bossHpBar').style.width = '100%';
+      document.getElementById('bossHpPercent').innerText = '100.0%';
+      combatData.forEach(p => { p.damage = 0; p.dps = 0; p.share = 0; });
+      renderPartyRows();
+
+      // Notify Python API if available
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.reset_combat();
+      }
+    }
+
+    // Window Controls & PassThrough
+    function handleTogglePassThrough() {
+      const badge = document.getElementById('clickThroughBadge');
+      const isPassthrough = badge.innerText.includes('ON');
+      badge.innerText = isPassthrough ? 'PASSTHROUGH OFF' : 'PASSTHROUGH ON';
+      badge.className = isPassthrough ? 'text-[10px] px-1.5 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800 font-hud' : 'text-[10px] px-1.5 py-0.2 rounded bg-purple-950 text-purple-300 border border-purple-800 font-hud';
+      
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.toggle_click_through(!isPassthrough);
+      }
+    }
+
+    function handleMinimize() {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.minimize_window();
+      }
+    }
+
+    function handleClose() {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.close_window();
+      }
+    }
+
+    // ================= GLOBAL API FOR EXTERNAL TOOLS =================
+    window.updateCombatData = function(newPartyData) {
+      if (Array.isArray(newPartyData)) {
+        combatData = newPartyData;
+        renderPartyRows();
+      }
+    };
+
+    window.updateBossData = function(boss) {
+      if (boss.name) document.getElementById('bossName').innerText = boss.name;
+      if (boss.percent !== undefined) {
+        document.getElementById('bossHpBar').style.width = boss.percent.toFixed(1) + '%';
+        document.getElementById('bossHpPercent').innerText = boss.percent.toFixed(1) + '%';
+      }
+      if (boss.currentHp && boss.maxHp) {
+        document.getElementById('bossHpText').innerText = boss.currentHp.toLocaleString();
+      }
+    };
+
+    window.setAggroTarget = function(playerName, isSelf) {
+      document.getElementById('bossTargetName').innerText = playerName;
+      const badge = document.getElementById('bossAggroBadge');
+      if (isSelf) {
+        badge.innerText = 'LOCKED ON YOU!';
+        badge.className = 'text-[10px] px-2 py-0.5 rounded font-hud font-bold bg-pink-900/80 text-pink-200 border border-pink-500 animate-pulse';
+      } else {
+        badge.innerText = 'TARGET: ' + playerName;
+        badge.className = 'text-[10px] px-2 py-0.5 rounded font-hud font-bold bg-slate-900 text-slate-300 border border-slate-700';
+      }
+    };
+
+    window.updateTelemetry = function(ping, fps, timer) {
+      if (ping) document.getElementById('telemetryPing').innerText = ping + 'ms';
+      if (fps) document.getElementById('telemetryFps').innerText = fps;
+      if (timer) document.getElementById('telemetryTimer').innerText = timer;
+    };
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      renderPartyRows();
+    });
+  </script>
+</body>
+</html>
