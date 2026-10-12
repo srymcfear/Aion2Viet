@@ -432,6 +432,19 @@
       </div>
     </div>
 
+    <!-- Blocked By Unclaimed Drop Alert -->
+    <div id="blockedAlertBox" style="display: none; background: rgba(236, 72, 153, 0.12); border: 1px solid var(--neon-pink); padding: 8px 10px; margin-bottom: 2px;">
+      <div style="font-size: 11px; font-weight: 700; color: #fff; display: flex; align-items: center; justify-content: space-between;">
+        <span>🔔 <span id="blockedDropName">Phần thưởng</span> đã đạt 100%!</span>
+        <button class="hud-btn sec" style="height: 22px; font-size: 9px; padding: 0 8px; border-color: var(--neon-pink); color: #fff;" onclick="openTwitchInventory()">
+          NHẬN NGAY ↗
+        </button>
+      </div>
+      <div style="font-size: 9.5px; color: #f472b6; margin-top: 3px;">
+        Twitch tạm dừng tích lũy quà tiếp theo cho đến khi bạn bấm nhận quà này trong kho Twitch.
+      </div>
+    </div>
+
     <!-- Main Buttons -->
     <div class="actions-grid">
       <button class="hud-btn" id="hudToggle" onclick="toggleMiningState()">
@@ -717,12 +730,25 @@
       const ch = status.currentChannel;
       if (ch) {
         document.getElementById('streamerLogin').innerText = ch.displayName || ch.login;
-        document.getElementById('streamerStats').innerText = `${(ch.viewers || 0).toLocaleString()} VIEWERS • AUTO-TRACKING`;
+        const dropsTag = ch.hasDrops ? ' • DROPS ENABLED 🎁' : '';
+        document.getElementById('streamerStats').innerText = `${(ch.viewers || 0).toLocaleString()} VIEWERS • AUTO-TRACKING${dropsTag}`;
         document.getElementById('miniStreamer').innerText = ch.displayName || ch.login;
       } else {
         document.getElementById('streamerLogin').innerText = status.isRunning ? 'Đang tìm kiếm...' : (status.hasToken ? 'Chưa bật cày' : 'Chưa đăng nhập');
         document.getElementById('streamerStats').innerText = status.isRunning ? 'SCANNING AION 2 DIRECTORY' : (status.hasToken ? 'STANDBY' : 'CẦN ĐĂNG NHẬP TWITCH');
         document.getElementById('miniStreamer').innerText = status.isRunning ? 'Đang tìm kiếm...' : 'Standby';
+      }
+
+      // Check Blocked By Unclaimed Drop Alert
+      const blockedBox = document.getElementById('blockedAlertBox');
+      if (blockedBox) {
+        if (status.blockedByUnclaimedDrop) {
+          blockedBox.style.display = 'block';
+          const nameEl = document.getElementById('blockedDropName');
+          if (nameEl) nameEl.innerText = status.blockedByUnclaimedDrop.name || 'Phần thưởng';
+        } else {
+          blockedBox.style.display = 'none';
+        }
       }
 
       const liveProg = document.getElementById('streamerLiveProgress');

@@ -55,6 +55,11 @@ class TwitchDropsService:
         self.client_id = DEVILXD_CLIENT_ID
         self._notified_integrity_drops = set()
         self.active_status_text = ""
+        self._last_tracked_drop_id = None
+        self._last_tracked_minutes = -1
+        self._stuck_ticks_count = 0
+        self._unresponsive_channels = {}
+        self.blocked_by_unclaimed_drop = None
 
         # OAuth State (DevilXD Device Code Formula)
         self.oauth_state = {
@@ -388,6 +393,7 @@ class TwitchDropsService:
                 "currentChannel": dict(self.current_channel) if self.current_channel else None,
                 "minutesMined": self.minutes_mined,
                 "activeStatusText": getattr(self, "active_status_text", ""),
+                "blockedByUnclaimedDrop": dict(self.blocked_by_unclaimed_drop) if getattr(self, "blocked_by_unclaimed_drop", None) else None,
                 "lastChecked": self.last_checked,
                 "campaigns": list(self.latest_campaigns),
                 "claimHistory": list(self.claim_history[:15]),
@@ -540,60 +546,204 @@ class TwitchDropsService:
     def claim_drop_manual(self, drop_instance_id: str, drop_name: str = "Item"):
         success = self._claim_drop_internal(drop_instance_id, drop_name, "Twitch")
         if not success:
-            # If integrity blocked direct headless mutation, open browser inventory for 1-click claim
             try:
                 webbrowser.open("https://www.twitch.tv/drops/inventory")
             except Exception:
                 pass
         return success
 
-    def _find_target_stream(self, game_slug: str = "aion-2"):
+    def _get_active_target_game(self):
+        """Extracts active game metadata from currently running drop campaigns."""
+        with self._lock:
+            for c in self.latest_campaigns:
+                for d in c.get("timeBasedDrops", []):
+                    if not d.get("isClaimed"):
+                        game_obj = c.get("game") or {}
+                        gname = game_obj.get("name") or game_obj.get("displayName") or "AION 2"
+                        gid = str(game_obj.get("id") or "771448419")
+                        slug = gname.lower().replace(" ", "-").replace(":", "").replace("'", "")
+                        return {"name": gname, "id": gid, "slug": slug}
+        return {"name": "AION 2", "id": "771448419", "slug": "aion-2"}
+
+    def _check_stream_live(self, channel_login: str):
+        """Checks if a channel is actively streaming live and returns current broadcast details."""
+        if not channel_login:
+            return None
         query = {
             "query": """
-            query GetGameStreams($slug: String!) {
-                game(slug: $slug) {
+            query CheckStreamLive($login: String!) {
+                user(login: $login) {
                     id
-                    name
-                    streams(first: 10) {
-                        edges {
-                            node {
-                                id
-                                title
-                                viewersCount
-                                broadcaster {
-                                    id
-                                    login
-                                    displayName
-                                }
-                            }
+                    login
+                    displayName
+                    stream {
+                        id
+                        type
+                        viewersCount
+                        title
+                        game {
+                            id
+                            name
                         }
                     }
                 }
             }
             """,
-            "variables": {"slug": game_slug}
+            "variables": {"login": str(channel_login).strip().lower()}
         }
         res = self._make_gql_request(query)
         if not res:
             return None
+        user_data = res.get("data", {}).get("user")
+        if not user_data:
+            return None
+        stream = user_data.get("stream")
+        if not stream:
+            return None
+        game = stream.get("game") or {}
+        return {
+            "login": user_data.get("login"),
+            "displayName": user_data.get("displayName") or user_data.get("login"),
+            "channelId": str(user_data.get("id")),
+            "broadcastId": str(stream.get("id")),
+            "viewers": stream.get("viewersCount", 0),
+            "title": stream.get("title", ""),
+            "gameId": str(game.get("id") or ""),
+            "gameName": str(game.get("name") or "")
+        }
+
+    def _find_target_stream(self, game_slug: str = None):
+        """
+        Discovers the optimal active live stream for the campaign:
+        1. Prioritizes streams explicitly flagged with DropsEnabled tag or 'drops' in title
+        2. Filters out unresponsive/stuck channels
+        3. Sorts by drops eligibility and high viewership for maximum stability
+        """
+        target_game = self._get_active_target_game()
+        slug_to_use = game_slug or target_game["slug"]
+
+        # Clean expired unresponsive channels (> 15 minutes)
+        now_ts = time.time()
+        with self._lock:
+            self._unresponsive_channels = {
+                k: v for k, v in self._unresponsive_channels.items() if v > now_ts
+            }
+
+        def _fetch_for_slug(s):
+            query = {
+                "query": """
+                query GetGameStreams($slug: String!) {
+                    game(slug: $slug) {
+                        id
+                        name
+                        streams(first: 30) {
+                            edges {
+                                node {
+                                    id
+                                    title
+                                    viewersCount
+                                    tags {
+                                        id
+                                        tagName
+                                        localizedName
+                                    }
+                                    freeformTags {
+                                        name
+                                    }
+                                    broadcaster {
+                                        id
+                                        login
+                                        displayName
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                """,
+                "variables": {"slug": s}
+            }
+            return self._make_gql_request(query)
+
+        res = _fetch_for_slug(slug_to_use)
+        # Fallback to 'aion-2' if custom slug yielded nothing
+        if not res or not res.get("data", {}).get("game", {}).get("streams", {}).get("edges"):
+            if slug_to_use != "aion-2":
+                res = _fetch_for_slug("aion-2")
+
+        if not res:
+            return None
+
         game_data = res.get("data", {}).get("game", {})
-        game_id = str(game_data.get("id") or "771448419")
-        game_name = str(game_data.get("name") or "AION 2")
+        game_id = str(game_data.get("id") or target_game["id"] or "771448419")
+        game_name = str(game_data.get("name") or target_game["name"] or "AION 2")
         streams = game_data.get("streams", {}).get("edges", [])
         if not streams:
             return None
-        top = streams[0].get("node", {})
-        broadcaster = top.get("broadcaster", {})
-        return {
-            "login": broadcaster.get("login"),
-            "displayName": broadcaster.get("displayName") or broadcaster.get("login"),
-            "channelId": str(broadcaster.get("id")),
-            "broadcastId": str(top.get("id")),
-            "viewers": top.get("viewersCount", 0),
-            "title": top.get("title", ""),
-            "gameId": game_id,
-            "gameName": game_name
-        }
+
+        scored_candidates = []
+        for edge in streams:
+            node = edge.get("node", {})
+            broadcaster = node.get("broadcaster", {})
+            login = (broadcaster.get("login") or "").lower()
+            if not login:
+                continue
+
+            # Check blacklist
+            is_blacklisted = login in self._unresponsive_channels
+
+            title = (node.get("title") or "").lower()
+            tags = node.get("tags") or []
+            freeform = node.get("freeformTags") or []
+
+            has_drops_tag = False
+            for t in tags:
+                tid = str(t.get("id") or "")
+                tname = str(t.get("tagName") or "").lower()
+                tloc = str(t.get("localizedName") or "").lower()
+                if tid == "c2542035-0cc8-45fa-ac21-77290e387617" or "drop" in tname or "drop" in tloc:
+                    has_drops_tag = True
+                    break
+
+            if not has_drops_tag:
+                for ft in freeform:
+                    ftname = str(ft.get("name") or "").lower()
+                    if "drop" in ftname:
+                        has_drops_tag = True
+                        break
+
+            has_drops_in_title = any(kw in title for kw in ["[!drops]", "!drops", "[drops]", "drops", "drop on", "drops on", "drops enabled"])
+            viewers = node.get("viewersCount", 0)
+
+            score = 0
+            if has_drops_tag:
+                score += 100
+            if has_drops_in_title:
+                score += 50
+            if not is_blacklisted:
+                score += 200
+            score += min(50, viewers // 20)
+
+            scored_candidates.append({
+                "score": score,
+                "hasDrops": has_drops_tag or has_drops_in_title,
+                "login": broadcaster.get("login"),
+                "displayName": broadcaster.get("displayName") or broadcaster.get("login"),
+                "channelId": str(broadcaster.get("id")),
+                "broadcastId": str(node.get("id")),
+                "viewers": viewers,
+                "title": node.get("title", ""),
+                "gameId": game_id,
+                "gameName": game_name
+            })
+
+        if not scored_candidates:
+            return None
+
+        # Sort candidate with highest score first
+        scored_candidates.sort(key=lambda x: x["score"], reverse=True)
+        best = scored_candidates[0]
+        return best
 
     def _send_watch_tick(self, stream_info: dict) -> bool:
         if not self.auth_token or not self.user_id or not stream_info:
@@ -664,7 +814,7 @@ class TwitchDropsService:
                     code = data.get("data", {}).get("sendSpadeEvents", {}).get("statusCode")
                     if code in (200, 204):
                         tick_ok = True
-        except Exception as e:
+        except Exception:
             pass
 
         # Dispatch 2: Standard Spade Track endpoint (DevilXD fallback)
@@ -682,14 +832,13 @@ class TwitchDropsService:
             with urllib.request.urlopen(req_spade, timeout=10) as resp:
                 if resp.status in (200, 204):
                     tick_ok = True
-        except Exception as e:
+        except Exception:
             pass
 
         return tick_ok
 
     def _worker_loop(self):
         try:
-            # Initial inventory query & ensure user_id
             self._check_external_config_update()
             if not self.user_id:
                 self.validate_token()
@@ -703,77 +852,161 @@ class TwitchDropsService:
                 if not self.user_id:
                     self.validate_token()
 
-                # 1. Ensure target stream is active
+                # 1. Sequential Block Check: Detect if previous drop reached 100% but remains unclaimed
+                blocked_drop = None
+                with self._lock:
+                    for c in self.latest_campaigns:
+                        for d in c.get("timeBasedDrops", []):
+                            cur = d.get("currentMinutesWatched", 0)
+                            req = d.get("requiredMinutesWatched", 1)
+                            claimed = d.get("isClaimed", False)
+                            if not claimed:
+                                if cur >= req:
+                                    blocked_drop = d
+                                break
+                        if blocked_drop:
+                            break
+                    self.blocked_by_unclaimed_drop = blocked_drop
+
+                if blocked_drop:
+                    drop_name = blocked_drop.get("name", "Drop Item")
+                    drop_id = blocked_drop.get("dropInstanceID")
+                    # Attempt auto-claim immediately
+                    if self.auto_claim and drop_id and drop_id not in self._notified_integrity_drops:
+                        claimed = self._claim_drop_internal(drop_id, drop_name, "AION 2")
+                        if claimed:
+                            self._query_inventory()
+                            continue
+
+                    self.active_status_text = f"⚠️ CẦN NHẬN: [{drop_name}] đã 100%! Bấm 'Kho Drops' trên Twitch để mở khóa quà tiếp theo."
+
+                # 2. Live Stream Validation: Ensure current channel is still alive and streaming target game
+                if self.current_channel:
+                    live_check = self._check_stream_live(self.current_channel["login"])
+                    if not live_check:
+                        ch_name = self.current_channel.get("displayName") or self.current_channel.get("login")
+                        self._safe_log(f"📺 Kênh [{ch_name}] đã kết thúc phát trực tiếp. Đang tự động đổi sang kênh khác có Drops...", "blue")
+                        with self._lock:
+                            self.current_channel = None
+                            self._stuck_ticks_count = 0
+                            self._last_tracked_minutes = -1
+                    else:
+                        # Update broadcast ID in case streamer restarted stream
+                        with self._lock:
+                            self.current_channel["broadcastId"] = live_check["broadcastId"]
+                            self.current_channel["viewers"] = live_check["viewers"]
+                            if live_check.get("title"):
+                                self.current_channel["title"] = live_check["title"]
+
+                # 3. Ensure target stream is active
                 if not self.current_channel:
-                    stream = self._find_target_stream("aion-2")
+                    stream = self._find_target_stream()
                     if stream:
                         with self._lock:
                             self.current_channel = stream
+                            self._stuck_ticks_count = 0
+                            self._last_tracked_minutes = -1
                         viewers_cnt = stream.get("viewers", 0)
+                        has_drop_badge = " [Có Drops]" if stream.get("hasDrops") else ""
                         self._safe_log(
-                            f"📺 Đang tự động xem ngầm: [{stream['displayName']}] (AION 2 - {viewers_cnt:,} viewers)",
+                            f"📺 Đang tự động cày ngầm: [{stream['displayName']}]{has_drop_badge} ({stream.get('gameName', 'AION 2')} - {viewers_cnt:,} viewers)",
                             "success"
                         )
                     else:
-                        self.active_status_text = "Chưa tìm thấy kênh AION 2 trực tiếp. Đang thử lại..."
-                        self._safe_log("⚠️ Chưa tìm thấy kênh phát AION 2 trực tiếp. Đang thử lại sau 30s...", "red")
+                        self.active_status_text = "Chưa tìm thấy kênh trực tiếp phù hợp. Đang thử lại..."
+                        self._safe_log("⚠️ Chưa tìm thấy kênh phát trực tiếp có Drops. Đang thử lại sau 30s...", "red")
                         for _ in range(30):
                             if self._stop_event.is_set():
                                 return
                             time.sleep(1)
                         continue
 
-                # 2. Send 1 minute watch tick
+                # 4. Send 1 minute watch tick
                 succeeded = self._send_watch_tick(self.current_channel)
                 if succeeded:
                     with self._lock:
                         self.minutes_mined += 1
 
-                    # Query inventory every tick so UI and user get instant +1 min updates
+                    # Refresh inventory from Twitch to get actual recorded progress
                     self._query_inventory()
 
-                    # Find active drop in progress
+                    # Find active drop that needs watching
                     active_drop = None
-                    for c in self.latest_campaigns:
-                        for d in c.get("timeBasedDrops", []):
-                            if not d.get("isClaimed") and d.get("currentMinutesWatched", 0) < d.get("requiredMinutesWatched", 1):
-                                active_drop = d
+                    with self._lock:
+                        for c in self.latest_campaigns:
+                            for d in c.get("timeBasedDrops", []):
+                                if not d.get("isClaimed"):
+                                    active_drop = d
+                                    break
+                            if active_drop:
                                 break
-                        if active_drop:
-                            break
 
                     ch_name = self.current_channel["displayName"]
                     if active_drop:
                         cur = active_drop["currentMinutesWatched"]
                         req = active_drop["requiredMinutesWatched"]
                         pct = min(100, round((cur / req) * 100))
-                        self.active_status_text = f"Đang cày: {active_drop['name']} ({cur}/{req}m - {pct}%)"
-                        self._safe_log(
-                            f"⏱️ Đang cày ngầm [{ch_name}]: {active_drop['name']} ({cur}/{req}m - {pct}%)",
-                            "blue"
-                        )
+
+                        # If drop is already 100% and blocked
+                        if cur >= req:
+                            self.active_status_text = f"⚠️ CẦN NHẬN: [{active_drop['name']}] đã 100%! Bấm 'Kho Drops' trên Twitch để mở khóa quà tiếp theo."
+                        else:
+                            self.active_status_text = f"Đang cày: {active_drop['name']} ({cur}/{req}m - {pct}%)"
+                            self._safe_log(
+                                f"⏱️ Đang cày ngầm [{ch_name}]: {active_drop['name']} ({cur}/{req}m - {pct}%)",
+                                "blue"
+                            )
+
+                        # --- STUCK WATCHDOG: Detect if minutes watched did not increment ---
+                        drop_uid = active_drop.get("id") or active_drop.get("name")
+                        if drop_uid == self._last_tracked_drop_id:
+                            if cur > self._last_tracked_minutes:
+                                # Progress is advancing normally!
+                                self._stuck_ticks_count = 0
+                                self._last_tracked_minutes = cur
+                            elif cur == self._last_tracked_minutes and cur < req:
+                                self._stuck_ticks_count += 1
+                                if self._stuck_ticks_count >= 3:
+                                    # Stuck for 3 consecutive minutes: auto switch channel!
+                                    cur_login = self.current_channel["login"]
+                                    self._safe_log(
+                                        f"⚠️ Tiến độ Drops đứng im tại [{ch_name}] sau 3 phút (kênh chưa kích hoạt Drops hoặc không tính điểm). Đang tự động chuyển sang kênh khác có Drops...",
+                                        "blue"
+                                    )
+                                    with self._lock:
+                                        self._unresponsive_channels[cur_login] = time.time() + 900  # 15 mins temporary blacklist
+                                        self.current_channel = None
+                                        self._stuck_ticks_count = 0
+                                        self._last_tracked_minutes = -1
+                        else:
+                            self._last_tracked_drop_id = drop_uid
+                            self._last_tracked_minutes = cur
+                            self._stuck_ticks_count = 0
+
                     else:
                         self.active_status_text = f"Đang xem [{ch_name}] (+{self.minutes_mined}m)"
                         self._safe_log(f"⏱️ Đang cày ngầm [{ch_name}]... Đã tích lũy +{self.minutes_mined}m phiên này.", "blue")
                 else:
                     self._safe_log("Đang làm mới thông tin kênh phát...", "blue")
-                    new_stream = self._find_target_stream("aion-2")
+                    new_stream = self._find_target_stream()
                     if new_stream:
                         with self._lock:
                             self.current_channel = new_stream
+                            self._stuck_ticks_count = 0
+                            self._last_tracked_minutes = -1
                         self._safe_log(
                             f"🔄 Chuyển sang kênh phát sóng tiếp theo: [{new_stream['displayName']}]",
                             "blue"
                         )
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[TwitchDrops] Worker loop exception: {e}")
 
-            # 3. Wait ~59s before next minute tick (DevilXD WATCH_INTERVAL)
+            # 5. Wait ~59s before next minute tick
             for _ in range(59):
                 if self._stop_event.is_set():
                     break
                 time.sleep(1)
-
         with self._lock:
             self.current_channel = None
             self.active_status_text = ""
+

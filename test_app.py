@@ -203,10 +203,22 @@ class TestModApi(unittest.TestCase):
         ref_res = self.api.refresh_twitch_drops()
         self.assertIn("isRunning", ref_res)
         self.assertIn("campaigns", ref_res)
+        self.assertIn("blockedByUnclaimedDrop", ref_res)
+
+        # Test active target game detection
+        target_game = self.api.twitch_service._get_active_target_game()
+        self.assertIn("slug", target_game)
+        self.assertIn("id", target_game)
+        self.assertEqual(target_game["name"], "AION 2")
+
+        # Test stuck progress watchdog variables
+        self.assertEqual(self.api.twitch_service._stuck_ticks_count, 0)
+        self.assertEqual(self.api.twitch_service._last_tracked_minutes, -1)
+        self.assertIsInstance(self.api.twitch_service._unresponsive_channels, dict)
 
         # Test external config mtime check
         self.api.twitch_service._check_external_config_update()
-        print("[PASS] Twitch Drops Miner plugin API, session sync, and DevilXD OAuth Device Code verified.")
+        print("[PASS] Twitch Drops Miner plugin API, target game discovery, and Stuck Watchdog verified.")
 
     def test_twitch_window_lifecycle(self):
         html_path = app.get_twitch_window_html_path()
