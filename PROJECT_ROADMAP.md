@@ -1,6 +1,7 @@
 # 🚀 AION 2 TOOLS & VIỆT HÓA - TIẾN ĐỘ & LỘ TRÌNH PHÁT TRIỂN (PROJECT ROADMAP)
 *Dự án phát triển bởi: **Team FEΔR / SrymC (BER)***  
-*Cập nhật lần cuối: Tháng 10/2026 (Phiên bản hiện tại: **v1.1.2**)*
+*Cập nhật lần cuối: Tháng 10/2026 (Phiên bản hiện tại: **v1.1.3**)*
+
 
 ---
 
@@ -69,6 +70,12 @@ graph TD
   - **Lớp 1 (OTA Data Patcher):** Tự động tải file zip/dat từ GitHub Release nạp thẳng vào `C:\ProgramData\FEAR\Aion2_Tools` và game loose-files trong 2s không cần restart Tool.
   - **Lớp 2 (In-Place Binary Self-Replacement):** Khắc phục triệt để Windows File Lock bằng kỹ thuật NTFS Rename-in-use + Detached Worker Script (`updater.bat`), tự động tải bản launcher mới có hiển thị tốc độ MB/s, thay thế file gốc và tự relaunch liền mạch.
   - Đã tích hợp test suite `test_auto_updater.py` đảm bảo độ tin cậy.
+
+### ✅ Giai Đoạn 5: Hotfix v1.1.3 - Tối Ưu Hóa Tiến Trình Twitch Drops & Stuck Watchdog
+- [x] **Pre-tick Live Stream Verification:** Kiểm tra tính hợp lệ và trạng thái Live của streamer trước mỗi chu kỳ, tự động phát hiện streamer offline hoặc đổi game để chuyển kênh ngay.
+- [x] **DropsEnabled Channel Discovery:** Nâng cấp thuật toán quét danh mục, ưu tiên các kênh có gắn tag Drops chính thức và từ khóa Drops trong tiêu đề.
+- [x] **Stuck Progress Watchdog:** Tự động phát hiện khi tiến độ Drops bị đứng im sau 3 phút liên tiếp, tự động đưa kênh vào danh sách hạn chế 15 phút và chuyển sang kênh khác có Drops.
+- [x] **Cảnh báo Drop Tuần Tự Bị Chặn:** Phát hiện phần thưởng 100% chưa nhận đang chặn các phần thưởng tiếp theo, hiển thị cảnh báo nổi bật kèm nút chuyển nhanh tới kho Twitch.
 
 ---
 
