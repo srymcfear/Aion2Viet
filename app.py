@@ -302,6 +302,32 @@ def get_twitch_window_html_path():
             return p
     return None
 
+def get_map_window_html_path():
+    b_dir = get_bundle_dir()
+    candidates = [
+        os.path.join(b_dir, "map_overlay_window.html"),
+        os.path.join(b_dir, "gui", "dist", "map_overlay_window.html"),
+        os.path.join(ROOT_DIR, "map_overlay_window.html"),
+        os.path.join(ROOT_DIR, "gui", "dist", "map_overlay_window.html"),
+        os.path.join(ROOT_DIR, "gui", "public", "map_overlay_window.html"),
+        os.path.join(ROOT_DIR, "plugins", "map_overlay", "map_overlay_window.html"),
+        os.path.join(os.path.dirname(sys.executable), "map_overlay_window.html"),
+        os.path.join(os.path.dirname(sys.executable), "plugins", "map_overlay", "map_overlay_window.html"),
+    ]
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
+    return None
+
+def get_map_overlay_executable():
+    pdata_exe = os.path.join(os.environ.get("ProgramData", r"C:\ProgramData"), "FEAR", "Aion2_Tools", "plugins", "map_overlay", "MapOverlay.exe")
+    if os.path.isfile(pdata_exe):
+        return pdata_exe
+    local_exe = os.path.join(ROOT_DIR, "plugins", "map_overlay", "MapOverlay.exe")
+    if os.path.isfile(local_exe):
+        return local_exe
+    return None
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 DUMMY_PAK_BYTES = bytes([0x47, 0x55, 0x20, 0x32, 0x30, 0x32, 0x36, 0x30, 0x39, 0x32, 0x39, 0x31, 0x37, 0x35, 0x37])
 
@@ -311,6 +337,7 @@ _twitch_window = None
 _dps_process = None
 _dps_meter_process = None
 _twitch_process = None
+_map_process = None
 
 user32 = ctypes.windll.user32 if sys.platform == "win32" else None
 
@@ -917,6 +944,7 @@ class ModApi:
             self.stop_dps_daemon()
             self.close_dps_window()
             self.close_twitch_window()
+            self.close_map_overlay()
             if hasattr(self, 'twitch_service'):
                 self.twitch_service.stop()
         except Exception:
@@ -1172,13 +1200,65 @@ class ModApi:
             self.log(f"Lỗi đăng xuất Twitch: {e}", "red")
             return {"success": False, "error": str(e)}
 
+    def launch_map_overlay(self, mode="full"):
+        global _map_process
+        target_mode = "compact" if str(mode).lower() == "compact" else "full"
+        mode_label = "Demo 2 (In-Game Plaque)" if target_mode == "compact" else "Demo 1 (Toàn Cảnh Tactical Map)"
+        self.log(f"[DEBUG] ModApi.launch_map_overlay({target_mode}) được gọi từ GUI.", "gray")
+        if _map_process and _map_process.poll() is None:
+            self.log(f"Cửa sổ AION 2 Tactical Map Overlay ({mode_label}) đang hoạt động (PID: {_map_process.pid}).", "blue")
+            return True
+
+        map_exe = get_map_overlay_executable()
+        map_script = os.path.join(ROOT_DIR, "plugins", "map_overlay", "map_overlay_app.py")
+        
+        try:
+            import subprocess
+            if map_exe and os.path.isfile(map_exe):
+                map_dir = os.path.dirname(map_exe)
+                _map_process = subprocess.Popen(
+                    [map_exe, "--fear-launcher", SECURITY_KEY_HASH, "--mode", target_mode],
+                    cwd=map_dir
+                )
+            elif os.path.isfile(map_script):
+                map_dir = os.path.dirname(map_script)
+                _map_process = subprocess.Popen(
+                    [sys.executable, map_script, "--fear-launcher", SECURITY_KEY_HASH, "--mode", target_mode],
+                    cwd=map_dir
+                )
+            else:
+                html_path = get_map_window_html_path()
+                if html_path:
+                    webbrowser.open(f"file:///{os.path.abspath(html_path).replace(os.sep, '/')}?mode={target_mode}")
+                    return True
+                self.log("❌ Không tìm thấy map_overlay_window.html hoặc map_overlay_app.py.", "red")
+                return False
+
+            self.log(f"✔ Đã kích hoạt FEΔR Tactical Map & Timers Overlay [{mode_label}] (PID: {_map_process.pid}).", "success")
+            return True
+        except Exception as e:
+            self.log(f"❌ Lỗi khởi chạy Plugin Map Overlay: {e}", "red")
+            return False
+
+    def close_map_overlay(self):
+        global _map_process
+        if _map_process and _map_process.poll() is None:
+            try:
+                _map_process.terminate()
+            except Exception:
+                pass
+            _map_process = None
+        return True
+
     def get_active_modules(self):
-        global _twitch_process, _dps_meter_process
+        global _twitch_process, _dps_meter_process, _map_process
         twitch_active = bool(_twitch_process and _twitch_process.poll() is None)
         dps_active = bool(_dps_meter_process and _dps_meter_process.poll() is None)
+        map_active = bool(_map_process and _map_process.poll() is None)
         return {
             "twitch": twitch_active,
-            "dps": dps_active
+            "dps": dps_active,
+            "map": map_active
         }
 
     def start_dps_daemon(self):
@@ -1319,7 +1399,6 @@ class ModApi:
             logs = list(self.state["newLogs"])
             self.state["newLogs"].clear()
             twitch_active = bool(_twitch_process and _twitch_process.poll() is None)
-            dps_active = bool(_dps_meter_process and _dps_meter_process.poll() is None)
             return {
                 "gameDir": self.state["gameDir"],
                 "isInstalled": self.state["isInstalled"],
@@ -1328,10 +1407,7 @@ class ModApi:
                 "progressStep": self.state["progressStep"],
                 "logs": logs,
                 "securityInfo": dict(self.security_info),
-                "activeModules": {
-                    "twitch": twitch_active,
-                    "dps": dps_active
-                }
+                "activeModules": self.get_active_modules()
             }
 
     def browse_folder(self):

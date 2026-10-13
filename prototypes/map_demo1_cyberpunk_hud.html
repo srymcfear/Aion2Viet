@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEΔR Tactical Map & Route Overlay - Cyberpunk HUD Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: #060911;
+      color: #e2e8f0;
+      overflow: hidden;
+      user-select: none;
+    }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    
+    /* Cyberpunk Grid Background */
+    .cyber-bg {
+      background-image: 
+        radial-gradient(circle at 50% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 60%),
+        linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 32px 32px, 32px 32px;
+    }
+
+    /* Glow Effects */
+    .glow-cyan {
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.25), inset 0 0 15px rgba(56, 189, 248, 0.1);
+    }
+    .text-glow-cyan {
+      text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+    }
+    .text-glow-purple {
+      text-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+    }
+    .text-glow-crimson {
+      text-shadow: 0 0 8px rgba(244, 63, 94, 0.6);
+    }
+
+    /* Scanline Overlay */
+    .scanlines::before {
+      content: " ";
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      z-index: 40;
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: rgba(5, 8, 16, 0.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(56, 189, 248, 0.3); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(56, 189, 248, 0.6); }
+
+    /* Tactical HUD corners */
+    .hud-bracket {
+      position: relative;
+    }
+    .hud-bracket::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: -1px;
+      width: 8px; height: 8px;
+      border-top: 2px solid #38bdf8;
+      border-left: 2px solid #38bdf8;
+    }
+    .hud-bracket::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; right: -1px;
+      width: 8px; height: 8px;
+      border-bottom: 2px solid #38bdf8;
+      border-right: 2px solid #38bdf8;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen cyber-bg flex flex-col scanlines">
+
+  <!-- Top Tactical Header -->
+  <header class="h-12 border-b border-sky-500/20 bg-[#080d1a]/90 backdrop-blur px-4 flex items-center justify-between z-30 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-7 h-7 rounded-lg bg-sky-500/15 border border-sky-500/40 flex items-center justify-center text-sky-400 font-bold font-mono text-xs shadow-[0_0_12px_rgba(56,189,248,0.3)]">
+        Δ2
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-black text-sm tracking-wider text-white">TACTICAL MAP & ROUTE OVERLAY</span>
+          <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">FEΔR ENGINE</span>
+          <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            ZERO-LAG (0.2% CPU)
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map & Route Selector Controls -->
+    <div class="flex items-center gap-2.5">
+      <!-- Map Selection -->
+      <div class="flex items-center gap-1 bg-[#0b1324] border border-sky-500/30 rounded-lg p-0.5 text-xs font-mono">
+        <button id="btnMapVerteron" onclick="switchMap('verteron')" class="px-2.5 py-1 rounded bg-sky-500/30 text-sky-200 font-semibold border border-sky-400/40 transition-all">Verteron</button>
+        <button id="btnMapAltgard" onclick="switchMap('altgard')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">Altgard</button>
+        <button id="btnMapAbyss" onclick="switchMap('abyss')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">Abyss Core</button>
+      </div>
+
+      <!-- Route Preset Selector -->
+      <select id="routeSelector" onchange="loadSelectedRoute()" class="bg-[#0b1324] border border-purple-500/40 text-purple-200 text-xs rounded-lg px-2.5 py-1.5 font-mono focus:outline-none focus:border-purple-400">
+        <option value="elyos_1">Elyos 1/5 - Start Village (Level 1-10)</option>
+        <option value="elyos_2">Elyos 2/5 - Verteron Citadel (Level 10-14)</option>
+        <option value="elyos_3">Elyos 3/5 - Pilgrim's Sanctuary (Level 14-17)</option>
+        <option value="asmodian_1">Asmodians - Altgard Outpost (Level 10-17)</option>
+        <option value="asmodian_2">Asmodians - Krao Cave (Level 20-22)</option>
+        <option value="asmodian_3">Asmodians - Kromede Trial (Level 35-45)</option>
+      </select>
+
+      <!-- Launch Floating In-Game Plaque -->
+      <button onclick="toggleFloatingPlaque()" class="px-3 py-1.5 rounded-lg bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 text-black font-bold text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(56,189,248,0.35)] transition-all active:scale-95">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <path d="M3 9h18M9 21V9"/>
+        </svg>
+        <span>Ghim HUD Lên Game</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Work Area (3 Columns: Timers Left | Interactive Map Center | Route Steps Right) -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- LEFT PANEL: Event Timers & World Bosses (260px) -->
+    <aside class="w-64 border-r border-sky-500/20 bg-[#080d19]/90 flex flex-col shrink-0 z-20">
+      <div class="p-3 border-b border-sky-500/15 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+          <span class="text-xs font-bold tracking-wider text-slate-200">TACTICAL TIMERS</span>
+        </div>
+        <span class="text-[10px] font-mono text-cyan-400 bg-cyan-950/60 px-1.5 py-0.5 rounded border border-cyan-800/40">SERVER: ASIA (KR)</span>
+      </div>
+
+      <!-- Events List -->
+      <div class="flex-1 overflow-y-auto p-2.5 space-y-2">
+        <!-- Spacetime Rift -->
+        <div class="p-2.5 rounded-xl border border-purple-500/30 bg-purple-950/15 hover:border-purple-400/50 transition-all">
+          <div class="flex justify-between items-start mb-1">
+            <div class="flex items-center gap-1.5">
+              <span class="text-purple-400 text-xs">🌀</span>
+              <span class="text-xs font-bold text-white">Spacetime Rift</span>
+            </div>
+            <span class="text-[9px] font-mono px-1 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30">CỔNG KHÔNG-GIAN</span>
+          </div>
+          <div class="text-[11px] text-slate-400 mb-2">Mở cổng xâm lăng lãnh địa đối lập</div>
+          <div class="flex items-center justify-between font-mono text-xs">
+            <span class="text-slate-400 text-[10px]">ĐẾM NGƯỢC:</span>
+            <span id="timerRift" class="text-purple-300 font-extrabold text-glow-purple">00:14:32</span>
+          </div>
+          <div class="w-full bg-slate-800/80 h-1 rounded-full mt-1.5 overflow-hidden">
+            <div class="bg-gradient-to-r from-purple-500 to-sky-400 h-full w-[76%]"></div>
+          </div>
+        </div>
+
+        <!-- Abyss Siege / Fortress War -->
+        <div class="p-2.5 rounded-xl border border-rose-500/30 bg-rose-950/15 hover:border-rose-400/50 transition-all">
+          <div class="flex justify-between items-start mb-1">
+            <div class="flex items-center gap-1.5">
+              <span class="text-rose-400 text-xs">⚔️</span>
+              <span class="text-xs font-bold text-white">Abyss Fortress Siege</span>
+            </div>
+            <span class="text-[9px] font-mono px-1 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">CÔNG THÀNH</span>
+          </div>
+          <div class="text-[11px] text-slate-400 mb-2">Đại chiến chiếm cứ điểm Pháo đài</div>
+          <div class="flex items-center justify-between font-mono text-xs">
+            <span class="text-slate-400 text-[10px]">DIỄN RA LÚC:</span>
+            <span class="text-rose-300 font-bold">20:00:00 (1h 45m)</span>
+          </div>
+        </div>
+
+        <!-- Daily Reset -->
+        <div class="p-2 rounded-xl border border-sky-500/20 bg-sky-950/10 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-sky-400 text-xs">🔄</span>
+            <div>
+              <div class="text-[11px] font-bold text-white">Daily Reset</div>
+              <div class="text-[9px] text-slate-400">Làm mới nhiệm vụ ngày</div>
+            </div>
+          </div>
+          <span class="font-mono text-xs text-sky-300 font-bold">06:45:10</span>
+        </div>
+
+        <!-- World Bosses Section Header -->
+        <div class="pt-2 pb-1 text-[10px] font-mono font-bold text-slate-400 flex items-center justify-between">
+          <span>WORLD BOSSES (SPAWN)</span>
+          <span class="text-rose-400 cursor-pointer hover:underline text-[9px]">LÀM MỚI</span>
+        </div>
+
+        <!-- Boss 1 -->
+        <div class="p-2 rounded-lg border border-slate-800 bg-[#0a0f1d] hover:border-slate-700 transition-all space-y-1">
+          <div class="flex justify-between items-center text-xs">
+            <span class="font-bold text-slate-200">Melted Danar</span>
+            <span class="text-[9px] font-mono text-rose-400 bg-rose-950/40 px-1 rounded">Lv.45</span>
+          </div>
+          <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+            <span>Dredgion Crash</span>
+            <span class="text-emerald-400 font-bold">● ĐÃ XUẤT HIỆN</span>
+          </div>
+        </div>
+
+        <!-- Boss 2 -->
+        <div class="p-2 rounded-lg border border-slate-800 bg-[#0a0f1d] hover:border-slate-700 transition-all space-y-1">
+          <div class="flex justify-between items-center text-xs">
+            <span class="font-bold text-slate-200">Berserker Vargor</span>
+            <span class="text-[9px] font-mono text-rose-400 bg-rose-950/40 px-1 rounded">Lv.45</span>
+          </div>
+          <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+            <span>Sanctum Outpost</span>
+            <span class="text-sky-400">còn 18m 42s</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Sound Notification Settings -->
+      <div class="p-2.5 border-t border-sky-500/15 bg-[#060a14] flex items-center justify-between text-[11px]">
+        <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+          <input type="checkbox" checked class="rounded border-slate-700 text-sky-500 focus:ring-0">
+          <span>Báo âm thanh (Chime)</span>
+        </label>
+        <button onclick="playChime()" class="text-[10px] text-sky-400 hover:text-sky-300 underline font-mono">Test âm</button>
+      </div>
+    </aside>
+
+    <!-- CENTER: Interactive Tactical Canvas Map -->
+    <main class="flex-1 relative flex flex-col overflow-hidden bg-[#05070e]">
+      <!-- Map Toolbar HUD -->
+      <div class="absolute top-3 left-3 z-20 flex items-center gap-2 bg-[#090e1c]/85 backdrop-blur border border-sky-500/30 rounded-xl p-1.5 shadow-lg">
+        <!-- Zoom Controls -->
+        <button onclick="zoomMap(1.2)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center border border-white/5 transition-all">+</button>
+        <button onclick="zoomMap(0.8)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-sky-500/20 text-sky-300 font-bold flex items-center justify-center border border-white/5 transition-all">-</button>
+        <button onclick="resetMap()" class="px-2 h-7 rounded-lg bg-slate-800 hover:bg-sky-500/20 text-slate-300 text-xs font-mono flex items-center border border-white/5 transition-all">Reset</button>
+
+        <div class="h-4 w-[1px] bg-white/10 mx-1"></div>
+
+        <!-- Filter Layers -->
+        <label class="flex items-center gap-1 text-[11px] text-slate-300 cursor-pointer px-1.5">
+          <input type="checkbox" id="chkTeleport" checked onchange="redrawMap()" class="rounded border-slate-700 text-purple-500">
+          <span>Dịch chuyển</span>
+        </label>
+        <label class="flex items-center gap-1 text-[11px] text-slate-300 cursor-pointer px-1.5">
+          <input type="checkbox" id="chkBosses" checked onchange="redrawMap()" class="rounded border-slate-700 text-rose-500">
+          <span>Boss</span>
+        </label>
+        <label class="flex items-center gap-1 text-[11px] text-slate-300 cursor-pointer px-1.5">
+          <input type="checkbox" id="chkTrace" checked onchange="redrawMap()" class="rounded border-slate-700 text-sky-500">
+          <span>Vết tích Thần</span>
+        </label>
+      </div>
+
+      <!-- Live Coordinates Indicator -->
+      <div class="absolute bottom-3 left-3 z-20 bg-[#090e1c]/80 backdrop-blur border border-sky-500/20 rounded-lg px-2.5 py-1 text-[11px] font-mono text-sky-300 flex items-center gap-3">
+        <span>TỌA ĐỘ BẢN ĐỒ: <span id="mouseCoords" class="text-white">X: 1440, Y: 1461</span></span>
+        <span>TỶ LỆ ZOOM: <span id="zoomPct" class="text-cyan-400">100%</span></span>
+      </div>
+
+      <!-- Map Canvas -->
+      <div id="mapViewport" class="flex-1 w-full h-full relative overflow-hidden cursor-crosshair">
+        <canvas id="mapCanvas" class="w-full h-full"></canvas>
+      </div>
+    </main>
+
+    <!-- RIGHT PANEL: Route Checkpoints & Quest Guidance (280px) -->
+    <aside class="w-72 border-l border-sky-500/20 bg-[#080d19]/90 flex flex-col shrink-0 z-20">
+      <!-- Route Title Header -->
+      <div class="p-3 border-b border-sky-500/15">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-xs font-bold text-white tracking-wide truncate max-w-[190px]" id="currentRouteName">Elyos 1/5 - Start Village</span>
+          <span class="text-[9px] font-mono px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/40">ROUTE HUD</span>
+        </div>
+        <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+          <span>TIẾN ĐỘ HOÀN THÀNH:</span>
+          <span id="routeProgressText" class="text-sky-400 font-bold">1 / 12 (8%)</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-1.5 overflow-hidden">
+          <div id="routeProgressBar" class="bg-gradient-to-r from-sky-500 to-cyan-400 h-full w-[8%] transition-all duration-300"></div>
+        </div>
+      </div>
+
+      <!-- Checkpoints Step-by-Step List -->
+      <div id="checkpointList" class="flex-1 overflow-y-auto p-2.5 space-y-2">
+        <!-- Rendered by JS -->
+      </div>
+
+      <!-- Bottom Step Navigation Toolbar -->
+      <div class="p-3 border-t border-sky-500/15 bg-[#060a14] space-y-2">
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="prevStep()" class="py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold font-mono transition-all">
+            ◀ Điểm trước
+          </button>
+          <button onclick="nextStep()" class="py-1.5 rounded-lg border border-sky-500/40 bg-sky-600 hover:bg-sky-500 text-black text-xs font-bold font-mono shadow-[0_0_12px_rgba(56,189,248,0.3)] transition-all">
+            Điểm tiếp theo ▶
+          </button>
+        </div>
+        <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+          <span>PHÍM TẮT: [F8] NEXT • [F7] PREV</span>
+          <button onclick="resetRoute()" class="text-rose-400 hover:underline">Reset</button>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- FLOATING MINI PLAQUE OVERLAY (MÔ PHỎNG CỬA SỔ GHIM NỔI TRÊN GAME) -->
+  <div id="floatingPlaque" class="hidden absolute top-16 right-80 w-72 bg-[#060a14]/95 backdrop-blur-md border border-sky-400/50 rounded-xl shadow-[0_0_25px_rgba(56,189,248,0.3)] z-50 p-3 hud-bracket">
+    <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-sky-500/20">
+      <div class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+        <span class="text-xs font-black text-white tracking-wider">GAME OVERLAY HUD</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-[9px] font-mono text-cyan-400 border border-cyan-500/30 px-1 rounded">CLICK-THRU</span>
+        <button onclick="toggleFloatingPlaque()" class="text-slate-400 hover:text-white text-xs">✕</button>
+      </div>
+    </div>
+
+    <!-- Active Target Step in Plaque -->
+    <div class="bg-sky-950/30 border border-sky-500/30 rounded-lg p-2.5 mb-2.5">
+      <div class="flex justify-between items-center text-[10px] font-mono text-cyan-300 mb-1">
+        <span>ĐIỂM TIẾP THEO: #<span id="plaqueStepNum">2</span></span>
+        <span id="plaqueDist">~45m</span>
+      </div>
+      <div id="plaqueStepText" class="text-xs font-bold text-white leading-tight">
+        Fly up - Empyrean Trace
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between text-[11px] font-mono">
+      <button onclick="prevStep()" class="text-slate-400 hover:text-white px-2 py-1 rounded bg-slate-800">◀ Lùi</button>
+      <span id="plaqueProgress" class="text-slate-300">2 / 12</span>
+      <button onclick="nextStep()" class="text-black font-bold px-2.5 py-1 rounded bg-sky-400 hover:bg-sky-300">Xong ▶</button>
+    </div>
+  </div>
+
+  <script>
+    // Mock Route Data based on actual Aion 2 Map Overlay format
+    const routesData = {
+      elyos_1: {
+        name: "Elyos 1/5 - Start Village (Level 1-10)",
+        map: "verteron",
+        points: [
+          { x: 1440, y: 1461, text: "Điểm xuất phát tân thủ (Start)", icon: "start", type: "start" },
+          { x: 1461, y: 1474, text: "Fly up - Nhặt Empyrean Trace", icon: "trace", type: "trace" },
+          { x: 1490, y: 1501, text: "Thu thập Empyrean Trace #2", icon: "trace", type: "trace" },
+          { x: 1491, y: 1511, text: "Kích hoạt Teleports điểm dịch chuyển", icon: "teleport", type: "teleport" },
+          { x: 1481, y: 1527, text: "Nhiệm vụ chính: Gặp Shuron", icon: "quest", type: "quest" },
+          { x: 1525, y: 1516, text: "Thu thập Empyrean Trace #3", icon: "trace", type: "trace" },
+          { x: 1536, y: 1522, text: "Nhiệm vụ chính: Trả Q Hart & Nania", icon: "quest", type: "quest" },
+          { x: 1558, y: 1532, text: "Thu thập Empyrean Trace #4", icon: "trace", type: "trace" },
+          { x: 1551, y: 1554, text: "Thu thập Empyrean Trace #5", icon: "trace", type: "trace" },
+          { x: 1508, y: 1585, text: "Empyrean Trace vách đá", icon: "trace", type: "trace" },
+          { x: 1483, y: 1604, text: "Nhiệm vụ chính: Gặp Etezia", icon: "quest", type: "quest" },
+          { x: 1515, y: 1630, text: "Hoàn tất giai đoạn 1, di chuyển đến Fortress", icon: "finish", type: "finish" }
+        ]
+      },
+      asmodian_1: {
+        name: "Asmodians - Altgard Outpost (Level 10-17)",
+        map: "altgard",
+        points: [
+          { x: 1200, y: 1350, text: "Tiền đồn Altgard - Nhận nhiệm vụ tuần tra", icon: "start", type: "start" },
+          { x: 1280, y: 1390, text: "Tiêu diệt 5 Quái vật rừng Moslan", icon: "quest", type: "quest" },
+          { x: 1340, y: 1420, text: "Kích hoạt Teleport Moslan", icon: "teleport", type: "teleport" },
+          { x: 1410, y: 1480, text: "Vết tích Thần Altgard #1", icon: "trace", type: "trace" },
+          { x: 1490, y: 1520, text: "Tiêu diệt Boss tuần tra Lv.15", icon: "boss", type: "boss" },
+          { x: 1540, y: 1590, text: "Thu thập quặng năng lượng", icon: "trace", type: "trace" },
+          { x: 1600, y: 1640, text: "Trở về báo cáo chỉ huy Altgard", icon: "finish", type: "finish" }
+        ]
+      }
+    };
+
+    let currentRouteKey = 'elyos_1';
+    let currentMap = 'verteron';
+    let currentStepIndex = 0;
+    let zoomLevel = 1.0;
+    let panOffset = { x: 0, y: 0 };
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+
+    const canvas = document.getElementById('mapCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function init() {
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      setupCanvasEvents();
+      setupKeyListeners();
+      loadSelectedRoute();
+      startCountdownSimulation();
+    }
+
+    function resizeCanvas() {
+      const parent = canvas.parentElement;
+      canvas.width = parent.clientWidth;
+      canvas.height = parent.clientHeight;
+      redrawMap();
+    }
+
+    function switchMap(mapName) {
+      currentMap = mapName;
+      document.getElementById('btnMapVerteron').className = mapName === 'verteron' ? 'px-2.5 py-1 rounded bg-sky-500/30 text-sky-200 font-semibold border border-sky-400/40 transition-all' : 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all';
+      document.getElementById('btnMapAltgard').className = mapName === 'altgard' ? 'px-2.5 py-1 rounded bg-sky-500/30 text-sky-200 font-semibold border border-sky-400/40 transition-all' : 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all';
+      document.getElementById('btnMapAbyss').className = mapName === 'abyss' ? 'px-2.5 py-1 rounded bg-sky-500/30 text-sky-200 font-semibold border border-sky-400/40 transition-all' : 'px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all';
+      redrawMap();
+    }
+
+    function loadSelectedRoute() {
+      const val = document.getElementById('routeSelector').value;
+      currentRouteKey = val.includes('asmodian') ? 'asmodian_1' : 'elyos_1';
+      currentStepIndex = 0;
+      const r = routesData[currentRouteKey];
+      document.getElementById('currentRouteName').innerText = r.name;
+      currentMap = r.map;
+      switchMap(r.map);
+      renderCheckpoints();
+      updatePlaque();
+      redrawMap();
+    }
+
+    function renderCheckpoints() {
+      const list = document.getElementById('checkpointList');
+      const route = routesData[currentRouteKey];
+      list.innerHTML = '';
+
+      route.points.forEach((pt, idx) => {
+        const isDone = idx < currentStepIndex;
+        const isCurrent = idx === currentStepIndex;
+
+        const card = document.createElement('div');
+        card.className = `p-2.5 rounded-xl border transition-all cursor-pointer ${
+          isCurrent 
+            ? 'border-sky-400/60 bg-sky-950/40 shadow-[0_0_12px_rgba(56,189,248,0.2)]' 
+            : isDone 
+              ? 'border-slate-800/80 bg-black/40 opacity-50' 
+              : 'border-slate-800 bg-[#0a0e1c] hover:border-slate-700'
+        }`;
+        card.onclick = () => { currentStepIndex = idx; updateProgress(); };
+
+        card.innerHTML = `
+          <div class="flex items-start gap-2.5">
+            <div class="w-6 h-6 rounded-lg font-mono font-bold text-xs flex items-center justify-center shrink-0 ${
+              isCurrent 
+                ? 'bg-sky-500 text-black shadow-md' 
+                : isDone 
+                  ? 'bg-slate-700 text-slate-400' 
+                  : 'bg-slate-800 text-slate-300'
+            }">
+              ${isDone ? '✓' : idx + 1}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold ${isCurrent ? 'text-white' : 'text-slate-300'} truncate">
+                ${pt.text}
+              </div>
+              <div class="text-[10px] font-mono text-slate-400 flex items-center gap-2 mt-0.5">
+                <span>X:${pt.x} Y:${pt.y}</span>
+                <span class="text-sky-400 uppercase text-[9px] px-1 bg-sky-950/60 rounded">${pt.type}</span>
+              </div>
+            </div>
+          </div>
+        `;
+        list.appendChild(card);
+      });
+
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const route = routesData[currentRouteKey];
+      const total = route.points.length;
+      const pct = Math.round((currentStepIndex / total) * 100);
+      document.getElementById('routeProgressText').innerText = `${currentStepIndex + 1} / ${total} (${pct}%)`;
+      document.getElementById('routeProgressBar').style.width = `${pct}%`;
+      updatePlaque();
+      redrawMap();
+    }
+
+    function nextStep() {
+      const total = routesData[currentRouteKey].points.length;
+      if (currentStepIndex < total - 1) {
+        currentStepIndex++;
+        playChime();
+        renderCheckpoints();
+      }
+    }
+
+    function prevStep() {
+      if (currentStepIndex > 0) {
+        currentStepIndex--;
+        renderCheckpoints();
+      }
+    }
+
+    function resetRoute() {
+      currentStepIndex = 0;
+      renderCheckpoints();
+    }
+
+    function updatePlaque() {
+      const route = routesData[currentRouteKey];
+      const pt = route.points[currentStepIndex];
+      if (pt) {
+        document.getElementById('plaqueStepNum').innerText = currentStepIndex + 1;
+        document.getElementById('plaqueStepText').innerText = pt.text;
+        document.getElementById('plaqueProgress').innerText = `${currentStepIndex + 1} / ${route.points.length}`;
+      }
+    }
+
+    function toggleFloatingPlaque() {
+      const p = document.getElementById('floatingPlaque');
+      p.classList.toggle('hidden');
+    }
+
+    // Map Canvas Drawing
+    function redrawMap() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2 + panOffset.x;
+      const cy = h / 2 + panOffset.y;
+
+      // Draw Tactical Grid
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
+      ctx.lineWidth = 1;
+      const step = 40 * zoomLevel;
+      for (let x = (cx % step); x < w; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      }
+      for (let y = (cy % step); y < h; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      // Draw stylized territory terrain shape
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(zoomLevel, zoomLevel);
+
+      // Continent contour
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 480, 360, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#0a1020';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Draw Route Path Lines
+      const pts = routesData[currentRouteKey].points;
+      if (pts.length > 1) {
+        ctx.beginPath();
+        pts.forEach((p, idx) => {
+          const mapX = (p.x - 1440) * 2;
+          const mapY = (p.y - 1460) * 2;
+          if (idx === 0) ctx.moveTo(mapX, mapY);
+          else ctx.lineTo(mapX, mapY);
+        });
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([8, 6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Draw Waypoints
+      pts.forEach((p, idx) => {
+        const mapX = (p.x - 1440) * 2;
+        const mapY = (p.y - 1460) * 2;
+        const isCurrent = idx === currentStepIndex;
+        const isDone = idx < currentStepIndex;
+
+        ctx.beginPath();
+        ctx.arc(mapX, mapY, isCurrent ? 12 : 8, 0, Math.PI * 2);
+        ctx.fillStyle = isCurrent ? '#00f0ff' : (isDone ? '#475569' : '#8b5cf6');
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = isCurrent ? 3 : 1.5;
+        ctx.stroke();
+
+        // Label number
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 9px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(idx + 1, mapX, mapY);
+
+        // Text label
+        if (isCurrent || zoomLevel > 1.2) {
+          ctx.fillStyle = isCurrent ? '#38bdf8' : '#cbd5e1';
+          ctx.font = '10px Outfit';
+          ctx.fillText(p.text, mapX, mapY - 18);
+        }
+      });
+
+      ctx.restore();
+    }
+
+    function setupCanvasEvents() {
+      canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        dragStart = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+      });
+      window.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+          panOffset.x = e.clientX - dragStart.x;
+          panOffset.y = e.clientY - dragStart.y;
+          redrawMap();
+        }
+        // update coords
+        const rect = canvas.getBoundingClientRect();
+        const mx = Math.round(1440 + (e.clientX - rect.left - canvas.width / 2 - panOffset.x) / (2 * zoomLevel));
+        const my = Math.round(1460 + (e.clientY - rect.top - canvas.height / 2 - panOffset.y) / (2 * zoomLevel));
+        document.getElementById('mouseCoords').innerText = `X: ${mx}, Y: ${my}`;
+      });
+      window.addEventListener('mouseup', () => { isDragging = false; });
+      canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 1.15 : 0.85;
+        zoomMap(delta);
+      });
+    }
+
+    function zoomMap(factor) {
+      zoomLevel = Math.max(0.4, Math.min(3.5, zoomLevel * factor));
+      document.getElementById('zoomPct').innerText = `${Math.round(zoomLevel * 100)}%`;
+      redrawMap();
+    }
+
+    function resetMap() {
+      zoomLevel = 1.0;
+      panOffset = { x: 0, y: 0 };
+      document.getElementById('zoomPct').innerText = `100%`;
+      redrawMap();
+    }
+
+    function setupKeyListeners() {
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'F8') nextStep();
+        if (e.key === 'F7') prevStep();
+      });
+    }
+
+    // Audio chime using Web Audio API
+    function playChime() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+      } catch (e) {}
+    }
+
+    function startCountdownSimulation() {
+      let seconds = 14 * 60 + 32;
+      setInterval(() => {
+        if (seconds > 0) seconds--;
+        const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const s = String(seconds % 60).padStart(2, '0');
+        const el = document.getElementById('timerRift');
+        if (el) el.innerText = `00:${m}:${s}`;
+      }, 1000);
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>

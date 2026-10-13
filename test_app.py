@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import tempfile
 import unittest
@@ -319,12 +320,40 @@ class TestModApi(unittest.TestCase):
         mods = self.api.get_active_modules()
         self.assertIn("twitch", mods)
         self.assertIn("dps", mods)
+        self.assertIn("map", mods)
         self.assertIsInstance(mods["twitch"], bool)
         self.assertIsInstance(mods["dps"], bool)
+        self.assertIsInstance(mods["map"], bool)
         status = self.api.get_status()
         self.assertIn("activeModules", status)
         self.assertEqual(status["activeModules"], mods)
         print(f"[PASS] Active modules detection verified: {mods}")
+
+    def test_map_overlay_module(self):
+        html_path = app.get_map_window_html_path()
+        self.assertIsNotNone(html_path, "map_overlay_window.html must be located")
+        self.assertTrue(os.path.isfile(html_path), f"File {html_path} must exist on disk")
+
+        # Verify HTML contains both Demo 1 and Demo 2 mode references
+        with open(html_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            self.assertIn("Demo 1", content)
+            self.assertIn("Demo 2", content)
+            self.assertIn("viewFullMap", content)
+            self.assertIn("viewCompactPlaque", content)
+
+        # Verify MapOverlayService supports dual modes and setting mode
+        sys.path.insert(0, os.path.join(app.ROOT_DIR, "plugins", "map_overlay"))
+        from map_overlay_service import MapOverlayService
+        srv = MapOverlayService()
+        self.assertTrue(srv.set_mode("compact"))
+        self.assertTrue(srv.compact_mode)
+        self.assertTrue(srv.set_mode("full"))
+        self.assertFalse(srv.compact_mode)
+
+        # Test close_map_overlay safe execution
+        self.assertTrue(self.api.close_map_overlay())
+        print("[PASS] Tactical Map & Timers Overlay module and Dual Mode (Demo 1 & Demo 2) verified.")
 
 if __name__ == "__main__":
     unittest.main()

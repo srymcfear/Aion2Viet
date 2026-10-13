@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEΔR In-Game Transparent Overlay Plaque - Obsidian HUD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      /* Simulated game background */
+      background: radial-gradient(circle at center, #111827 0%, #030712 100%);
+      color: #f1f5f9;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Simulated Game Screenshot background */
+    .game-viewport {
+      background: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.85)), url('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
+    }
+
+    .glass-hud {
+      background: rgba(10, 15, 29, var(--hud-opacity, 0.88));
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(56, 189, 248, 0.28);
+    }
+
+    .hud-edge {
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), inset 0 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col relative game-viewport" style="--hud-opacity: 0.88;">
+
+  <!-- Simulated Game Screen Watermark -->
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-10">
+    <span class="text-7xl font-black font-mono tracking-widest text-slate-400">AION 2 CLIENT (SIMULATION)</span>
+  </div>
+
+  <!-- TOP COMPASS STRIP (Thanh la bàn chiến thuật tối giản trên đỉnh màn hình) -->
+  <div id="topCompass" class="mx-auto mt-3 h-10 px-4 rounded-xl glass-hud hud-edge flex items-center gap-6 z-40 transition-all duration-200">
+    <!-- Server Quick Timer -->
+    <div class="flex items-center gap-2 text-xs font-mono">
+      <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+      <span class="text-slate-400 font-bold">RIFT IN:</span>
+      <span id="quickRift" class="text-cyan-300 font-extrabold">14m 32s</span>
+    </div>
+
+    <div class="h-3 w-[1px] bg-white/20"></div>
+
+    <!-- Active Waypoint Navigator -->
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5 text-xs font-mono">
+        <span class="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-bold border border-sky-400/40">STEP #<span id="compassStepNum">2</span></span>
+        <span id="compassStepText" class="text-white font-semibold truncate max-w-xs">Fly up - Empyrean Trace</span>
+      </div>
+      <div class="text-[11px] font-mono text-cyan-400 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-500/30">
+        CỰ LY: ~45m
+      </div>
+    </div>
+
+    <div class="h-3 w-[1px] bg-white/20"></div>
+
+    <!-- Quick Actions -->
+    <div class="flex items-center gap-2">
+      <button onclick="prevStep()" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-mono">◀ Prev</button>
+      <button onclick="nextStep()" class="px-2.5 py-1 rounded bg-sky-500 hover:bg-sky-400 text-black font-bold text-xs font-mono shadow-[0_0_10px_rgba(56,189,248,0.4)]">Done [F8] ▶</button>
+      <button onclick="togglePlaque()" class="text-xs text-slate-400 hover:text-white ml-1">📋 Checklist</button>
+    </div>
+  </div>
+
+  <!-- FLOATING IN-GAME ROUTE PLAQUE (Vị trí bên phải màn hình) -->
+  <div id="routePlaque" class="absolute top-16 right-5 w-80 glass-hud hud-edge rounded-2xl p-3.5 z-40 transition-all duration-300">
+    <!-- Header with Draggable handle & opacity slider -->
+    <div class="flex items-center justify-between pb-2 mb-2 border-b border-sky-500/20">
+      <div class="flex items-center gap-2">
+        <div class="w-6 h-6 rounded-lg bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 font-bold font-mono text-xs">
+          Δ
+        </div>
+        <div>
+          <div class="text-xs font-black text-white tracking-wider">TACTICAL PLAQUE</div>
+          <div class="text-[9px] font-mono text-cyan-400">ZERO-LAG CLICK-THRU OVERLAY</div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <button onclick="toggleCompassOnly()" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" title="Thu nhỏ chỉ hiển thị la bàn trên">Thu gọn</button>
+      </div>
+    </div>
+
+    <!-- Active Route Details -->
+    <div class="mb-3">
+      <div class="flex justify-between items-center text-[11px] mb-1">
+        <span class="font-bold text-slate-200 truncate max-w-[190px]" id="plaqueRouteName">Elyos 1/5 - Start Village</span>
+        <span class="font-mono text-sky-400 font-bold" id="plaqueProgressText">2 / 12 (16%)</span>
+      </div>
+      <div class="w-full bg-slate-800/80 h-1.5 rounded-full overflow-hidden">
+        <div id="plaqueProgressBar" class="h-full bg-gradient-to-r from-sky-500 to-cyan-400 w-[16%] transition-all duration-300"></div>
+      </div>
+    </div>
+
+    <!-- Steps Checklist -->
+    <div id="plaqueStepsList" class="max-h-80 overflow-y-auto space-y-1.5 pr-1 mb-3">
+      <!-- Generated by JS -->
+    </div>
+
+    <!-- Quick Settings Toolbar -->
+    <div class="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
+      <div class="flex items-center gap-2">
+        <span>Độ mờ:</span>
+        <input type="range" min="30" max="100" value="88" oninput="changeOpacity(this.value)" class="w-16 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+      </div>
+      <label class="flex items-center gap-1 cursor-pointer text-[10px]">
+        <input type="checkbox" id="chkClickThru" onchange="toggleClickThrough(this.checked)" class="rounded border-slate-700 text-sky-500">
+        <span>Click-through</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- BOTTOM CONTROL BAR FOR SIMULATION -->
+  <div class="absolute bottom-4 left-6 z-40 bg-[#070b16]/90 border border-sky-500/30 rounded-xl px-4 py-2 flex items-center gap-4 text-xs font-mono shadow-2xl">
+    <span class="text-slate-400">FEΔR ENGINE TEST BENCH:</span>
+    <button onclick="prevStep()" class="text-sky-300 hover:underline">Phím [F7]: Lùi điểm</button>
+    <button onclick="nextStep()" class="text-sky-300 hover:underline font-bold">Phím [F8]: Hoàn thành điểm</button>
+    <button onclick="switchRoutePreset()" class="text-purple-300 hover:underline">Đổi tuyến đường</button>
+  </div>
+
+  <script>
+    const stepsData = [
+      { id: 1, text: "Điểm xuất phát tân thủ (Start)", area: "Verteron Outpost", dist: "0m" },
+      { id: 2, text: "Fly up - Nhặt Empyrean Trace #1", area: "Verteron Cliff", dist: "45m" },
+      { id: 3, text: "Thu thập Empyrean Trace #2", area: "Verteron Cliff", dist: "92m" },
+      { id: 4, text: "Kích hoạt Teleport điểm dịch chuyển", area: "Sanctuary", dist: "130m" },
+      { id: 5, text: "Nhiệm vụ chính: Gặp Shuron", area: "Camp", dist: "185m" },
+      { id: 6, text: "Thu thập Empyrean Trace #3", area: "Passage", dist: "240m" },
+      { id: 7, text: "Nhiệm vụ chính: Trả Q Hart & Nania", area: "Camp North", dist: "310m" },
+      { id: 8, text: "Hoàn tất giai đoạn 1, di chuyển đến Fortress", area: "Citadel", dist: "450m" }
+    ];
+
+    let activeStep = 1; // 0-indexed: index 1
+
+    function init() {
+      renderPlaqueSteps();
+      updateHUD();
+      setupKeyListeners();
+    }
+
+    function renderPlaqueSteps() {
+      const list = document.getElementById('plaqueStepsList');
+      list.innerHTML = '';
+
+      stepsData.forEach((item, idx) => {
+        const isDone = idx < activeStep;
+        const isCurrent = idx === activeStep;
+
+        const row = document.createElement('div');
+        row.className = `p-2 rounded-xl border transition-all cursor-pointer flex items-center gap-2.5 ${
+          isCurrent 
+            ? 'border-sky-400/80 bg-sky-950/60 shadow-[0_0_12px_rgba(56,189,248,0.25)]' 
+            : isDone 
+              ? 'border-slate-800/60 bg-black/40 opacity-40' 
+              : 'border-slate-800 bg-[#080d19]/80 hover:border-slate-700'
+        }`;
+        row.onclick = () => { activeStep = idx; renderPlaqueSteps(); updateHUD(); };
+
+        row.innerHTML = `
+          <div class="w-5 h-5 rounded-md font-mono font-bold text-[11px] flex items-center justify-center shrink-0 ${
+            isCurrent ? 'bg-sky-400 text-black' : (isDone ? 'bg-slate-700 text-slate-400' : 'bg-slate-800 text-slate-300')
+          }">
+            ${isDone ? '✓' : idx + 1}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-bold ${isCurrent ? 'text-white' : 'text-slate-300'} truncate">
+              ${item.text}
+            </div>
+            <div class="text-[10px] font-mono text-slate-400 flex items-center justify-between">
+              <span>${item.area}</span>
+              <span class="${isCurrent ? 'text-cyan-400 font-bold' : 'text-slate-500'}">${item.dist}</span>
+            </div>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+    }
+
+    function updateHUD() {
+      const cur = stepsData[activeStep];
+      if (cur) {
+        document.getElementById('compassStepNum').innerText = activeStep + 1;
+        document.getElementById('compassStepText').innerText = cur.text;
+      }
+      const pct = Math.round(((activeStep) / stepsData.length) * 100);
+      document.getElementById('plaqueProgressText').innerText = `${activeStep + 1} / ${stepsData.length} (${pct}%)`;
+      document.getElementById('plaqueProgressBar').style.width = `${pct}%`;
+    }
+
+    function nextStep() {
+      if (activeStep < stepsData.length - 1) {
+        activeStep++;
+        renderPlaqueSteps();
+        updateHUD();
+        playBeep();
+      }
+    }
+
+    function prevStep() {
+      if (activeStep > 0) {
+        activeStep--;
+        renderPlaqueSteps();
+        updateHUD();
+      }
+    }
+
+    function changeOpacity(val) {
+      document.body.style.setProperty('--hud-opacity', val / 100);
+    }
+
+    function toggleClickThrough(enabled) {
+      if (enabled) {
+        alert("Chế độ Click-Through kích hoạt trong Client: Chuột sẽ xuyên thấu qua HUD vào game, bạn có thể bấm phím nóng [F8] để chuyển checkpoint!");
+      }
+    }
+
+    function toggleCompassOnly() {
+      const p = document.getElementById('routePlaque');
+      p.classList.toggle('hidden');
+    }
+
+    function togglePlaque() {
+      const p = document.getElementById('routePlaque');
+      p.classList.remove('hidden');
+    }
+
+    function switchRoutePreset() {
+      alert("Đã chuyển sang tuyến: Asmodians 10-17 Altgard Outpost");
+      document.getElementById('plaqueRouteName').innerText = "Asmodians 10-17 Altgard Outpost";
+    }
+
+    function setupKeyListeners() {
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'F8') nextStep();
+        if (e.key === 'F7') prevStep();
+      });
+    }
+
+    function playBeep() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(1046, audioCtx.currentTime); // C6
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch (e) {}
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
