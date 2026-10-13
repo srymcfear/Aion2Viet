@@ -1164,6 +1164,23 @@ class ModApi:
         except Exception as e:
             return {"error": str(e)}
 
+    def logout_twitch(self):
+        try:
+            res = self.twitch_service.logout()
+            return {"success": res}
+        except Exception as e:
+            self.log(f"Lỗi đăng xuất Twitch: {e}", "red")
+            return {"success": False, "error": str(e)}
+
+    def get_active_modules(self):
+        global _twitch_process, _dps_meter_process
+        twitch_active = bool(_twitch_process and _twitch_process.poll() is None)
+        dps_active = bool(_dps_meter_process and _dps_meter_process.poll() is None)
+        return {
+            "twitch": twitch_active,
+            "dps": dps_active
+        }
+
     def start_dps_daemon(self):
         global _dps_process
         if _dps_process and _dps_process.poll() is None:
@@ -1297,9 +1314,12 @@ class ModApi:
         return False
 
     def get_status(self):
+        global _twitch_process, _dps_meter_process
         with self._lock:
             logs = list(self.state["newLogs"])
             self.state["newLogs"].clear()
+            twitch_active = bool(_twitch_process and _twitch_process.poll() is None)
+            dps_active = bool(_dps_meter_process and _dps_meter_process.poll() is None)
             return {
                 "gameDir": self.state["gameDir"],
                 "isInstalled": self.state["isInstalled"],
@@ -1307,7 +1327,11 @@ class ModApi:
                 "progressPct": self.state["progressPct"],
                 "progressStep": self.state["progressStep"],
                 "logs": logs,
-                "securityInfo": dict(self.security_info)
+                "securityInfo": dict(self.security_info),
+                "activeModules": {
+                    "twitch": twitch_active,
+                    "dps": dps_active
+                }
             }
 
     def browse_folder(self):

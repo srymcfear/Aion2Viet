@@ -104,8 +104,8 @@
         </div>
       </div>
 
-      <!-- Tab Bar with About & Update -->
-      <div class="px-3.5 border-b border-[var(--border-subtle)] bg-[#080b13]/80 shrink-0">
+      <!-- Tab Bar with About & Update & Version Pill -->
+      <div class="px-3.5 border-b border-[var(--border-subtle)] bg-[#080b13]/80 shrink-0 flex items-center justify-between">
         <n-tabs v-model:value="activeTab" type="line" size="small">
           <n-tab name="locale" tab="Quản lý Việt Hóa" />
           <n-tab name="tools" tab="Tools Mở Rộng" />
@@ -116,6 +116,29 @@
             </div>
           </n-tab>
         </n-tabs>
+        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-cyan-500/30 bg-cyan-950/30 text-cyan-400 font-mono text-[10px] font-bold shadow-[0_0_10px_rgba(6,182,212,0.15)]">
+          <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+          <span>v{{ currentVersion }}</span>
+        </div>
+      </div>
+
+      <!-- Version & Status Sub-Navbar Strip -->
+      <div class="h-5 px-3.5 flex items-center justify-between bg-[#04060a]/95 border-b border-[var(--border-subtle)] text-[9.5px] font-mono shrink-0 select-none">
+        <div class="flex items-center gap-2 text-slate-400">
+          <span class="text-slate-500 font-semibold tracking-wider">VERSION:</span>
+          <span class="text-cyan-400 font-bold tracking-wide">v{{ currentVersion }}</span>
+          <span class="text-slate-700">•</span>
+          <span class="text-slate-400">FEΔR ENGINE</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span v-if="hasUpdate" class="text-sky-400 font-bold animate-pulse cursor-pointer hover:underline" @click="activeTab = 'about'">
+            🚀 CÓ BẢN MỚI v{{ latestVersion }} (NHẤN CẬP NHẬT)
+          </span>
+          <span v-else class="text-emerald-400/90 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>BẢN MỚI NHẤT</span>
+          </span>
+        </div>
       </div>
 
       <!-- Tab 1: Locale Manager -->
@@ -233,29 +256,45 @@
             v-for="tool in toolsList" 
             :key="tool.title"
             @click="handleToolClick(tool)"
-            class="p-3 rounded-xl border transition-all duration-200 space-y-1.5 cursor-pointer relative group overflow-hidden"
-            :class="tool.active 
-              ? 'border-purple-500/50 bg-gradient-to-br from-purple-950/30 via-[var(--bg-card)] to-[#090d16] hover:border-purple-400 hover:shadow-[0_0_18px_rgba(139,92,246,0.3)] active:scale-[0.99]' 
-              : 'border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[#1a2337]/80 hover:border-sky-400/30'"
+            class="p-3 rounded-xl border transition-all duration-200 space-y-1.5 relative group overflow-hidden"
+            :class="[
+              isModuleActive(tool.id)
+                ? 'border-emerald-500/60 bg-gradient-to-br from-emerald-950/25 via-[var(--bg-card)] to-[#090d16] shadow-[0_0_16px_rgba(16,185,129,0.2)] cursor-not-allowed'
+                : (tool.active 
+                    ? 'border-purple-500/50 bg-gradient-to-br from-purple-950/30 via-[var(--bg-card)] to-[#090d16] hover:border-purple-400 hover:shadow-[0_0_18px_rgba(139,92,246,0.3)] active:scale-[0.99] cursor-pointer' 
+                    : 'border-[var(--border-subtle)] bg-[var(--bg-card)] hover:bg-[#1a2337]/80 hover:border-sky-400/30 cursor-pointer')
+            ]"
           >
             <div class="flex justify-between items-center">
               <div class="flex items-center gap-1.5">
-                <span v-if="tool.active" class="w-2 h-2 rounded-full bg-purple-400 animate-pulse shadow-[0_0_8px_#a855f7]"></span>
+                <span v-if="isModuleActive(tool.id)" class="w-2 h-2 rounded-full bg-emerald-400 animate-ping shadow-[0_0_8px_#34d399]"></span>
+                <span v-else-if="tool.active" class="w-2 h-2 rounded-full bg-purple-400 animate-pulse shadow-[0_0_8px_#a855f7]"></span>
                 <span class="font-bold text-white text-xs group-hover:text-purple-200 transition-colors">{{ tool.title }}</span>
               </div>
               <span 
                 class="text-[9px] font-bold px-1.5 py-0.5 rounded border transition-colors"
-                :class="tool.active
-                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 group-hover:bg-purple-600 group-hover:text-white'
-                  : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'"
+                :class="isModuleActive(tool.id)
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
+                  : (tool.active
+                      ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 group-hover:bg-purple-600 group-hover:text-white'
+                      : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30')"
               >
-                {{ tool.badge }}
+                {{ isModuleActive(tool.id) ? '🟢 ĐANG MỞ' : tool.badge }}
               </span>
             </div>
             <div class="text-[11px] text-[var(--text-muted)] leading-relaxed">
               {{ tool.desc }}
             </div>
-            <div v-if="tool.active" class="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-purple-900/30 text-purple-300">
+            
+            <!-- Bottom Action Row: Hidden/Locked when module is active, enabled otherwise -->
+            <div v-if="isModuleActive(tool.id)" class="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-emerald-900/40 text-emerald-400">
+              <span class="flex items-center gap-1.5 font-bold">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>CỬA SỔ ĐANG HOẠT ĐỘNG</span>
+              </span>
+              <span class="text-[9px] text-emerald-400/80 border border-emerald-500/30 px-1.5 py-0.2 rounded bg-emerald-950/40 font-bold">KHÓA NHẤN</span>
+            </div>
+            <div v-else-if="tool.active" class="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-purple-900/30 text-purple-300">
               <span class="flex items-center gap-1">
                 <span v-if="launchingTool === tool.id" class="text-sky-300 animate-pulse font-bold">⚡ Đang mở...</span>
                 <span v-else>{{ tool.actionText || 'Khởi chạy' }}</span>
@@ -492,6 +531,12 @@ const logs = ref<LogItem[]>([
   { time: new Date().toLocaleTimeString(), text: 'Khởi tạo hệ thống quản lý AION 2.', type: 'blue' }
 ]);
 
+const activeModules = ref<{ [key: string]: boolean }>({ twitch: false, dps: false });
+
+function isModuleActive(toolId: string) {
+  return !!activeModules.value[toolId];
+}
+
 const toolsList = [
   {
     id: 'dps',
@@ -530,6 +575,10 @@ const toolsList = [
 const launchingTool = ref<string | null>(null);
 
 function handleToolClick(tool: any) {
+  if (isModuleActive(tool.id)) {
+    addLog(`Cửa sổ [${tool.title}] hiện đang mở và đang hoạt động. Vui lòng đóng cửa sổ trước khi mở lại.`, 'blue');
+    return;
+  }
   if (tool.id === 'dps') {
     handleLaunchDpsMeter();
   } else if (tool.id === 'twitch') {
@@ -554,6 +603,7 @@ async function handleLaunchTwitchWindow() {
       addLog('[DEBUG] Đang gọi pyApi.launch_twitch_window()...', 'gray');
       const ok = await pyApi.launch_twitch_window();
       if (ok) {
+        activeModules.value.twitch = true;
         addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
       } else {
         addLog('❌ Không thể mở cửa sổ riêng Twitch Drops (Backend trả về False).', 'red');
@@ -570,6 +620,7 @@ async function handleLaunchTwitchWindow() {
           try {
             const ok = await api.launch_twitch_window();
             if (ok) {
+              activeModules.value.twitch = true;
               addLog('✔ Đã mở cửa sổ riêng Twitch Drops Miner thành công.', 'success');
             } else {
               addLog('❌ Không thể mở cửa sổ riêng Twitch Drops (Backend trả về False).', 'red');
@@ -587,6 +638,7 @@ async function handleLaunchTwitchWindow() {
       // Standalone browser mode fallback
       addLog(`[DEBUG] Đang chạy trong Web Browser (${window.location.protocol}//${window.location.host}). Mở popup HTML trực tiếp.`, 'gray');
       window.open('twitch_drops_window.html', '_blank', 'width=520,height=700');
+      activeModules.value.twitch = true;
       addLog('ℹ Đã mở cửa sổ Twitch Drops trong trình duyệt Web.', 'success');
     }
   } catch (e: any) {
@@ -606,6 +658,7 @@ function handleLaunchDpsMeter() {
 
   addLog(`[DEBUG] Môi trường DPS: WebView2=${hasWebView2}, pywebview=${hasPywebview}, api=${!!pyApi}`, 'gray');
 
+  activeModules.value.dps = true;
   if (pyApi && pyApi.launch_dps_meter) {
     addLog('[DEBUG] Đang gọi pyApi.launch_dps_meter()...', 'gray');
     pyApi.launch_dps_meter();
@@ -657,6 +710,9 @@ function startPolling() {
         isInstalled.value = status.isInstalled;
         progressPct.value = status.progressPct;
         progressStep.value = status.progressStep;
+        if (status.activeModules) {
+          activeModules.value = status.activeModules;
+        }
         if (status.securityInfo) {
           applySecurityInfo(status.securityInfo);
         }
@@ -908,6 +964,7 @@ onMounted(() => {
         if (status) {
           if (status.gameDir) gameDir.value = status.gameDir;
           isInstalled.value = status.isInstalled;
+          if (status.activeModules) applyActiveModules(status.activeModules);
           if (status.securityInfo) applySecurityInfo(status.securityInfo);
           if (status.logs && status.logs.length > 0) {
             for (const item of status.logs) {
@@ -919,6 +976,27 @@ onMounted(() => {
     }
   });
 
+  function applyActiveModules(mods: any) {
+    if (mods && typeof mods === 'object') {
+      activeModules.value = { ...activeModules.value, ...mods };
+    }
+  }
+
+  // Periodic module status check (detect child windows open/close)
+  setInterval(async () => {
+    const pyApi = (window as any).pywebview?.api;
+    if (pyApi && pyApi.get_active_modules) {
+      try {
+        const mods = await pyApi.get_active_modules();
+        if (mods) {
+          applyActiveModules(mods);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, 1000);
+
   let attempts = 0;
   const initInterval = setInterval(async () => {
     attempts++;
@@ -929,6 +1007,7 @@ onMounted(() => {
         if (status) {
           if (status.gameDir) gameDir.value = status.gameDir;
           isInstalled.value = status.isInstalled;
+          if (status.activeModules) applyActiveModules(status.activeModules);
           if (status.securityInfo) applySecurityInfo(status.securityInfo);
           if (status.logs && status.logs.length > 0) {
             for (const item of status.logs) {

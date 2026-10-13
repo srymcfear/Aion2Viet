@@ -420,10 +420,10 @@
 
     <!-- Stat Matrix -->
     <div class="stat-matrix">
-      <div class="stat-box" style="cursor: pointer;" title="Bấm để đăng nhập lại hoặc đổi tài khoản" onclick="toggleAuthBox()">
-        <div class="stat-label" style="display: flex; justify-content: space-between;">
+      <div class="stat-box" style="cursor: pointer;" title="Bấm để đăng xuất hoặc đổi tài khoản Twitch" onclick="switchTwitchAccount()">
+        <div class="stat-label" style="display: flex; justify-content: space-between; align-items: center;">
           <span>OPERATOR</span>
-          <span id="operatorAction" style="color: var(--neon-cyan); font-size: 8.5px;">[ĐỔI]</span>
+          <span id="operatorAction" style="color: var(--neon-cyan); font-size: 8.5px; text-decoration: underline;">[ĐỔI TÀI KHOẢN]</span>
         </div>
         <div class="stat-value" id="operatorText" style="color: var(--neon-cyan);">Đang tải...</div>
       </div>
@@ -590,6 +590,35 @@
       const code = document.getElementById('authUserCode').innerText.trim();
       const url = code && code !== '------' ? `https://www.twitch.tv/activate?device-code=${code}` : 'https://www.twitch.tv/activate';
       window.open(url, '_blank');
+    }
+
+    let forceShowAuth = false;
+
+    function toggleAuthBox() {
+      forceShowAuth = !forceShowAuth;
+      const box = document.getElementById('authHudBox');
+      if (box) {
+        box.style.display = forceShowAuth ? 'block' : 'none';
+      }
+    }
+
+    function switchTwitchAccount() {
+      const isConfirmed = confirm("Bạn có chắc chắn muốn đăng xuất tài khoản Twitch hiện tại để đổi sang tài khoản khác không?");
+      if (!isConfirmed) return;
+
+      const api = getPyApi();
+      if (!api) return;
+
+      const doLogout = api.logout_twitch ? api.logout_twitch() : Promise.resolve({ success: true });
+      doLogout.then(() => {
+        forceShowAuth = true;
+        const box = document.getElementById('authHudBox');
+        if (box) box.style.display = 'block';
+        fetchStatus();
+      }).catch((e) => {
+        console.warn("Logout error:", e);
+        fetchStatus();
+      });
     }
 
     function promptManualToken() {

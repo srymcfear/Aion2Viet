@@ -213,6 +213,15 @@ class TwitchPluginApi:
             print(f"[Error] open_twitch_web_login: {e}")
             return {"success": False, "error": str(e)}
 
+    def logout_twitch(self):
+        """Logs out current Twitch account, clears config and stops active sessions."""
+        try:
+            res = self.service.logout()
+            return {"success": res}
+        except Exception as e:
+            print(f"[Error] logout_twitch: {e}")
+            return {"success": False, "error": str(e)}
+
     def sync_twitch_session(self):
         """Forces reloading config, re-validating Twitch token and querying inventory immediately."""
         try:

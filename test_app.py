@@ -303,6 +303,29 @@ class TestModApi(unittest.TestCase):
         self.assertTrue(app.safe_move_window(None, 200, 200))
         print("[PASS] Twitch Drops Tactical HUD & Main Window dragging and lifecycle APIs verified.")
 
+    def test_twitch_logout(self):
+        # Setup simulated credentials
+        self.api.twitch_service.auth_token = "oauth:mock_token"
+        self.api.twitch_service.account_name = "MockUser"
+        self.api.twitch_service.user_id = "123456"
+        res = self.api.logout_twitch()
+        self.assertTrue(res.get("success", False))
+        self.assertEqual(self.api.twitch_service.auth_token, "")
+        self.assertEqual(self.api.twitch_service.account_name, "")
+        self.assertEqual(self.api.twitch_service.user_id, "")
+        print("[PASS] Twitch logout and account switching functionality verified.")
+
+    def test_active_modules_detection(self):
+        mods = self.api.get_active_modules()
+        self.assertIn("twitch", mods)
+        self.assertIn("dps", mods)
+        self.assertIsInstance(mods["twitch"], bool)
+        self.assertIsInstance(mods["dps"], bool)
+        status = self.api.get_status()
+        self.assertIn("activeModules", status)
+        self.assertEqual(status["activeModules"], mods)
+        print(f"[PASS] Active modules detection verified: {mods}")
+
 if __name__ == "__main__":
     unittest.main()
 

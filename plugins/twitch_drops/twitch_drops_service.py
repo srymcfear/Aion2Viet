@@ -189,6 +189,34 @@ class TwitchDropsService:
         self.validate_token()
         self._query_inventory()
 
+    def logout(self):
+        """Logs out current Twitch account, stops daemon miners, and wipes credentials."""
+        self.stop()
+        with self._lock:
+            self.auth_token = ""
+            self.account_name = ""
+            self.user_id = ""
+            self.latest_campaigns = []
+            self.minutes_mined = 0
+            self.current_channel = None
+            self.active_status_text = ""
+            self.blocked_by_unclaimed_drop = None
+            self._last_tracked_drop_id = None
+            self._last_tracked_minutes = -1
+            self._stuck_ticks_count = 0
+            self.oauth_state = {
+                "status": "idle",
+                "user_code": "",
+                "device_code": "",
+                "verification_uri": "",
+                "activate_url": "",
+                "expires_at": 0,
+                "error_message": ""
+            }
+            self._save_config()
+        self._safe_log("✔ Đã đăng xuất tài khoản Twitch thành công. Vui lòng kết nối tài khoản mới.", "blue")
+        return True
+
     # -------------------------------------------------------------------------
     # Exact DevilXD OAuth Device Code Login Formula
     # -------------------------------------------------------------------------
