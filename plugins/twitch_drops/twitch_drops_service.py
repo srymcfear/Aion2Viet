@@ -34,6 +34,17 @@ INVENTORY_PERSISTED_HASH = "8337eb8541b314040b0edde0c09c5c7a2783ba1960aa9edfbf3b
 CLAIM_PERSISTED_HASH = "a455deea71bdc9015b78eb49f4acfbce8baa7ccbedd28e549bb025bd0f751930"
 PLAYBACK_ACCESS_TOKEN_HASH = "ed230aa1e33e07eebb8928504583da78a5173989fadfb1ac94be06a04f3cdbe9"
 
+def _is_time_expired(time_str: str) -> bool:
+    """Checks whether an ISO 8601 UTC timestamp has passed."""
+    if not time_str:
+        return False
+    try:
+        clean = str(time_str).strip().replace("Z", "+00:00")
+        dt = datetime.datetime.fromisoformat(clean)
+        return datetime.datetime.now(datetime.timezone.utc) >= dt
+    except Exception:
+        return False
+
 class TwitchDropsService:
     def __init__(self, storage_dir: str, log_callback=None):
         self.storage_dir = storage_dir
@@ -467,6 +478,11 @@ class TwitchDropsService:
         campaigns = []
 
         for rc in raw_camps:
+            # 1. Filter out expired, ended, or cancelled campaigns
+            c_status = str(rc.get("status") or "").upper()
+            if c_status in ("EXPIRED", "ENDED", "CANCELLED") or _is_time_expired(rc.get("endAt")):
+                continue
+
             game_obj = rc.get("game") or {}
             game_title = game_obj.get("name") or game_obj.get("displayName") or rc.get("name") or "AION 2"
             timed_drops = []
@@ -477,6 +493,11 @@ class TwitchDropsService:
                 req_m = d.get("requiredMinutesWatched", 60)
                 claimed = self_edge.get("isClaimed", False)
                 drop_id = self_edge.get("dropInstanceID")
+
+                # If an unclaimed drop has expired, Twitch marks it 'This reward is no longer available'
+                # Skip it so it doesn't confuse users or stall the auto-miner
+                if not claimed and _is_time_expired(d.get("endAt")):
+                    continue
 
                 image_url = None
                 benefit_edges = d.get("benefitEdges") or []
@@ -491,7 +512,8 @@ class TwitchDropsService:
                     "currentMinutesWatched": curr,
                     "requiredMinutesWatched": req_m,
                     "isClaimed": claimed,
-                    "dropInstanceID": drop_id
+                    "dropInstanceID": drop_id,
+                    "endAt": d.get("endAt")
                 })
 
                 # Auto-claim check
@@ -499,10 +521,20 @@ class TwitchDropsService:
                     if drop_id not in self._notified_integrity_drops:
                         self._claim_drop_internal(drop_id, d.get("name", "Drop Item"), game_title)
 
+            # Skip campaigns that have no remaining valid drops
+            if not timed_drops:
+                continue
+
             campaigns.append({
                 "id": rc.get("id"),
                 "name": rc.get("name"),
-                "game": {"displayName": game_title},
+                "status": rc.get("status"),
+                "endAt": rc.get("endAt"),
+                "game": {
+                    "id": game_obj.get("id"),
+                    "name": game_title,
+                    "displayName": game_title
+                },
                 "timeBasedDrops": timed_drops
             })
 

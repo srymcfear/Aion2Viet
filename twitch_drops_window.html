@@ -217,6 +217,21 @@
       overflow-y: auto;
       padding-right: 4px;
     }
+    .matrix-campaign-header {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      background: rgba(0, 240, 255, 0.05);
+      border-left: 2px solid var(--neon-cyan);
+      padding: 3px 8px;
+      margin-top: 6px;
+      margin-bottom: 2px;
+      letter-spacing: 0.5px;
+      font-family: 'JetBrains Mono', sans-serif;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
     .matrix-item {
       background: var(--hud-panel);
       border: 1px solid rgba(255, 255, 255, 0.06);
@@ -801,8 +816,33 @@
       let html = '';
       let activeDropForMini = null;
 
-      campaigns.forEach((camp) => {
-        (camp.timeBasedDrops || []).forEach((drop) => {
+      // Filter active campaigns only
+      const activeCampaigns = campaigns.filter(camp => {
+        const campStatus = (camp.status || '').toUpperCase();
+        if (campStatus === 'EXPIRED' || campStatus === 'ENDED' || campStatus === 'CANCELLED') return false;
+        if (camp.endAt && new Date(camp.endAt).getTime() <= Date.now()) return false;
+        return true;
+      });
+
+      activeCampaigns.forEach((camp) => {
+        const drops = (camp.timeBasedDrops || []).filter(d => {
+          if (d.isClaimed) return true;
+          if (d.endAt && new Date(d.endAt).getTime() <= Date.now()) return false;
+          return true;
+        });
+
+        if (drops.length === 0) return;
+
+        if (activeCampaigns.length > 1) {
+          html += `
+            <div class="matrix-campaign-header">
+              <span>❖ ${camp.name || 'Chiến dịch Drops'}</span>
+              <span style="font-size: 8.5px; color: var(--text-dim); font-weight: normal;">${camp.game?.displayName || 'AION 2'}</span>
+            </div>
+          `;
+        }
+
+        drops.forEach((drop) => {
           const cur = drop.currentMinutesWatched || 0;
           const req = drop.requiredMinutesWatched || 60;
           const isReady = cur >= req && !drop.isClaimed;

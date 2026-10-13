@@ -234,6 +234,54 @@ class TestModApi(unittest.TestCase):
         self.api.twitch_service._reset_hls_stream()
         self.assertIsNone(self.api.twitch_service._media_playlist_url)
 
+        # Test expiration filtering
+        from twitch_drops_service import _is_time_expired
+        self.assertTrue(_is_time_expired("2020-01-01T00:00:00Z"))
+        self.assertFalse(_is_time_expired("2099-01-01T00:00:00Z"))
+        self.assertFalse(_is_time_expired(""))
+
+        # Test _query_inventory filtering with mock data
+        mock_raw_gql = {
+            "data": {
+                "currentUser": {
+                    "inventory": {
+                        "dropCampaignsInProgress": [
+                            {
+                                "id": "camp-expired",
+                                "name": "Expired Campaign",
+                                "status": "EXPIRED",
+                                "endAt": "2020-01-01T00:00:00Z",
+                                "timeBasedDrops": [
+                                    {"id": "d1", "name": "Item 1", "self": {"currentMinutesWatched": 10, "isClaimed": False}}
+                                ]
+                            },
+                            {
+                                "id": "camp-active",
+                                "name": "Active Campaign",
+                                "status": "ACTIVE",
+                                "endAt": "2099-01-01T00:00:00Z",
+                                "timeBasedDrops": [
+                                    {"id": "d2", "name": "Expired Drop", "endAt": "2020-01-01T00:00:00Z", "self": {"currentMinutesWatched": 5, "isClaimed": False}},
+                                    {"id": "d3", "name": "Valid Drop", "endAt": "2099-01-01T00:00:00Z", "self": {"currentMinutesWatched": 15, "isClaimed": False}}
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+        orig_make_gql = self.api.twitch_service._make_gql_request
+        try:
+            self.api.twitch_service._make_gql_request = lambda payload: mock_raw_gql
+            self.api.twitch_service._query_inventory()
+            self.assertEqual(len(self.api.twitch_service.latest_campaigns), 1)
+            active_c = self.api.twitch_service.latest_campaigns[0]
+            self.assertEqual(active_c["id"], "camp-active")
+            self.assertEqual(len(active_c["timeBasedDrops"]), 1)
+            self.assertEqual(active_c["timeBasedDrops"][0]["id"], "d3")
+        finally:
+            self.api.twitch_service._make_gql_request = orig_make_gql
+
         # Test external config mtime check
         self.api.twitch_service._check_external_config_update()
         print("[PASS] Twitch Drops Miner plugin API, target game discovery, HLS simulation, and Stuck Watchdog verified.")
