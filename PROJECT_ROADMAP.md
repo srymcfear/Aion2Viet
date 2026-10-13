@@ -1,6 +1,6 @@
 # 🚀 AION 2 TOOLS & VIỆT HÓA - TIẾN ĐỘ & LỘ TRÌNH PHÁT TRIỂN (PROJECT ROADMAP)
 *Dự án phát triển bởi: **Team FEΔR / SrymC (BER)***  
-*Cập nhật lần cuối: Tháng 10/2026 (Phiên bản hiện tại: **v1.1.3**)*
+*Cập nhật lần cuối: Tháng 10/2026 (Phiên bản hiện tại: **v1.1.4**)*
 
 
 ---
@@ -76,6 +76,12 @@ graph TD
 - [x] **DropsEnabled Channel Discovery:** Nâng cấp thuật toán quét danh mục, ưu tiên các kênh có gắn tag Drops chính thức và từ khóa Drops trong tiêu đề.
 - [x] **Stuck Progress Watchdog:** Tự động phát hiện khi tiến độ Drops bị đứng im sau 3 phút liên tiếp, tự động đưa kênh vào danh sách hạn chế 15 phút và chuyển sang kênh khác có Drops.
 - [x] **Cảnh báo Drop Tuần Tự Bị Chặn:** Phát hiện phần thưởng 100% chưa nhận đang chặn các phần thưởng tiếp theo, hiển thị cảnh báo nổi bật kèm nút chuyển nhanh tới kho Twitch.
+
+### ✅ Giai Đoạn 6: Hotfix v1.1.4 - Giả Lập Phát Luồng HLS & Khắc Phục Triệt Để Tiến Trình Drops
+- [x] **HLS Video Segment Playback Simulation:** Tự động lấy token phát luồng (`PlaybackAccessToken`), đàm phán master playlist qua `usher.ttvnw.net`, chọn luồng chất lượng thấp nhất và liên tục gửi request `HEAD` (mỗi 12 giây) tới các phân đoạn video `.ts` của Twitch CDN (tiêu thụ 0 MB video payload, giả lập 100% trình xem video thực tế).
+- [x] **Official Campaign Enrollment Verification (`AvailableDrops` GQL):** Kiểm tra trực tiếp qua API Twitch để xác thực streamer có chiến dịch AION 2 đang `ACTIVE` thực sự hay không, thưởng +500 điểm ưu tiên kênh hợp lệ.
+- [x] **Integer User ID Normalization:** Chuẩn hóa tham số `user_id` sang kiểu số nguyên (`int`) trong payload `minute-watched` theo đúng đặc tả của Twitch.
+- [x] **HLS Stream Lifecycle Cache:** Quản lý vòng đời bộ đệm phân đoạn HLS, tự động dọn dẹp cache khi đổi kênh phát hoặc dừng miner.
 
 ---
 
