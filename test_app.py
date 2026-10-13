@@ -216,9 +216,19 @@ class TestModApi(unittest.TestCase):
         self.assertEqual(self.api.twitch_service._last_tracked_minutes, -1)
         self.assertIsInstance(self.api.twitch_service._unresponsive_channels, dict)
 
+        # Test HLS playback simulation engine attributes
+        self.assertIsNone(self.api.twitch_service._media_playlist_url)
+        self.assertIsNone(self.api.twitch_service._media_playlist_login)
+        self.assertEqual(len(self.api.twitch_service._watched_segments), 0)
+        self.assertEqual(self.api.twitch_service._poll_hls_segments({}), 0)
+        self.assertFalse(self.api.twitch_service._check_channel_has_active_drops(None))
+        self.api.twitch_service._media_playlist_url = "https://example.com/stream.m3u8"
+        self.api.twitch_service._reset_hls_stream()
+        self.assertIsNone(self.api.twitch_service._media_playlist_url)
+
         # Test external config mtime check
         self.api.twitch_service._check_external_config_update()
-        print("[PASS] Twitch Drops Miner plugin API, target game discovery, and Stuck Watchdog verified.")
+        print("[PASS] Twitch Drops Miner plugin API, target game discovery, HLS simulation, and Stuck Watchdog verified.")
 
     def test_twitch_window_lifecycle(self):
         html_path = app.get_twitch_window_html_path()

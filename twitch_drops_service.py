@@ -12,10 +12,12 @@ import base64
 import gzip
 import datetime
 import threading
+import random
 import urllib.request
 import urllib.error
 import urllib.parse
 import webbrowser
+from collections import OrderedDict
 
 GQL_ENDPOINT = "https://gql.twitch.tv/gql"
 SPADE_ENDPOINT = "https://spade.twitch.tv/track"
@@ -30,6 +32,7 @@ OAUTH_VALIDATE_URL = "https://id.twitch.tv/oauth2/validate"
 # DevilXD's Exact GQL Persisted Queries
 INVENTORY_PERSISTED_HASH = "8337eb8541b314040b0edde0c09c5c7a2783ba1960aa9edfbf3bac16d0fec404"
 CLAIM_PERSISTED_HASH = "a455deea71bdc9015b78eb49f4acfbce8baa7ccbedd28e549bb025bd0f751930"
+PLAYBACK_ACCESS_TOKEN_HASH = "ed230aa1e33e07eebb8928504583da78a5173989fadfb1ac94be06a04f3cdbe9"
 
 class TwitchDropsService:
     def __init__(self, storage_dir: str, log_callback=None):
@@ -60,6 +63,12 @@ class TwitchDropsService:
         self._stuck_ticks_count = 0
         self._unresponsive_channels = {}
         self.blocked_by_unclaimed_drop = None
+
+        # HLS Stream Playback Simulation Engine
+        self._media_playlist_url = None
+        self._media_playlist_login = None
+        self._watched_segments = OrderedDict()
+        self._hls_lock = threading.Lock()
 
         # OAuth State (DevilXD Device Code Formula)
         self.oauth_state = {
@@ -364,6 +373,7 @@ class TwitchDropsService:
             self.active_status_text = ""
             self._stop_event.set()
 
+        self._reset_hls_stream()
         self._safe_log("Đã dừng Plugin Twitch Drops Miner.", "blue")
         return True
 
@@ -612,12 +622,45 @@ class TwitchDropsService:
             "gameName": str(game.get("name") or "")
         }
 
+    def _check_channel_has_active_drops(self, channel_id: str, game_name: str = "AION 2") -> bool:
+        """Verifies with Twitch GQL whether this specific channel is actively participating in drops."""
+        if not channel_id:
+            return False
+        query = {
+            "query": """
+            query AvailableDrops($channelID: ID!) {
+                channel(id: $channelID) {
+                    id
+                    viewerDropCampaigns {
+                        id
+                        name
+                        status
+                        game { id name }
+                    }
+                }
+            }
+            """,
+            "variables": {"channelID": str(channel_id)}
+        }
+        res = self._make_gql_request(query)
+        if not res:
+            return False
+        camps = res.get("data", {}).get("channel", {}).get("viewerDropCampaigns") or []
+        for c in camps:
+            if c.get("status") == "ACTIVE":
+                c_game = ((c.get("game") or {}).get("name") or "").lower()
+                target_g = (game_name or "aion 2").lower()
+                if not target_g or target_g in c_game or "aion" in c_game:
+                    return True
+        return False
+
     def _find_target_stream(self, game_slug: str = None):
         """
         Discovers the optimal active live stream for the campaign:
-        1. Prioritizes streams explicitly flagged with DropsEnabled tag or 'drops' in title
-        2. Filters out unresponsive/stuck channels
-        3. Sorts by drops eligibility and high viewership for maximum stability
+        1. Prioritizes streams verified with active Drops campaigns via Twitch AvailableDrops API
+        2. Prioritizes streams explicitly flagged with DropsEnabled tag or 'drops' in title
+        3. Filters out unresponsive/stuck channels
+        4. Sorts by drops eligibility and high viewership for maximum stability
         """
         target_game = self._get_active_target_game()
         slug_to_use = game_slug or target_game["slug"]
@@ -715,7 +758,12 @@ class TwitchDropsService:
             has_drops_in_title = any(kw in title for kw in ["[!drops]", "!drops", "[drops]", "drops", "drop on", "drops on", "drops enabled"])
             viewers = node.get("viewersCount", 0)
 
+            # Twitch Official Verification for active drop campaign
+            is_verified_drops = self._check_channel_has_active_drops(broadcaster.get("id"), game_name)
+
             score = 0
+            if is_verified_drops:
+                score += 500
             if has_drops_tag:
                 score += 100
             if has_drops_in_title:
@@ -726,7 +774,8 @@ class TwitchDropsService:
 
             scored_candidates.append({
                 "score": score,
-                "hasDrops": has_drops_tag or has_drops_in_title,
+                "hasDrops": is_verified_drops or has_drops_tag or has_drops_in_title,
+                "isVerifiedDrops": is_verified_drops,
                 "login": broadcaster.get("login"),
                 "displayName": broadcaster.get("displayName") or broadcaster.get("login"),
                 "channelId": str(broadcaster.get("id")),
@@ -745,6 +794,147 @@ class TwitchDropsService:
         best = scored_candidates[0]
         return best
 
+    def _reset_hls_stream(self):
+        """Resets cached HLS media playlist and seen segments."""
+        with self._hls_lock:
+            self._media_playlist_url = None
+            self._media_playlist_login = None
+            self._watched_segments.clear()
+
+    def _get_stream_hls_url(self, streamer_login: str) -> str:
+        """
+        Fetches the lowest bandwidth HLS media playlist (.m3u8) for the stream.
+        Simulates player token acquisition and master playlist negotiation.
+        """
+        with self._hls_lock:
+            if self._media_playlist_login == streamer_login and self._media_playlist_url:
+                return self._media_playlist_url
+
+        gql_body = {
+            "operationName": "PlaybackAccessToken",
+            "extensions": {
+                "persistedQuery": {
+                    "version": 1,
+                    "sha256Hash": PLAYBACK_ACCESS_TOKEN_HASH
+                }
+            },
+            "variables": {
+                "isLive": True,
+                "login": streamer_login,
+                "isVod": False,
+                "vodID": "",
+                "playerType": "site",
+                "platform": "web"
+            }
+        }
+        client_id_to_use = self.client_id or TWITCH_WEB_CLIENT_ID
+        headers = {
+            "Client-Id": client_id_to_use,
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+        }
+        if self.auth_token:
+            headers["Authorization"] = f"OAuth {self.auth_token}"
+
+        try:
+            req_data = json.dumps(gql_body).encode("utf-8")
+            req = urllib.request.Request(GQL_ENDPOINT, data=req_data, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            tok = data.get("data", {}).get("streamPlaybackAccessToken", {})
+            sig = tok.get("signature")
+            val = tok.get("value")
+            if not sig or not val:
+                return None
+
+            rand_p = random.randint(100000, 999999)
+            usher_url = (
+                f"https://usher.ttvnw.net/api/channel/hls/{streamer_login}.m3u8?"
+                f"sig={sig}&token={urllib.parse.quote(val)}&allow_source=true&fast_bread=true&p={rand_p}"
+            )
+            req_usher = urllib.request.Request(
+                usher_url,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            )
+            with urllib.request.urlopen(req_usher, timeout=8) as resp_u:
+                master_playlist = resp_u.read().decode("utf-8")
+
+            qualities = [
+                line.strip() for line in master_playlist.splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
+            if not qualities:
+                return None
+
+            # Lowest bandwidth stream variant (usually 160p, 360p or audio-only)
+            selected_media_url = qualities[-1]
+            with self._hls_lock:
+                self._media_playlist_url = selected_media_url
+                self._media_playlist_login = streamer_login
+                self._watched_segments.clear()
+            return selected_media_url
+        except Exception:
+            return None
+
+    def _poll_hls_segments(self, stream_info: dict) -> int:
+        """
+        Polls the active HLS stream playlist and issues lightweight HEAD requests
+        for new rolling video segments (.ts chunks).
+        Consumes virtually 0 bandwidth (HEAD returns response headers with empty body)
+        while proving active playback to Twitch CDN and Drops tracking servers.
+        """
+        if not stream_info:
+            return 0
+        login = stream_info.get("login")
+        if not login:
+            return 0
+
+        media_url = self._get_stream_hls_url(login)
+        if not media_url:
+            return 0
+
+        try:
+            req_media = urllib.request.Request(
+                media_url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Connection": "close"
+                }
+            )
+            with urllib.request.urlopen(req_media, timeout=6) as resp_m:
+                media_m3u8 = resp_m.read().decode("utf-8")
+
+            new_segments_hit = 0
+            for line in media_m3u8.splitlines():
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    if not line.startswith("http"):
+                        line = urllib.parse.urljoin(media_url, line)
+
+                    with self._hls_lock:
+                        already_seen = line in self._watched_segments
+
+                    if not already_seen:
+                        req_head = urllib.request.Request(
+                            line,
+                            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
+                            method="HEAD"
+                        )
+                        try:
+                            with urllib.request.urlopen(req_head, timeout=3) as resp_h:
+                                if resp_h.status == 200:
+                                    with self._hls_lock:
+                                        self._watched_segments[line] = True
+                                        new_segments_hit += 1
+                                        if len(self._watched_segments) > 128:
+                                            self._watched_segments.popitem(last=False)
+                        except Exception:
+                            pass
+            return new_segments_hit
+        except Exception:
+            self._reset_hls_stream()
+            return 0
+
     def _send_watch_tick(self, stream_info: dict) -> bool:
         if not self.auth_token or not self.user_id or not stream_info:
             return False
@@ -755,6 +945,7 @@ class TwitchDropsService:
         channel_id = stream_info["channelId"]
         game_name = stream_info.get("gameName") or "AION 2"
         game_id = stream_info.get("gameId") or "771448419"
+        user_id_val = int(self.user_id) if str(self.user_id).isdigit() else self.user_id
 
         watch_event = [
             {
@@ -772,7 +963,7 @@ class TwitchDropsService:
                     "logged_in": True,
                     "minutes_logged": 1,
                     "muted": False,
-                    "user_id": str(self.user_id)
+                    "user_id": user_id_val
                 }
             }
         ]
@@ -890,6 +1081,7 @@ class TwitchDropsService:
                             self.current_channel = None
                             self._stuck_ticks_count = 0
                             self._last_tracked_minutes = -1
+                        self._reset_hls_stream()
                     else:
                         # Update broadcast ID in case streamer restarted stream
                         with self._lock:
@@ -906,8 +1098,9 @@ class TwitchDropsService:
                             self.current_channel = stream
                             self._stuck_ticks_count = 0
                             self._last_tracked_minutes = -1
+                        self._reset_hls_stream()
                         viewers_cnt = stream.get("viewers", 0)
-                        has_drop_badge = " [Có Drops]" if stream.get("hasDrops") else ""
+                        has_drop_badge = " [Có Drops Xác Thực]" if stream.get("isVerifiedDrops") else (" [Có Drops]" if stream.get("hasDrops") else "")
                         self._safe_log(
                             f"📺 Đang tự động cày ngầm: [{stream['displayName']}]{has_drop_badge} ({stream.get('gameName', 'AION 2')} - {viewers_cnt:,} viewers)",
                             "success"
@@ -921,7 +1114,11 @@ class TwitchDropsService:
                             time.sleep(1)
                         continue
 
-                # 4. Send 1 minute watch tick
+                # 4. Active HLS Video Segment Playback Simulation
+                # Issue HEAD requests for live .ts segments before sending Spade event
+                self._poll_hls_segments(self.current_channel)
+
+                # 5. Send 1 minute watch tick (Spade GQL + Track)
                 succeeded = self._send_watch_tick(self.current_channel)
                 if succeeded:
                     with self._lock:
@@ -970,7 +1167,7 @@ class TwitchDropsService:
                                     # Stuck for 3 consecutive minutes: auto switch channel!
                                     cur_login = self.current_channel["login"]
                                     self._safe_log(
-                                        f"⚠️ Tiến độ Drops đứng im tại [{ch_name}] sau 3 phút (kênh chưa kích hoạt Drops hoặc không tính điểm). Đang tự động chuyển sang kênh khác có Drops...",
+                                        f"⚠️ Tiến độ Drops đứng im tại [{ch_name}] sau 3 phút (kênh không tích lũy điểm thưởng). Đang tự động chuyển sang kênh khác có Drops...",
                                         "blue"
                                     )
                                     with self._lock:
@@ -978,6 +1175,7 @@ class TwitchDropsService:
                                         self.current_channel = None
                                         self._stuck_ticks_count = 0
                                         self._last_tracked_minutes = -1
+                                    self._reset_hls_stream()
                         else:
                             self._last_tracked_drop_id = drop_uid
                             self._last_tracked_minutes = cur
@@ -994,6 +1192,7 @@ class TwitchDropsService:
                             self.current_channel = new_stream
                             self._stuck_ticks_count = 0
                             self._last_tracked_minutes = -1
+                        self._reset_hls_stream()
                         self._safe_log(
                             f"🔄 Chuyển sang kênh phát sóng tiếp theo: [{new_stream['displayName']}]",
                             "blue"
@@ -1001,12 +1200,21 @@ class TwitchDropsService:
             except Exception as e:
                 print(f"[TwitchDrops] Worker loop exception: {e}")
 
-            # 5. Wait ~59s before next minute tick
-            for _ in range(59):
+            # 6. Smooth ~59s wait with active rolling HLS segment polling every 12s
+            for _ in range(5):
+                for _ in range(12):
+                    if self._stop_event.is_set():
+                        break
+                    time.sleep(1)
                 if self._stop_event.is_set():
                     break
-                time.sleep(1)
+                # Keep live HLS segment buffers actively acknowledged on Twitch CDN
+                if self.current_channel:
+                    self._poll_hls_segments(self.current_channel)
+
         with self._lock:
             self.current_channel = None
             self.active_status_text = ""
+        self._reset_hls_stream()
+
 
