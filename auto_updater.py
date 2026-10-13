@@ -44,6 +44,14 @@ class AutoUpdater:
             "error": None
         }
 
+        ctx = None
+        try:
+            import certifi
+            import ssl
+            ctx = ssl.create_default_context(cafile=certifi.where())
+        except Exception:
+            pass
+
         try:
             req = urllib.request.Request(
                 self.api_url,
@@ -52,7 +60,7 @@ class AutoUpdater:
                     "Accept": "application/vnd.github.v3+json"
                 }
             )
-            with urllib.request.urlopen(req, timeout=8) as resp:
+            with urllib.request.urlopen(req, timeout=8, context=ctx) as resp:
                 if resp.status == 200:
                     data = json.loads(resp.read().decode("utf-8"))
                     tag = str(data.get("tag_name", "")).strip()
@@ -123,13 +131,21 @@ class AutoUpdater:
         os.makedirs(os.path.dirname(os.path.abspath(dest_path)), exist_ok=True)
         temp_dest = dest_path + f".part_{int(time.time())}"
 
+        ctx = None
+        try:
+            import certifi
+            import ssl
+            ctx = ssl.create_default_context(cafile=certifi.where())
+        except Exception:
+            pass
+
         req = urllib.request.Request(
             url,
             headers={"User-Agent": f"F-Aion-2-Tools-Updater/{self.current_version}"}
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
                 total_size = int(resp.headers.get("content-length", 0))
                 downloaded = 0
                 start_time = time.time()

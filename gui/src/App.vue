@@ -733,15 +733,9 @@ async function handleCheckUpdate() {
   try {
     const sec = await pyApi.check_update();
     applySecurityInfo(sec);
-    setTimeout(async () => {
-      if (pyApi.get_security_info) {
-        const updated = await pyApi.get_security_info();
-        applySecurityInfo(updated);
-      }
-      isCheckingUpdate.value = false;
-    }, 1500);
   } catch (e) {
     console.error(e);
+  } finally {
     isCheckingUpdate.value = false;
   }
 }
@@ -868,6 +862,10 @@ function skipSplash() {
 }
 
 onMounted(() => {
+  (window as any).onSecurityUpdate = (sec: any) => {
+    applySecurityInfo(sec);
+  };
+
   // Fast & smooth Splash Screen Sequence (~2s)
   const splashInterval = setInterval(() => {
     splashProgress.value += 1;

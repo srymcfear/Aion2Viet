@@ -639,6 +639,13 @@ class ModApi:
             info = updater.fetch_release_info()
 
             with self._lock:
+                if info.get("error"):
+                    self.security_info["message"] = f"Lỗi kiểm tra cập nhật: {info['error']}"
+                    self.security_info["lastChecked"] = time.strftime("%H:%M:%S")
+                    self.security_info["isChecking"] = False
+                    self.log(f"⚠️ Kiểm tra cập nhật thất bại: {info['error']}", "yellow")
+                    return
+
                 self.security_info["status"] = info.get("security_status", "active")
                 self.security_info["message"] = info.get("security_message", "Hệ thống hoạt động bình thường")
                 self.security_info["latestVersion"] = info.get("latest_version", CURRENT_VERSION)
@@ -655,6 +662,14 @@ class ModApi:
             else:
                 self.log("✔ Bạn đang sử dụng phiên bản mới nhất.", "success")
 
+            # Push state directly to UI
+            if hasattr(self, 'window') and self.window:
+                try:
+                    sec_payload = json.dumps(dict(self.security_info))
+                    self.window.evaluate_js(f"window.onSecurityUpdate && window.onSecurityUpdate({sec_payload})")
+                except Exception:
+                    pass
+
         except Exception as e:
             with self._lock:
                 self.security_info["message"] = f"Lỗi kiểm tra cập nhật: {e}"
@@ -662,7 +677,7 @@ class ModApi:
                 self.security_info["isChecking"] = False
 
     def check_update(self):
-        threading.Thread(target=self._check_update_task, daemon=True).start()
+        self._check_update_task()
         with self._lock:
             return dict(self.security_info)
 
