@@ -21,7 +21,7 @@ import webview
 import ctypes
 from ctypes import wintypes
 from twitch_drops_service import TwitchDropsService
-from auto_updater import AutoUpdater
+from auto_updater import AutoUpdater, DEFAULT_GITHUB_REPO
 
 def apply_dark_titlebar(win):
     """

@@ -65,6 +65,14 @@ class TestModApi(unittest.TestCase):
         self.assertFalse(is_newer_version("0.9.9", "1.0.0"))
         print("[PASS] Semver version comparison works as expected")
 
+    def test_check_update_task(self):
+        self.api._check_update_task()
+        msg = self.api.security_info.get("message", "")
+        self.assertNotIn("NameError", msg)
+        self.assertNotIn("Lỗi kiểm tra cập nhật: name", msg)
+        self.assertIsNotNone(self.api.security_info.get("latestVersion"))
+        print(f"[PASS] Check update task executed cleanly, latest={self.api.security_info.get('latestVersion')}")
+
 
 
     def test_detect_game_dir(self):
