@@ -305,14 +305,11 @@ def get_twitch_window_html_path():
 def get_map_window_html_path():
     b_dir = get_bundle_dir()
     candidates = [
-        os.path.join(b_dir, "map_overlay_window.html"),
-        os.path.join(b_dir, "gui", "dist", "map_overlay_window.html"),
-        os.path.join(ROOT_DIR, "map_overlay_window.html"),
-        os.path.join(ROOT_DIR, "gui", "dist", "map_overlay_window.html"),
-        os.path.join(ROOT_DIR, "gui", "public", "map_overlay_window.html"),
+        os.path.join(b_dir, "plugins", "map_overlay", "map_overlay_window.html"),
         os.path.join(ROOT_DIR, "plugins", "map_overlay", "map_overlay_window.html"),
-        os.path.join(os.path.dirname(sys.executable), "map_overlay_window.html"),
         os.path.join(os.path.dirname(sys.executable), "plugins", "map_overlay", "map_overlay_window.html"),
+        os.path.join(b_dir, "gui", "dist", "map_overlay_window.html"),
+        os.path.join(ROOT_DIR, "gui", "dist", "map_overlay_window.html"),
     ]
     for p in candidates:
         if os.path.isfile(p):
