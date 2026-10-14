@@ -644,7 +644,7 @@ async function handleLaunchMapOverlay(mode: 'full' | 'compact' = 'full') {
     } else {
       const w = mode === 'compact' ? 380 : 980;
       const h = mode === 'compact' ? 520 : 660;
-      window.open(`map_overlay_window.html?mode=${mode}`, '_blank', `width=${w},height=${h}`);
+      window.open(`map_overlay_window.html#mode=${mode}`, '_blank', `width=${w},height=${h}`);
       addLog(`ℹ Đã mở [${modeLabel}] trong trình duyệt.`, 'success');
     }
   } catch (e: any) {

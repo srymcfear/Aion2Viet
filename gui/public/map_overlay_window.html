@@ -538,12 +538,20 @@
     const ctx = canvas ? canvas.getContext('2d') : null;
 
     function init() {
-      // Read URL parameter ?mode= or localStorage
+      // Read hash #mode= or URL search or localStorage
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlMode = urlParams.get('mode');
-        if (urlMode === 'compact' || urlMode === 'full') {
-          currentMode = urlMode;
+        let detectedMode = null;
+        if (window.location.hash) {
+          if (window.location.hash.toLowerCase().includes('compact')) detectedMode = 'compact';
+          else if (window.location.hash.toLowerCase().includes('full')) detectedMode = 'full';
+        }
+        if (!detectedMode && window.location.search) {
+          const urlParams = new URLSearchParams(window.location.search);
+          const urlMode = urlParams.get('mode');
+          if (urlMode === 'compact' || urlMode === 'full') detectedMode = urlMode;
+        }
+        if (detectedMode) {
+          currentMode = detectedMode;
         } else {
           const savedMode = localStorage.getItem('fear_map_mode');
           if (savedMode === 'compact' || savedMode === 'full') currentMode = savedMode;
@@ -566,8 +574,9 @@
         if (api && api.get_status) {
           api.get_status().then(status => {
             if (status) {
-              const urlParams = new URLSearchParams(window.location.search);
-              if (!urlParams.get('mode') && status.compact_mode) {
+              if (status.initial_mode) {
+                setMode(status.initial_mode);
+              } else if (status.compact_mode) {
                 setMode('compact');
               }
               if (status.active_route_id && routesData[status.active_route_id]) {

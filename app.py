@@ -1232,7 +1232,7 @@ class ModApi:
             else:
                 html_path = get_map_window_html_path()
                 if html_path:
-                    webbrowser.open(f"file:///{os.path.abspath(html_path).replace(os.sep, '/')}?mode={target_mode}")
+                    webbrowser.open(f"file:///{os.path.abspath(html_path).replace(os.sep, '/')}#mode={target_mode}")
                     return True
                 self.log("❌ Không tìm thấy map_overlay_window.html hoặc map_overlay_app.py.", "red")
                 return False

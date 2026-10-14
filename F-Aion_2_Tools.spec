@@ -11,8 +11,8 @@ a = Analysis(
     datas=[
         ('release/AION2_VietHoa_Standalone/Data', 'Data'),
         ('gui/dist/index.html', 'gui/dist'),
-        ('gui/dist/twitch_drops_window.html', 'gui/dist'),
         ('twitch_drops_window.html', '.'),
+        ('plugins/map_overlay/map_overlay_window.html', '.'),
         ('plugins/map_overlay', 'plugins/map_overlay'),
         ('plugins/twitch_drops', 'plugins/twitch_drops'),
         ('dps_meter', 'dps_meter'),

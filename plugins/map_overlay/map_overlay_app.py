@@ -114,11 +114,18 @@ def apply_dark_titlebar(win):
     threading.Thread(target=_worker, daemon=True).start()
 
 class MapOverlayPluginApi:
-    def __init__(self):
+    def __init__(self, initial_mode=None):
         self.service = MapOverlayService()
+        self.initial_mode = initial_mode
+        if initial_mode == "compact":
+            self.service.compact_mode = True
+        elif initial_mode == "full":
+            self.service.compact_mode = False
 
     def get_status(self):
-        return self.service.get_status()
+        status = self.service.get_status()
+        status["initial_mode"] = self.initial_mode
+        return status
 
     def set_progress(self, route_id, step_index):
         return self.service.set_progress(route_id, step_index)
@@ -245,8 +252,6 @@ def main():
         print(f"[Error] Missing HTML file: {html_file}")
         sys.exit(1)
 
-    api = MapOverlayPluginApi()
-
     requested_mode = None
     for i, arg in enumerate(sys.argv):
         if arg in ("--mode", "-m") and i + 1 < len(sys.argv):
@@ -254,19 +259,21 @@ def main():
 
     if requested_mode == "compact":
         is_compact = True
-        api.service.compact_mode = True
     elif requested_mode == "full":
         is_compact = False
-        api.service.compact_mode = False
     else:
-        is_compact = bool(api.service.compact_mode)
+        temp_srv = MapOverlayService()
+        is_compact = bool(temp_srv.compact_mode)
 
     target_mode = "compact" if is_compact else "full"
+    api = MapOverlayPluginApi(initial_mode=target_mode)
+
     init_w = 380 if is_compact else 980
     init_h = 520 if is_compact else 660
     init_on_top = bool(api.service.always_on_top if is_compact else False)
 
-    target_url = f"file:///{os.path.abspath(html_file).replace(os.sep, '/')}?mode={target_mode}"
+    # Use hash fragment #mode= instead of query string ?mode= to avoid Windows path syntax errors
+    target_url = f"file:///{os.path.abspath(html_file).replace(os.sep, '/')}#mode={target_mode}"
 
     global _window
     _window = webview.create_window(
