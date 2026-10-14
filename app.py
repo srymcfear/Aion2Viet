@@ -1217,7 +1217,13 @@ class ModApi:
                     [map_exe, "--fear-launcher", SECURITY_KEY_HASH, "--mode", target_mode],
                     cwd=map_dir
                 )
+            elif getattr(sys, 'frozen', False):
+                # When frozen as an EXE, dispatch to sub-module entrypoint
+                _map_process = subprocess.Popen(
+                    [sys.executable, "--fear-map-overlay", "--fear-launcher", SECURITY_KEY_HASH, "--mode", target_mode]
+                )
             elif os.path.isfile(map_script):
+                # In development mode, invoke via Python interpreter
                 map_dir = os.path.dirname(map_script)
                 _map_process = subprocess.Popen(
                     [sys.executable, map_script, "--fear-launcher", SECURITY_KEY_HASH, "--mode", target_mode],
@@ -1722,4 +1728,14 @@ def main():
     webview.start(debug=False, private_mode=False, storage_path=cache_dir)
 
 if __name__ == "__main__":
+    # Check if launched as a sub-module / plugin
+    if any(arg in ("--fear-map-overlay", "--map-overlay") or "map_overlay_app" in arg for arg in sys.argv):
+        try:
+            sys.path.insert(0, os.path.join(ROOT_DIR, "plugins", "map_overlay"))
+            from plugins.map_overlay import map_overlay_app
+            map_overlay_app.main()
+        except Exception as e:
+            print(f"[Error] Failed to launch map overlay sub-process: {e}")
+        sys.exit(0)
+
     main()

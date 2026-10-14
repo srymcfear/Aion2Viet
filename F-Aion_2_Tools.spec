@@ -33,7 +33,9 @@ a = Analysis(
         're',
         'twitch_drops_service',
         'auto_updater',
-        'zipfile'
+        'zipfile',
+        'plugins.map_overlay.map_overlay_app',
+        'plugins.map_overlay.map_overlay_service'
     ],
     hookspath=[],
     hooksconfig={},

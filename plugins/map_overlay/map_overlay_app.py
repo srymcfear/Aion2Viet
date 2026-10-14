@@ -22,7 +22,10 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-from map_overlay_service import MapOverlayService
+try:
+    from map_overlay_service import MapOverlayService
+except ImportError:
+    from plugins.map_overlay.map_overlay_service import MapOverlayService
 
 SECURITY_KEY_HASH = "4eb733f752b4f4e3f25fcde3424c38f92435721355b8c981e1e773164126da90"
 _window = None
@@ -68,11 +71,12 @@ def get_app_storage_dir():
 def get_html_path():
     b_dir = get_bundle_dir()
     candidates = [
+        os.path.join(b_dir, "plugins", "map_overlay", "map_overlay_window.html"),
         os.path.join(b_dir, "map_overlay_window.html"),
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "map_overlay_window.html"),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "map_overlay_window.html"),
-        os.path.join(os.path.dirname(sys.executable), "map_overlay_window.html"),
         os.path.join(os.path.dirname(sys.executable), "plugins", "map_overlay", "map_overlay_window.html"),
+        os.path.join(os.path.dirname(sys.executable), "map_overlay_window.html"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "plugins", "map_overlay", "map_overlay_window.html"),
     ]
     for c in candidates:
         if os.path.isfile(c):
