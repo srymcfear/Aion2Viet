@@ -294,34 +294,6 @@
               </span>
               <span class="text-[9px] text-emerald-400/80 border border-emerald-500/30 px-1.5 py-0.2 rounded bg-emerald-950/40 font-bold">KHÓA NHẤN</span>
             </div>
-
-            <!-- Map Overlay Dual Action Buttons (Demo 1 vs Demo 2) -->
-            <div v-else-if="tool.id === 'map' && tool.active" class="pt-1.5 border-t border-sky-900/30 flex flex-col gap-1.5">
-              <div class="flex items-center gap-1.5">
-                <button 
-                  @click.stop="handleLaunchMapOverlay('full')"
-                  class="flex-1 py-1.5 px-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/40 text-sky-200 text-[10px] font-mono font-bold transition-all flex items-center justify-center gap-1 active:scale-95 shadow-sm"
-                  title="Mở Demo 1: Bản đồ chiến thuật toàn cảnh đầy đủ tính năng"
-                >
-                  <span>🗺️</span>
-                  <span>Demo 1 (Toàn Cảnh)</span>
-                </button>
-                <button 
-                  @click.stop="handleLaunchMapOverlay('compact')"
-                  class="flex-1 py-1.5 px-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/40 text-cyan-200 text-[10px] font-mono font-bold transition-all flex items-center justify-center gap-1 active:scale-95 shadow-sm"
-                  title="Mở Demo 2: Bảng ghim mini nổi đè lên game AION 2 (Phím F9 đổi mode)"
-                >
-                  <span>📌</span>
-                  <span>Demo 2 (Ghim Game)</span>
-                </button>
-              </div>
-              <div class="text-[9px] font-mono text-slate-400 flex items-center justify-between px-0.5">
-                <span>PHÍM TẮT: [F9] ĐỔI CHẾ ĐỘ</span>
-                <span class="text-cyan-400">ZERO-LAG (&lt;0.2% CPU)</span>
-              </div>
-            </div>
-
-            <!-- Other tools standard action row -->
             <div v-else-if="tool.active" class="pt-1 flex items-center justify-between text-[10px] font-mono border-t border-purple-900/30 text-purple-300">
               <span class="flex items-center gap-1">
                 <span v-if="launchingTool === tool.id" class="text-sky-300 animate-pulse font-bold">⚡ Đang mở...</span>
@@ -559,21 +531,13 @@ const logs = ref<LogItem[]>([
   { time: new Date().toLocaleTimeString(), text: 'Khởi tạo hệ thống quản lý AION 2.', type: 'blue' }
 ]);
 
-const activeModules = ref<{ [key: string]: boolean }>({ twitch: false, dps: false, map: false });
+const activeModules = ref<{ [key: string]: boolean }>({ twitch: false, dps: false });
 
 function isModuleActive(toolId: string) {
   return !!activeModules.value[toolId];
 }
 
 const toolsList = [
-  {
-    id: 'map',
-    title: 'Tactical Map & Timers Overlay',
-    badge: 'FEΔR PLUGIN',
-    desc: 'Bản đồ chiến thuật, dẫn đường lộ trình cày cấp 1-45 & đếm ngược Boss/Rift (Zero-lag).',
-    actionText: 'Mở Bản Đồ & HUD',
-    active: true
-  },
   {
     id: 'dps',
     title: 'AION 2 DPS Meter',
@@ -615,45 +579,12 @@ function handleToolClick(tool: any) {
     addLog(`Cửa sổ [${tool.title}] hiện đang mở và đang hoạt động. Vui lòng đóng cửa sổ trước khi mở lại.`, 'blue');
     return;
   }
-  if (tool.id === 'map') {
-    handleLaunchMapOverlay();
-  } else if (tool.id === 'dps') {
+  if (tool.id === 'dps') {
     handleLaunchDpsMeter();
   } else if (tool.id === 'twitch') {
     handleLaunchTwitchWindow();
   } else {
     addLog(`Công cụ [${tool.title}] đang trong lộ trình phát triển của Team FEΔR.`, 'blue');
-  }
-}
-
-async function handleLaunchMapOverlay(mode: 'full' | 'compact' = 'full') {
-  launchingTool.value = 'map';
-  const modeLabel = mode === 'compact' ? 'Demo 2 (In-Game Plaque)' : 'Demo 1 (Toàn Cảnh Tactical Map)';
-  addLog(`Đang mở AION 2 Tactical Map Overlay [${modeLabel}]...`, 'blue');
-  const pyApi = (window as any).pywebview?.api;
-  activeModules.value.map = true;
-  try {
-    if (pyApi && pyApi.launch_map_overlay) {
-      const ok = await pyApi.launch_map_overlay(mode);
-      if (ok) {
-        addLog(`✔ Đã mở [${modeLabel}] thành công. Nhấn [F9] trong game để chuyển đổi chế độ.`, 'success');
-      } else {
-        addLog('❌ Không thể mở Map Overlay (Backend trả về False).', 'red');
-        activeModules.value.map = false;
-      }
-    } else {
-      const w = mode === 'compact' ? 380 : 980;
-      const h = mode === 'compact' ? 520 : 660;
-      window.open(`map_overlay_window.html#mode=${mode}`, '_blank', `width=${w},height=${h}`);
-      addLog(`ℹ Đã mở [${modeLabel}] trong trình duyệt.`, 'success');
-    }
-  } catch (e: any) {
-    addLog(`❌ Lỗi ngoại lệ khi mở Map Overlay: ${e}`, 'red');
-    activeModules.value.map = false;
-  } finally {
-    setTimeout(() => {
-      launchingTool.value = null;
-    }, 800);
   }
 }
 

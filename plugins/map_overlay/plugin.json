@@ -1,8 +1,0 @@
-{
-  "name": "aion2_map_overlay",
-  "version": "1.0.0",
-  "displayName": "AION 2 Tactical Map & Timers Overlay",
-  "description": "Tactical route cartographer, leveling checkpoint guidance, and event/boss timers for AION 2 with zero game lag.",
-  "author": "FEAR Team / SrymC",
-  "entry": "map_overlay_app.py"
-}
