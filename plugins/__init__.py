@@ -1,1 +1,0 @@
-# FEΔR Plugins Package
