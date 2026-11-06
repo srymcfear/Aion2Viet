@@ -1,3 +1,3 @@
 ver:"3.0.1",
 boot:"active"
-active_lock_bao
+active_maintenance_locked
