@@ -1,3 +1,2 @@
-ver:"3.0.1",
+ver : "3.0.1"
 boot:"active"
-active_maintenance_locked
