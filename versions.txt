@@ -1,2 +1,2 @@
-ver : "3.2.5"
+ver : "3.2.6"
 boot:"active"
