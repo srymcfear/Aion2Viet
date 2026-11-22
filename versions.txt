@@ -1,2 +1,2 @@
-ver : "3.6.0"
+ver : "3.7.0"
 boot:"active"
