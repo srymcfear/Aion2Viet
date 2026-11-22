@@ -18,3 +18,4 @@ active_lock_bao
 3.3.2:active_lock_bao
 3.5.0:active_lock_bao
 3.5.1:active_lock_bao
+3.6.0:active_lock_bao
