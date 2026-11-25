@@ -25,3 +25,4 @@ active_lock_bao
 3.8.1:active_lock_bao
 3.9.0:active_lock_bao
 3.9.1:active_lock_bao
+3.9.2:active_lock_bao
