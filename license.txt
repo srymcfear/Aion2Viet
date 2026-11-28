@@ -33,3 +33,4 @@ active_lock_bao
 4.0.3:active_lock_bao
 4.0.4:active_lock_bao
 4.0.5:active_lock_bao
+4.0.6:active_lock_bao
